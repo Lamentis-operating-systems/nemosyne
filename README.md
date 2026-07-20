@@ -34,22 +34,24 @@ NSIT sits between a normal codebase and an AI system:
 authoritative source
         │
         ▼
-language adapter ──► canonical program model ──► compact NSIT view
-                                                        │
-                                                        ▼
-                                                   AI proposal
-                                                        │
-                                                        ▼
-native source diff ◄── validated NSIT change ◄── NSIT validator
+language-specific encoder ──► canonical program model ──► compact NSIT view
+                                                               │
+                                                               ▼
+                                                          AI proposal
+                                                               │
+                                                               ▼
+native source diff ◄── decoder / applier ◄── validated NSIT change
         │
         ▼
 compiler, tests, and repository review
 ```
 
 The source files, build configuration, and tests remain authoritative. An NSIT document
-is derived for a task and may be discarded afterward. An AI proposal is never accepted
-because it is syntactically valid NSIT; it must be projected back into ordinary source
-and reviewed with the language's native tools.
+is derived for a task and may be discarded afterward. A version-matched decoder/applier
+turns a validated NSIT change into a candidate source diff. If it cannot map a change
+within the declared fidelity contract, it must fail rather than silently omit or guess
+source. An AI proposal is never accepted because it is syntactically valid NSIT; the
+candidate source diff must be reviewed with the language's native tools.
 
 For example, a language adapter might represent a conventional function conceptually
 as:
@@ -67,8 +69,9 @@ The name describes the two intended responsibilities:
 - **System Identity** concerns how modules, types, symbols, fields, and relationships
   can be referenced without repeating their full source spelling. The required
   stability of those references remains a design question.
-- **Typography** concerns a compact, deterministic notation for those identities and
-  the operations that inspect or change them.
+- **Typography** concerns a compact notation for those identities and the operations
+  that inspect or change them. For a fixed source subset, adapter version, schema, and
+  configuration, encoding must produce identical NSIT output.
 
 Compactness must not come from silently deleting information required to understand,
 reconstruct, or validate a change.
@@ -81,8 +84,8 @@ The first useful NSIT implementation must preserve these boundaries:
    language or the only copy of a codebase.
 2. **Adapters are language-specific.** Unsupported syntax must fail explicitly rather
    than be guessed or dropped.
-3. **Changes are reversible and inspectable.** A proposed NSIT change becomes a normal
-   source diff before acceptance.
+3. **Changes are inspectable and rejectable.** A proposed NSIT change becomes a normal
+   source diff before acceptance; unsupported or lossy reverse mappings fail explicitly.
 4. **Verification uses native tools.** Parsing, type checking, compilation, tests, and
    repository policy remain part of the decision.
 5. **Token savings include overhead.** Measurements include the schema, symbol tables,
@@ -114,6 +117,7 @@ At minimum, results should report:
 
 - input and output tokens for named tokenizers;
 - all NSIT context required by the model;
+- deterministic encoding results for fixed source, adapter, schema, and configuration;
 - successful structural round trips for the supported subset;
 - native parse, build, and test results after reconstruction;
 - task success and repair attempts for AI-authored changes;

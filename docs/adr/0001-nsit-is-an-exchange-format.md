@@ -30,11 +30,12 @@ recovery from incomplete adapters or information loss harder.
 
 NSIT begins as a **derived exchange format**.
 
-Language-specific adapters map a declared source subset into a canonical program model
-and compact NSIT view. AI-authored NSIT changes must validate and become an ordinary
-source diff. Native parsers, compilers, tests, and repository review decide whether the
-change is accepted. Unsupported constructs fail explicitly rather than being guessed
-or discarded.
+Version-matched language adapter pairs map a declared source subset into a canonical
+program model and compact NSIT view, then decode/apply a validated NSIT change into a
+candidate ordinary-source diff. A reverse mapping outside the declared fidelity
+contract must fail; it must not omit or guess source. Native parsers, compilers, tests,
+and repository review decide whether the candidate change is accepted. Unsupported
+constructs fail explicitly rather than being guessed or discarded.
 
 NSIT artifacts may be cached or inspected, but the conventional source, build
 configuration, and tests remain authoritative. This decision does not choose the first
@@ -67,6 +68,7 @@ Before claiming a useful result, a proof of concept must publish:
 - corpus and task definitions;
 - NSIT schema, adapter, and version;
 - token counts for named tokenizers, including all required context and retries;
+- deterministic encoding results for fixed source, adapter, schema, and configuration;
 - original-source, minified-source, and conventional-AST baselines;
 - structural round-trip outcomes and known information loss;
 - native parse, build, test, and source-diff results; and

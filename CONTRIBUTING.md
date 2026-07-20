@@ -42,9 +42,11 @@ Justify every new dependency: purpose, maintenance, license, transitive/build ef
 authority, and removal cost. Pin or lock versions where the chosen ecosystem supports
 it.
 
-Do not manually edit a generated projection. Commit its authoritative input,
-regeneration path, and output together. Generation must not embed secrets, local paths,
-or unexplained nondeterminism.
+Do not manually edit a repository-tracked generated projection. Commit its
+authoritative input, regeneration path, and output together. Temporary NSIT views and
+proposed changes may be discarded unless a task or benchmark contract explicitly
+requires retention. Generation must not embed secrets, local paths, or unexplained
+nondeterminism.
 
 ## Contribution responsibility and rights
 
