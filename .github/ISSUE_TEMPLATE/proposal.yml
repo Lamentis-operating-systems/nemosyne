@@ -1,0 +1,48 @@
+name: Proposal
+description: Propose a focused product, format, or repository change.
+title: "[Proposal]: "
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What concrete limitation or task should NSIT address?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change
+      description: Describe the smallest useful change and its explicit non-goals.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence and success measure
+      description: How could the proposal be tested or falsified?
+    validations:
+      required: true
+  - type: textarea
+    id: tradeoffs
+    attributes:
+      label: Alternatives and tradeoffs
+      description: Include keeping the current design when relevant.
+    validations:
+      required: true
+  - type: textarea
+    id: contract
+    attributes:
+      label: Contract impact
+      description: Explain effects on identity, authority, compatibility, security, dependencies, and token accounting.
+    validations:
+      required: true
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Confirmation
+      options:
+        - label: I searched existing issues and ADRs.
+          required: true
+        - label: Proposed behavior is not presented as implemented or validated.
+          required: true

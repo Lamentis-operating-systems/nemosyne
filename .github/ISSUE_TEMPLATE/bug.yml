@@ -1,0 +1,55 @@
+name: Bug report
+description: Report a reproducible defect. Report vulnerabilities privately.
+title: "[Bug]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not include secrets or unresolved vulnerabilities. Use [private vulnerability reporting](https://github.com/Lamentis-operating-systems/nsit/security/advisories/new) instead.
+  - type: input
+    id: revision
+    attributes:
+      label: Revision
+      description: Release or full commit SHA; do not write only "latest".
+    validations:
+      required: true
+  - type: input
+    id: source
+    attributes:
+      label: Source language and subset
+      description: Identify the adapter and relevant language features, if applicable.
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: Include the smallest input, commands, and relevant configuration.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected result
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual result
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment and sanitized evidence
+      description: Include relevant OS and tool versions. Remove credentials, personal data, and unrelated logs.
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Confirmation
+      options:
+        - label: I searched existing issues.
+          required: true
+        - label: This is not an unresolved security vulnerability.
+          required: true
+        - label: I removed secrets and private data.
+          required: true
