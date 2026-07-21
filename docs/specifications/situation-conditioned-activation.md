@@ -12,20 +12,25 @@ The unit interval is `U = [0, 1]`. Every weight, gate, strength, signal, interme
 
 `ChannelId` and `CandidateId` are numeric identifiers. Channel identifiers share one namespace across evidence and inhibition channels.
 
-An activation profile defines:
+An activation profile defines one globally ordered channel set containing:
 
 - a finite set `C` of evidence channels, each with a weight `w_c` in `U` and a situation-dependent gate `g_c` in `U`; and
 - a finite set `J` of inhibition channels, each with a strength `lambda_j` in `U`.
 
-A candidate `i` has one evidence signal `e_(i,c)` in `U` for every `c` in `C` and one inhibition signal `p_(i,j)` in `U` for every `j` in `J`. It has no other signals.
+A candidate `i` has one signal for every profile channel and no other signals. The profile, rather than the candidate, determines whether each signal is evidence `e_(i,c)` or inhibition `p_(i,j)`. Profiles and candidates canonicalize their channels into ascending `ChannelId` order.
 
-The public ranking operation is:
+The public operations are:
 
 ```rust
 pub fn rank_activations(
     profile: &ActivationProfile,
     candidates: &[ActivationCandidate],
 ) -> Result<Vec<RankedActivation>, ActivationError>;
+
+pub fn explain_activation(
+    profile: &ActivationProfile,
+    candidate: &ActivationCandidate,
+) -> Result<ActivationExplanation, ActivationError>;
 ```
 
 For each evidence channel, its effective weight is:
@@ -78,7 +83,11 @@ A_i = E_i R_i
 
 The empty product is one, so `R_i = 1` when `J` is empty.
 
-Each result contains its candidate identifier, `E_i`, `R_i`, `A_i`, and a complete breakdown. An evidence entry reports its channel identifier, weight, gate, signal, effective weight, and contribution. An inhibition entry reports its channel identifier, strength, signal, and retention factor.
+Each ranked result contains only its candidate identifier, `E_i`, `R_i`, and `A_i`. Ranking does not construct per-channel contribution collections.
+
+An explanation contains the same aggregate result plus a complete breakdown for one requested candidate. An evidence entry reports its channel identifier, weight, gate, signal, effective weight, normalized weight, and contribution. An inhibition entry reports its channel identifier, strength, signal, and retention factor. Ranking and explanation use the same evaluator, so their aggregate values for the same profile and candidate are bit-identical.
+
+Profile construction computes and stores each effective and normalized evidence weight once. Candidate evaluation therefore requires no repeated weight-gate multiplication or denominator division.
 
 ## Preconditions
 
@@ -86,16 +95,17 @@ The API validates the complete input before returning ranked results:
 
 - every supplied `f64` must be finite and in `U`;
 - each channel identifier must occur exactly once in the profile, including across channel kinds;
+- an evidence channel with positive `w_c` and `g_c` must have a representable nonzero `f64` product; otherwise construction reports effective-weight underflow rather than silently disabling the channel;
 - at least one evidence channel must have `w_c * g_c > 0`, so `D > 0`;
 - every candidate identifier must be unique in the input;
-- every candidate must contain exactly one signal for each profile channel in the matching channel kind; and
+- every candidate must contain exactly one signal for each profile channel; and
 - a candidate must not contain an unknown or duplicate signal.
 
 A violation returns an explicit `ActivationError`. Missing or unknown information is never interpreted as zero.
 
 ## Invariants
 
-Evidence channels and inhibition channels are each evaluated in ascending `ChannelId` order using `f64`. Input ordering therefore does not change the calculated result.
+Evidence channels and inhibition channels are each evaluated in ascending `ChannelId` order using `f64`, even though both kinds share one canonical profile layout. Input ordering therefore does not change the calculated result.
 
 The mathematical construction preserves:
 
@@ -105,7 +115,7 @@ The mathematical construction preserves:
 
 Computed `E_i`, `R_i`, and `A_i` are clamped to `U` only to contain floating-point rounding outside the interval. The implementation does not otherwise clip, rescale, or normalize results.
 
-The ordered sum of the reported evidence contributions produces `E_i` before the documented interval clamp. The reported inhibition factors multiply to `R_i`, and `E_i * R_i` reconstructs `A_i`, subject to floating-point rounding and that clamp. Both breakdown lists are ordered by ascending `ChannelId`.
+For an explanation, the ordered sum of the reported evidence contributions produces `E_i` before the documented interval clamp. The reported inhibition factors multiply to `R_i`, and `E_i * R_i` reconstructs `A_i`, subject to floating-point rounding and that clamp. Both breakdown lists are ordered by ascending `ChannelId`.
 
 Holding every other input fixed, increasing an evidence signal with positive effective weight cannot decrease activation. Increasing an inhibition signal whose strength is positive cannot increase activation.
 
@@ -116,17 +126,24 @@ The output contains every input candidate exactly once. Results are ordered by d
 - A valid profile and an empty candidate list return an empty result list.
 - A candidate whose evidence signals are all zero has `E_i = A_i = 0`.
 - An evidence channel with weight zero or gate zero has effective weight and contribution zero.
+- Positive weight and gate values whose product underflows to zero are rejected explicitly.
 - With no inhibition channels, `R_i = 1` and `A_i = E_i`.
 - If any inhibition channel has strength one and signal one, its retention factor is zero and `A_i = 0`.
 - `NaN`, positive or negative infinity, negative values, and values above one are invalid.
 - Negative zero is valid and is stored and reported as positive zero.
-- Duplicate profile channels, duplicate candidates, missing signals, duplicate signals, unknown signals, and a non-positive evidence denominator are errors.
+- Duplicate profile channels, duplicate candidates, missing signals, duplicate signals, unknown signals, effective-weight underflow, and a non-positive evidence denominator are errors.
+
+## Operational boundary
+
+The kernel is intended for a bounded post-retrieval candidate set. The current design assumes approximately 10 to 500 candidates per ranking call. It deliberately returns all candidates and performs a full deterministic sort; it is not a database-scale retrieval or top-k interface.
+
+The evidence denominator depends on the complete active evidence-channel set. Adding or removing a channel can therefore change every normalized evidence contribution even when existing channel parameters are unchanged. Multiplicative inhibition also treats each inhibition channel as an independent retention factor; correlated inhibition channels can compound one underlying concern. Callers own channel construction and calibration. This kernel does not claim statistical independence, calibrated probabilities, or safety semantics.
 
 ## Verification
 
 Public-boundary tests must cover valid interval boundaries, every invalid numeric class, every structural error, an empty candidate list, absent and complete inhibition, inactive evidence channels, deterministic tie-breaking, and input-order invariance.
 
-Tests must include a hand-calculated case with `E = 0.6`, `R = 0.8`, and `A = 0.48`; reconstruct scores from their breakdowns; verify bounded finite outputs; and verify evidence and inhibition monotonicity.
+Tests must include a hand-calculated case with `E = 0.6`, `R = 0.8`, and `A = 0.48`; reconstruct scores from an explanation; verify bounded finite outputs; verify evidence and inhibition monotonicity; verify effective-weight underflow handling; and verify bit-identical aggregates from ranking and explanation.
 
 A numeric red-light-versus-appointment example must demonstrate that caller-selected signals and gates can rank an immediate candidate above a secondary candidate. This example is algorithm evidence only and does not establish a safety policy or safety guarantee.
 
@@ -139,4 +156,5 @@ None within this kernel. Signal derivation, semantic channel selection, calibrat
 ## References
 
 - [Decision 0005: Adopt a deterministic activation kernel](../decisions/0005-adopt-deterministic-activation-kernel.md)
+- [Decision 0006: Canonicalize activation data and separate explanation](../decisions/0006-canonicalize-activation-data-and-separate-explanation.md)
 - [`nemosyne-core`](../../crates/nemosyne-core/)
