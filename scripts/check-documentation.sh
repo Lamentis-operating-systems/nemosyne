@@ -471,7 +471,9 @@ require_file "$documentation_root/decisions/TEMPLATE.md"
 if [[ "$documentation_root" == 'docs' ]]; then
   require_file 'AGENTS.md'
   require_file '.github/PULL_REQUEST_TEMPLATE.md'
+  require_file 'scripts/classify-documentation-change.sh'
   require_file 'scripts/check-documentation.sh'
+  require_file 'scripts/test-documentation-change-policy.sh'
   require_file 'scripts/test-documentation-check.sh'
 
   if [[ -s 'AGENTS.md' ]]; then
@@ -599,7 +601,9 @@ if [[ "$#" -ne 0 ]]; then
           CONTRIBUTING.md|\
           .github/PULL_REQUEST_TEMPLATE.md|\
           docs/README.md|\
+          scripts/classify-documentation-change.sh|\
           scripts/check-documentation.sh|\
+          scripts/test-documentation-change-policy.sh|\
           scripts/test-documentation-check.sh)
           governance_changed=true
           ;;

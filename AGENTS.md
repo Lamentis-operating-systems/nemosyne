@@ -31,10 +31,10 @@ Use focused `task/*` branches and pull requests into `main`. Do not push directl
 - Use statuses honestly. Do not mark a specification `Validated` without named implementation and evaluation evidence.
 - Never rewrite or delete an accepted, rejected, or superseded decision. Supersede it with a new record.
 - Keep normative claims precise, testable, and linked to verification where practical.
-- Complete the pull request template's documentation impact and reason fields exactly as required.
+- Complete the pull request template's documentation impact and reason fields exactly as required. Only internally authored Dependabot GitHub Actions update events are exempt from change-aware validation in CI.
 - Do not weaken the documentation checker, its tests, or CI to make an unrelated change pass.
 - Treat the root instructions, contributor guide, pull request template, all GitHub Actions workflows, documentation indexes and templates, and documentation-check scripts as documentation governance.
-- Accompany every change to a documentation-governance file with a new accepted decision record.
+- Accompany every change to a documentation-governance file with a new accepted decision record. The same narrow Dependabot GitHub Actions exception is treated as automated maintenance.
 
 ## Engineering
 
@@ -49,6 +49,7 @@ Use focused `task/*` branches and pull requests into `main`. Do not push directl
 Run the structural documentation check and code checks before committing:
 
 ```text
+./scripts/test-documentation-change-policy.sh
 ./scripts/test-documentation-check.sh
 ./scripts/check-documentation.sh
 cargo fmt --all --check
