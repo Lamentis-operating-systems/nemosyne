@@ -1,0 +1,142 @@
+# Situation-conditioned activation
+
+Status: Experimental
+
+## Purpose
+
+This specification defines the first deterministic activation-ranking contract in `nemosyne-core`. It combines already normalized numeric evidence and inhibition signals into bounded, explainable candidate scores. It does not define how an upstream system obtains those signals.
+
+## Definitions
+
+The unit interval is `U = [0, 1]`. Every weight, gate, strength, signal, intermediate retention factor, and reported score is represented as a finite `f64` in `U`.
+
+`ChannelId` and `CandidateId` are numeric identifiers. Channel identifiers share one namespace across evidence and inhibition channels.
+
+An activation profile defines:
+
+- a finite set `C` of evidence channels, each with a weight `w_c` in `U` and a situation-dependent gate `g_c` in `U`; and
+- a finite set `J` of inhibition channels, each with a strength `lambda_j` in `U`.
+
+A candidate `i` has one evidence signal `e_(i,c)` in `U` for every `c` in `C` and one inhibition signal `p_(i,j)` in `U` for every `j` in `J`. It has no other signals.
+
+The public ranking operation is:
+
+```rust
+pub fn rank_activations(
+    profile: &ActivationProfile,
+    candidates: &[ActivationCandidate],
+) -> Result<Vec<RankedActivation>, ActivationError>;
+```
+
+For each evidence channel, its effective weight is:
+
+\[
+a_c = w_c g_c
+\]
+
+The evidence denominator must be positive:
+
+\[
+D = \sum_{c \in C} a_c > 0
+\]
+
+The candidate's evidence score is:
+
+\[
+E_i = \frac{\sum_{c \in C} a_c e_{i,c}}{D}
+\]
+
+The contribution reported for one evidence channel is:
+
+\[
+q_{i,c} = \frac{a_c e_{i,c}}{D}
+\]
+
+For `f64` evaluation, the implementation first computes the normalized weight
+
+\[
+n_c = \frac{a_c}{D}
+\]
+
+and then computes `q_(i,c) = n_c e_(i,c)`. This division-first evaluation avoids losing a representable normalized contribution when `a_c` is subnormal.
+
+For each inhibition channel, the retention factor is:
+
+\[
+r_{i,j} = 1 - \lambda_j p_{i,j}
+\]
+
+Total retention and final activation are:
+
+\[
+R_i = \prod_{j \in J} r_{i,j}
+\]
+
+\[
+A_i = E_i R_i
+\]
+
+The empty product is one, so `R_i = 1` when `J` is empty.
+
+Each result contains its candidate identifier, `E_i`, `R_i`, `A_i`, and a complete breakdown. An evidence entry reports its channel identifier, weight, gate, signal, effective weight, and contribution. An inhibition entry reports its channel identifier, strength, signal, and retention factor.
+
+## Preconditions
+
+The API validates the complete input before returning ranked results:
+
+- every supplied `f64` must be finite and in `U`;
+- each channel identifier must occur exactly once in the profile, including across channel kinds;
+- at least one evidence channel must have `w_c * g_c > 0`, so `D > 0`;
+- every candidate identifier must be unique in the input;
+- every candidate must contain exactly one signal for each profile channel in the matching channel kind; and
+- a candidate must not contain an unknown or duplicate signal.
+
+A violation returns an explicit `ActivationError`. Missing or unknown information is never interpreted as zero.
+
+## Invariants
+
+Evidence channels and inhibition channels are each evaluated in ascending `ChannelId` order using `f64`. Input ordering therefore does not change the calculated result.
+
+The mathematical construction preserves:
+
+\[
+0 \leq E_i, R_i, A_i \leq 1
+\]
+
+Computed `E_i`, `R_i`, and `A_i` are clamped to `U` only to contain floating-point rounding outside the interval. The implementation does not otherwise clip, rescale, or normalize results.
+
+The ordered sum of the reported evidence contributions produces `E_i` before the documented interval clamp. The reported inhibition factors multiply to `R_i`, and `E_i * R_i` reconstructs `A_i`, subject to floating-point rounding and that clamp. Both breakdown lists are ordered by ascending `ChannelId`.
+
+Holding every other input fixed, increasing an evidence signal with positive effective weight cannot decrease activation. Increasing an inhibition signal whose strength is positive cannot increase activation.
+
+The output contains every input candidate exactly once. Results are ordered by descending `A_i`, then by ascending `CandidateId` when the computed activations compare exactly equal. No epsilon comparison or implicit score threshold is applied.
+
+## Edge cases
+
+- A valid profile and an empty candidate list return an empty result list.
+- A candidate whose evidence signals are all zero has `E_i = A_i = 0`.
+- An evidence channel with weight zero or gate zero has effective weight and contribution zero.
+- With no inhibition channels, `R_i = 1` and `A_i = E_i`.
+- If any inhibition channel has strength one and signal one, its retention factor is zero and `A_i = 0`.
+- `NaN`, positive or negative infinity, negative values, and values above one are invalid.
+- Negative zero is valid and is stored and reported as positive zero.
+- Duplicate profile channels, duplicate candidates, missing signals, duplicate signals, unknown signals, and a non-positive evidence denominator are errors.
+
+## Verification
+
+Public-boundary tests must cover valid interval boundaries, every invalid numeric class, every structural error, an empty candidate list, absent and complete inhibition, inactive evidence channels, deterministic tie-breaking, and input-order invariance.
+
+Tests must include a hand-calculated case with `E = 0.6`, `R = 0.8`, and `A = 0.48`; reconstruct scores from their breakdowns; verify bounded finite outputs; and verify evidence and inhibition monotonicity.
+
+A numeric red-light-versus-appointment example must demonstrate that caller-selected signals and gates can rank an immediate candidate above a secondary candidate. This example is algorithm evidence only and does not establish a safety policy or safety guarantee.
+
+Repository verification is performed by the documentation checks, formatting, Clippy with warnings denied, Rustdoc with warnings denied, and the workspace test suite required by `AGENTS.md`.
+
+## Open questions
+
+None within this kernel. Signal derivation, semantic channel selection, calibration, and downstream selection remain outside this specification.
+
+## References
+
+- [Decision 0005: Adopt a deterministic activation kernel](../decisions/0005-adopt-deterministic-activation-kernel.md)
+- [`nemosyne-core`](../../crates/nemosyne-core/)
