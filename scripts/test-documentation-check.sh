@@ -13,6 +13,12 @@ missing_reason_body="$temporary_directory/missing-reason.md"
 mismatched_body="$temporary_directory/mismatched.md"
 invalid_documentation="$temporary_directory/docs"
 missing_documentation="$temporary_directory/missing-docs"
+missing_agent_fixture="$temporary_directory/missing-agent-fixture"
+invalid_agent_fixture="$temporary_directory/invalid-agent-fixture"
+nested_agent_fixture="$temporary_directory/nested-agent-fixture"
+override_agent_fixture="$temporary_directory/override-agent-fixture"
+governance_fixture="$temporary_directory/governance-fixture"
+approved_governance_fixture="$temporary_directory/approved-governance-fixture"
 
 mkdir -p "$invalid_documentation/specifications" "$invalid_documentation/decisions"
 mkdir -p "$missing_documentation/specifications" "$missing_documentation/decisions"
@@ -29,6 +35,7 @@ create_fixture() {
   mkdir -p "$destination/.github"
   cp -R "$repository_root/docs" "$destination/docs"
   cp -R "$repository_root/scripts" "$destination/scripts"
+  cp "$repository_root/AGENTS.md" "$destination/AGENTS.md"
   cp "$repository_root/.github/PULL_REQUEST_TEMPLATE.md" "$destination/.github/PULL_REQUEST_TEMPLATE.md"
 
   find "$destination/docs/decisions" \
@@ -64,6 +71,20 @@ write_decision() {
     printf '\n## Alternatives\n\nOriginal alternative.\n'
     printf '\n## Consequences\n\nOriginal consequence.\n'
   } > "$file"
+}
+
+expect_repository_check_failure() {
+  local repository="$1"
+  local message="$2"
+  shift 2
+
+  if (
+    cd "$repository"
+    ./scripts/check-documentation.sh "$@"
+  ) >/dev/null 2>&1; then
+    printf '%s\n' "$message" >&2
+    exit 1
+  fi
 }
 
 printf '%s\n' \
@@ -117,6 +138,84 @@ if DOCUMENTATION_ROOT="$missing_documentation" ./scripts/check-documentation.sh 
   printf '%s\n' 'Expected a missing documentation structure to fail.' >&2
   exit 1
 fi
+
+create_fixture "$missing_agent_fixture"
+rm "$missing_agent_fixture/AGENTS.md"
+expect_repository_check_failure \
+  "$missing_agent_fixture" \
+  'Expected missing agent instructions to fail.'
+
+create_fixture "$invalid_agent_fixture"
+printf '# AGENTS.md\n' > "$invalid_agent_fixture/AGENTS.md"
+expect_repository_check_failure \
+  "$invalid_agent_fixture" \
+  'Expected incomplete agent instructions to fail.'
+
+create_fixture "$nested_agent_fixture"
+mkdir -p "$nested_agent_fixture/crates/example"
+printf '# Conflicting instructions\n' > "$nested_agent_fixture/crates/example/AGENTS.md"
+git -C "$nested_agent_fixture" add .
+expect_repository_check_failure \
+  "$nested_agent_fixture" \
+  'Expected nested agent instructions to fail.'
+
+create_fixture "$override_agent_fixture"
+printf '# Override instructions\n' > "$override_agent_fixture/AGENTS.override.md"
+git -C "$override_agent_fixture" add .
+expect_repository_check_failure \
+  "$override_agent_fixture" \
+  'Expected overriding agent instructions to fail.'
+
+create_fixture "$governance_fixture"
+git -C "$governance_fixture" add .
+git -C "$governance_fixture" commit -qm baseline
+governance_base="$(git -C "$governance_fixture" rev-parse HEAD)"
+
+printf '\nAdditional unchecked rule.\n' >> "$governance_fixture/AGENTS.md"
+git -C "$governance_fixture" add .
+git -C "$governance_fixture" commit -qm governance-change
+governance_head="$(git -C "$governance_fixture" rev-parse HEAD)"
+
+printf '%s\n' \
+  'Documentation impact: none' \
+  'Documentation reason: This fixture changes governance without a decision record.' \
+  > "$temporary_directory/governance-body.md"
+expect_repository_check_failure \
+  "$governance_fixture" \
+  'Expected an undecided governance change to fail.' \
+  "$governance_base" \
+  "$governance_head" \
+  "$temporary_directory/governance-body.md"
+
+create_fixture "$approved_governance_fixture"
+git -C "$approved_governance_fixture" add .
+git -C "$approved_governance_fixture" commit -qm baseline
+approved_governance_base="$(git -C "$approved_governance_fixture" rev-parse HEAD)"
+
+printf '\nReviewed governance rule.\n' >> "$approved_governance_fixture/AGENTS.md"
+write_decision \
+  "$approved_governance_fixture" \
+  '0001' \
+  'reviewed-governance-change' \
+  'Review a governance change' \
+  'Accepted' \
+  'The governance change requires an explicit historical record.'
+git -C "$approved_governance_fixture" add .
+git -C "$approved_governance_fixture" commit -qm governance-change
+approved_governance_head="$(git -C "$approved_governance_fixture" rev-parse HEAD)"
+
+printf '%s\n' \
+  'Documentation impact: decision' \
+  'Documentation reason: This fixture records the governance change in a new decision.' \
+  > "$temporary_directory/approved-governance-body.md"
+
+(
+  cd "$approved_governance_fixture"
+  ./scripts/check-documentation.sh \
+    "$approved_governance_base" \
+    "$approved_governance_head" \
+    "$temporary_directory/approved-governance-body.md"
+) >/dev/null
 
 source_fixture="$temporary_directory/source-fixture"
 create_fixture "$source_fixture"

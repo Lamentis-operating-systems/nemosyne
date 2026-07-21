@@ -4,6 +4,7 @@ Nemosyne keeps current contracts, historical decisions, public API documentation
 
 - `specifications` describes current behavioral and mathematical contracts.
 - `decisions` records why significant choices were made.
+- `AGENTS.md` defines the repository-wide workflow for coding agents.
 - Rustdoc describes the public API next to its implementation.
 - Tests verify normative claims where practical.
 

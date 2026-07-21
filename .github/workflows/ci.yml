@@ -66,11 +66,11 @@ jobs:
         run: cargo fmt --all --check
 
       - name: Run Clippy
-        run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
+        run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings -F missing-docs -F unsafe-code
 
       - name: Build documentation
         env:
-          RUSTDOCFLAGS: -D warnings
+          RUSTDOCFLAGS: -D warnings -F missing-docs -F unsafe-code
         run: cargo doc --workspace --all-features --no-deps --locked
 
   test:

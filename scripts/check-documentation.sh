@@ -18,6 +18,8 @@ require_file() {
 
   if [[ ! -f "$file" ]]; then
     fail "required file is missing: $file"
+  elif [[ ! -s "$file" ]]; then
+    fail "required file is empty: $file"
   fi
 }
 
@@ -283,6 +285,24 @@ validate_specification_history() {
   done < <(git diff --name-status "$base_sha" "$head_sha" -- docs/specifications)
 }
 
+validate_agent_instruction_files() {
+  local file
+  local unexpected_files=""
+
+  while IFS= read -r file; do
+    case "$file" in
+      AGENTS.md) ;;
+      AGENTS.override.md|*/AGENTS.md|*/AGENTS.override.md)
+        unexpected_files+="${unexpected_files:+, }$file"
+        ;;
+    esac
+  done < <(git ls-files)
+
+  if [[ -n "$unexpected_files" ]]; then
+    fail "additional agent instruction files are not allowed: $unexpected_files"
+  fi
+}
+
 require_file "$documentation_root/README.md"
 require_file "$documentation_root/specifications/README.md"
 require_file "$documentation_root/specifications/TEMPLATE.md"
@@ -290,9 +310,37 @@ require_file "$documentation_root/decisions/README.md"
 require_file "$documentation_root/decisions/TEMPLATE.md"
 
 if [[ "$documentation_root" == 'docs' ]]; then
+  require_file 'AGENTS.md'
   require_file '.github/PULL_REQUEST_TEMPLATE.md'
   require_file 'scripts/check-documentation.sh'
   require_file 'scripts/test-documentation-check.sh'
+
+  if [[ -s 'AGENTS.md' ]]; then
+    require_heading 'AGENTS.md' '## Sources of truth'
+    require_heading 'AGENTS.md' '## Required workflow'
+    require_heading 'AGENTS.md' '## Documentation'
+    require_heading 'AGENTS.md' '## Engineering'
+    require_heading 'AGENTS.md' '## Verification'
+    require_heading 'AGENTS.md' '## Code Review Rules'
+
+    require_heading_order \
+      'AGENTS.md' \
+      '## Sources of truth' \
+      '## Required workflow' \
+      '## Documentation' \
+      '## Engineering' \
+      '## Verification' \
+      '## Code Review Rules'
+
+    require_section_content 'AGENTS.md' '## Sources of truth'
+    require_section_content 'AGENTS.md' '## Required workflow'
+    require_section_content 'AGENTS.md' '## Documentation'
+    require_section_content 'AGENTS.md' '## Engineering'
+    require_section_content 'AGENTS.md' '## Verification'
+    require_section_content 'AGENTS.md' '## Code Review Rules'
+  fi
+
+  validate_agent_instruction_files
 fi
 
 while IFS= read -r file; do
@@ -363,22 +411,41 @@ if [[ "$#" -eq 3 ]]; then
 
     specification_changed=false
     decision_changed=false
+    new_decision_added=false
+    governance_changed=false
     production_source_changed=false
 
     while IFS= read -r file; do
       case "$file" in
         crates/*/src/*.rs) production_source_changed=true ;;
-        docs/specifications/*.md)
-          if [[ "$file" != 'docs/specifications/README.md' && "$file" != 'docs/specifications/TEMPLATE.md' ]]; then
-            specification_changed=true
-          fi
-          ;;
+        docs/specifications/README.md|docs/specifications/TEMPLATE.md) governance_changed=true ;;
+        docs/specifications/*.md) specification_changed=true ;;
+        docs/decisions/README.md|docs/decisions/TEMPLATE.md) governance_changed=true ;;
         docs/decisions/[0-9][0-9][0-9][0-9]-*.md) decision_changed=true ;;
+        AGENTS.md|\
+          CONTRIBUTING.md|\
+          .github/PULL_REQUEST_TEMPLATE.md|\
+          .github/workflows/ci.yml|\
+          docs/README.md|\
+          scripts/check-documentation.sh|\
+          scripts/test-documentation-check.sh)
+          governance_changed=true
+          ;;
       esac
     done < <(git diff --name-only "$comparison_base" "$head_sha")
 
+    while IFS= read -r file; do
+      case "$file" in
+        docs/decisions/[0-9][0-9][0-9][0-9]-*.md) new_decision_added=true ;;
+      esac
+    done < <(git diff --diff-filter=A --name-only "$comparison_base" "$head_sha")
+
     if [[ "$production_source_changed" == true && "$specification_changed" != true ]]; then
       fail "production Rust source changed without an updated specification"
+    fi
+
+    if [[ "$governance_changed" == true && "$new_decision_added" != true ]]; then
+      fail "documentation governance changed without a new decision record"
     fi
 
     if [[ -n "$comparison_base" ]]; then
