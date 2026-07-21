@@ -2,6 +2,7 @@ name: CI
 
 on:
   pull_request:
+    types: [edited, opened, reopened, synchronize]
   push:
     branches:
       - main
@@ -17,6 +18,34 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  documentation:
+    name: Documentation
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Validate documentation
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          EVENT_NAME: ${{ github.event_name }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          ./scripts/test-documentation-check.sh
+
+          if [[ "$EVENT_NAME" == "pull_request" ]]; then
+            body_file="$RUNNER_TEMP/pull-request-body.md"
+            printf '%s\n' "$PR_BODY" > "$body_file"
+            ./scripts/check-documentation.sh "$BASE_SHA" "$HEAD_SHA" "$body_file"
+          else
+            ./scripts/check-documentation.sh
+          fi
+
   quality:
     name: Quality
     runs-on: ubuntu-latest
