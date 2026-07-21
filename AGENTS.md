@@ -33,7 +33,8 @@ Use focused `task/*` branches and pull requests into `main`. Do not push directl
 - Keep normative claims precise, testable, and linked to verification where practical.
 - Complete the pull request template's documentation impact and reason fields exactly as required.
 - Do not weaken the documentation checker, its tests, or CI to make an unrelated change pass.
-- Accompany every change to a documentation-governance file with a new decision record.
+- Treat the root instructions, contributor guide, pull request template, all GitHub Actions workflows, documentation indexes and templates, and documentation-check scripts as documentation governance.
+- Accompany every change to a documentation-governance file with a new accepted decision record.
 
 ## Engineering
 
@@ -45,7 +46,7 @@ Use focused `task/*` branches and pull requests into `main`. Do not push directl
 
 ## Verification
 
-Run the checks that CI enforces:
+Run the structural documentation check and code checks before committing:
 
 ```text
 ./scripts/test-documentation-check.sh
@@ -56,7 +57,13 @@ RUSTDOCFLAGS="-D warnings -F missing-docs -F unsafe-code" cargo doc --workspace 
 cargo test --workspace --all-features --locked
 ```
 
-Before committing, also run `git diff --check`. Report any check that could not be run and why. Do not claim validation beyond the evidence produced.
+After committing, run the change-aware documentation check against the pull request body from a clean worktree:
+
+```text
+DOCUMENTATION_BASE_REF=origin/main ./scripts/check-documentation.sh /absolute/path/outside/repository/pull-request-body.md
+```
+
+CI supplies the base, head, and pull request body directly. Before committing, also run `git diff --check`. Report any check that could not be run and why. Do not claim validation beyond the evidence produced.
 
 ## Code Review Rules
 
