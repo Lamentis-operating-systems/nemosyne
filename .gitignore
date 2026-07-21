@@ -15,3 +15,6 @@
 *.log
 *.tmp
 tmp/
+
+# Rust
+target/
