@@ -147,6 +147,58 @@ fn scenarios_reject_invalid_preference_graphs() {
 }
 
 #[test]
+fn scenarios_reject_transitively_redundant_preferences() {
+    let result = EvaluationScenario::new(
+        ScenarioId::new(5),
+        vec![gate(1, 1.0)],
+        vec![
+            candidate(1, &[(1, 0.9)]),
+            candidate(2, &[(1, 0.5)]),
+            candidate(3, &[(1, 0.1)]),
+        ],
+        vec![preference(1, 2), preference(2, 3), preference(1, 3)],
+    );
+
+    assert!(matches!(
+        result,
+        Err(EvaluationError::RedundantPreference {
+            scenario_id,
+            preferred,
+            other,
+        }) if scenario_id == ScenarioId::new(5)
+            && preferred == CandidateId::new(1)
+            && other == CandidateId::new(3)
+    ));
+}
+
+#[test]
+fn scenarios_detect_cycles_in_disconnected_components() {
+    let result = EvaluationScenario::new(
+        ScenarioId::new(6),
+        vec![gate(1, 1.0)],
+        vec![
+            candidate(1, &[(1, 0.9)]),
+            candidate(2, &[(1, 0.8)]),
+            candidate(3, &[(1, 0.7)]),
+            candidate(4, &[(1, 0.6)]),
+            candidate(5, &[(1, 0.5)]),
+        ],
+        vec![
+            preference(1, 2),
+            preference(3, 4),
+            preference(4, 5),
+            preference(5, 3),
+        ],
+    );
+
+    assert!(matches!(
+        result,
+        Err(EvaluationError::CyclicPreferences { scenario_id })
+            if scenario_id == ScenarioId::new(6)
+    ));
+}
+
+#[test]
 fn evaluation_requires_exactly_the_evidence_gates_defined_by_parameters() {
     let parameters = parameters(vec![evidence(1, 1.0), inhibition(2, 0.5)]);
 
@@ -199,6 +251,46 @@ fn evaluation_requires_exactly_the_evidence_gates_defined_by_parameters() {
             scenario_id,
             channel_id,
         }) if scenario_id == ScenarioId::new(9) && channel_id == ChannelId::new(2)
+    ));
+}
+
+#[test]
+fn zero_weight_evidence_channels_remain_part_of_the_exact_schema() {
+    let parameters = parameters(vec![evidence(1, 1.0), evidence(2, 0.0)]);
+    let missing_gate = suite(vec![scenario(
+        10,
+        vec![gate(1, 1.0)],
+        vec![
+            candidate(1, &[(1, 1.0), (2, 0.0)]),
+            candidate(2, &[(1, 0.0), (2, 0.0)]),
+        ],
+        vec![preference(1, 2)],
+    )]);
+    assert!(matches!(
+        evaluate_parameters(&parameters, &missing_gate),
+        Err(EvaluationError::MissingEvidenceGate {
+            scenario_id,
+            channel_id,
+        }) if scenario_id == ScenarioId::new(10) && channel_id == ChannelId::new(2)
+    ));
+
+    let missing_signal = suite(vec![scenario(
+        11,
+        vec![gate(1, 1.0), gate(2, 0.0)],
+        vec![candidate(1, &[(1, 1.0)]), candidate(2, &[(1, 0.0)])],
+        vec![preference(1, 2)],
+    )]);
+    assert!(matches!(
+        evaluate_parameters(&parameters, &missing_signal),
+        Err(EvaluationError::Activation {
+            scenario_id,
+            source: ActivationError::MissingSignal {
+                candidate_id,
+                channel_id,
+            },
+        }) if scenario_id == ScenarioId::new(11)
+            && candidate_id == CandidateId::new(1)
+            && channel_id == ChannelId::new(2)
     ));
 }
 
@@ -303,5 +395,30 @@ fn numeric_kernel_errors_preserve_the_scenario_context() {
             scenario_id,
             source: ActivationError::NormalizedWeightUnderflow { channel_id },
         }) if scenario_id == ScenarioId::new(51) && channel_id == ChannelId::new(1)
+    ));
+}
+
+#[test]
+fn canonical_scenario_order_determines_the_first_activation_error() {
+    let parameters = parameters(vec![evidence(1, 1.0)]);
+    let later = scenario(
+        20,
+        vec![gate(1, 1.0)],
+        vec![candidate(1, &[]), candidate(2, &[])],
+        vec![preference(1, 2)],
+    );
+    let earlier = scenario(
+        10,
+        vec![gate(1, 0.0)],
+        vec![candidate(1, &[(1, 1.0)]), candidate(2, &[(1, 0.0)])],
+        vec![preference(1, 2)],
+    );
+
+    assert!(matches!(
+        evaluate_parameters(&parameters, &suite(vec![later, earlier])),
+        Err(EvaluationError::Activation {
+            scenario_id,
+            source: ActivationError::NoEffectiveEvidence,
+        }) if scenario_id == ScenarioId::new(10)
     ));
 }

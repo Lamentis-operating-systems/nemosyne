@@ -24,7 +24,7 @@ fn every_permutation_boundary_produces_an_identical_report() {
                 candidate(1, &[(2, 0.2), (3, 0.5), (1, 0.9)]),
                 candidate(3, &[(1, 0.1), (2, 0.1), (3, 0.0)]),
             ],
-            vec![preference(2, 3), preference(1, 3), preference(1, 2)],
+            vec![preference(2, 3), preference(1, 2)],
         ),
         scenario(
             10,
@@ -54,7 +54,7 @@ fn every_permutation_boundary_produces_an_identical_report() {
                 candidate(1, &[(1, 0.9), (2, 0.2), (3, 0.5)]),
                 candidate(2, &[(2, 0.8), (1, 0.4), (3, 0.1)]),
             ],
-            vec![preference(1, 2), preference(1, 3), preference(2, 3)],
+            vec![preference(1, 2), preference(2, 3)],
         ),
     ]);
 
@@ -93,7 +93,7 @@ fn constructors_expose_canonical_parameter_scenario_and_preference_order() {
                 candidate(1, &[(1, 0.9), (4, 0.8), (9, 0.0)]),
                 candidate(2, &[(4, 0.5), (9, 0.0), (1, 0.6)]),
             ],
-            vec![preference(2, 3), preference(1, 3), preference(1, 2)],
+            vec![preference(2, 3), preference(1, 2)],
         ),
         scenario(
             2,
@@ -137,6 +137,6 @@ fn constructors_expose_canonical_parameter_scenario_and_preference_order() {
             .iter()
             .map(|preference| (preference.preferred().get(), preference.other().get()))
             .collect::<Vec<_>>(),
-        vec![(1, 2), (1, 3), (2, 3)]
+        vec![(1, 2), (2, 3)]
     );
 }

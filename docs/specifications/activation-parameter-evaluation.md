@@ -25,6 +25,8 @@ contains:
 
 Evidence and inhibition parameters share one channel-identifier namespace. At least one evidence weight must be positive. Parameter sets contain no gates and provide no defaults.
 
+The evaluator preserves the exact finite `f64` parameter tuple supplied by the caller. Canonical ordering does not normalize, quantize, or otherwise rescale parameter values. Although a common positive rescaling of all evidence weights is algebraically equivalent over real numbers, finite-precision evaluation does not promise bit-identical scores or identical strict preference outcomes for rescaled tuples.
+
 An evaluation scenario `s` contains:
 
 - one scenario identifier;
@@ -34,7 +36,7 @@ An evaluation scenario `s` contains:
 
 An expected preference `(a, b)` means only that candidate `a` is expected to receive a strictly greater activation score than candidate `b`. Preferences may define a partial order; candidates need not occur in any preference.
 
-Every declared preference is one independently counted observation. Explicitly declaring a transitive preference therefore gives that relation the same weight as every other declared edge.
+The directed preference graph must be its canonical transitive reduction. A declared edge `(a, b)` is redundant when another directed path from `a` to `b` exists. Such an edge is invalid rather than counted as an additional observation. Every edge in the accepted transitive reduction is counted once.
 
 An evaluation suite is a nonempty set of scenarios. Parameters, scenarios, gates, candidates, candidate signals, and preferences are stored in ascending numeric identifier order. Preferences are ordered first by preferred candidate and then by other candidate.
 
@@ -120,6 +122,8 @@ The report contains:
 
 The report exposes no composite fitness value and does not identify a preferred parameter set.
 
+Per-preference score pairs and outcomes are the source observations for a scenario report. Scenario counts and accuracy are derived from those observations. The ordered scenario reports are the source observations for global counts, micro-accuracy, macro-accuracy, and scenario pass rate. Derived values must not be accepted as independent caller input or maintained through a second calculation path.
+
 ## Preconditions
 
 Validated constructors and evaluation enforce:
@@ -130,7 +134,7 @@ Validated constructors and evaluation enforce:
 - every scenario contains at least two candidates with unique identifiers;
 - every scenario contains at least one expected preference;
 - a preference references two existing, distinct candidates;
-- each directed preference occurs once and the preference graph is acyclic;
+- each directed preference occurs once, the preference graph is acyclic, and the graph contains no redundant transitive edge;
 - every scenario supplies exactly one gate for each evidence parameter and no other gate; and
 - every candidate supplies exactly the signal schema required by the generated activation profile.
 
@@ -144,6 +148,8 @@ Canonical evaluation supports repeatable results on one floating-point environme
 
 Each scenario invokes the activation kernel once, and every preference score is read from that one result. The evaluator neither recalculates scores nor calls the kernel per preference.
 
+Canonicalization preserves numeric values. It must not choose a representative from mathematically proportional parameter tuples or introduce an epsilon into score comparisons.
+
 For every successful report:
 
 \[
@@ -151,6 +157,8 @@ N_{satisfied}+N_{tied}+N_{violated}=N_{total}
 \]
 
 globally and within every scenario. All three aggregate metrics are finite and in `[0, 1]`.
+
+Per-scenario and global outcome counts reconstruct exactly from the corresponding preference outcomes. Aggregate metrics reconstruct exactly from the scenario reports according to the formulas above.
 
 The report contains all ranked candidates, including candidates absent from the partial expected order. Preference evaluation does not filter or reorder the kernel ranking.
 
@@ -163,7 +171,7 @@ An error aborts the complete operation. No partial report is returned. An `Activ
 - A scenario without preferences is invalid.
 - A self-preference, duplicate preference, unknown candidate reference, or cyclic preference graph is invalid.
 - Both opposing preferences between two candidates form a cycle and are invalid.
-- A transitive but acyclic preference is valid.
+- A preference edge implied by another directed path is invalid, even when the graph is acyclic.
 - Candidates not referenced by a preference remain valid and appear in the ranking.
 - A scenario in which every positive evidence weight has gate zero fails through the activation kernel; it is not assigned a zero score or skipped.
 - Equal activation scores produce `Tied` even when the kernel orders the candidates by identifier.
@@ -175,19 +183,23 @@ This evaluator accepts only already normalized numeric gates and candidate signa
 
 It provides no parameter selection, optimization, learning, grid search, random search, gradient method, default parameters, automatic baseline, durable dataset format, serialization, database, CLI, scenario generator, dataset split, statistical significance test, release threshold, safety guarantee, parallel execution, or performance benchmark.
 
-The suite is an in-memory measurement input. Its results establish only agreement between one explicit parameter set and that finite suite.
+The suite is an in-memory measurement input. Its results establish only strict agreement between one exact parameter tuple and that finite suite. A preference satisfied by one representable `f64` step counts the same as a preference with a large score separation. Strict accuracy is therefore not a robustness, margin, numerical-stability, generalization, or safety result. The report retains both candidate scores for every preference so that separate tooling can examine score separation without changing the evaluator's strict outcome contract.
+
+Any downstream claim that selects or compares parameters must bind expected preferences to semantic provenance, compare against explicit baselines, and keep calibration scenarios disjoint from a held-out evaluation suite. These are evidence requirements on the caller and its artifacts; this evaluator neither stores provenance nor creates, persists, or enforces dataset splits.
 
 ## Verification
 
 Public-boundary tests must cover a hand-calculated multi-scenario suite; satisfied, tied, and violated preferences; micro-, macro-, and scenario-pass calculations; and the global and per-scenario count invariant.
 
-Tests must also cover exact ties despite candidate-identifier ordering, partial orders, all structural input failures, missing and unknown gates, gates targeting inhibition channels, preference cycles, activation errors with scenario context, and identical reports for permuted inputs.
+Tests must also cover exact ties despite candidate-identifier ordering, partial orders, rejection of redundant transitive edges, all structural input failures, missing and unknown gates, gates targeting inhibition channels, preference cycles, activation errors with scenario context, and identical reports for permuted inputs.
+
+Tests must reconstruct scenario counts from preference outcomes and global counts and metrics from scenario reports. They must preserve exact `f64` comparison behavior without implying that proportional parameter tuples are operationally interchangeable.
 
 At least one test must evaluate two explicitly constructed parameter sets against the same suite without describing either set as optimal. Repository verification follows the documentation, formatting, Clippy, Rustdoc, and test checks required by `AGENTS.md`.
 
 ## Open questions
 
-None within this evaluator. Scenario authoring, dataset persistence, baseline selection, parameter calibration, statistical interpretation, and release thresholds remain outside this specification.
+None within this evaluator. Semantic provenance, scenario authoring, dataset persistence, explicit baseline selection, calibration and held-out suite construction, parameter calibration, robustness analysis, statistical interpretation, and release thresholds remain outside this specification.
 
 ## References
 
