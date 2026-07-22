@@ -65,6 +65,15 @@ pub enum EvaluationError {
         /// The candidate expected to rank lower.
         other: CandidateId,
     },
+    /// A preference is implied by an alternate path in the preference graph.
+    RedundantPreference {
+        /// The affected scenario.
+        scenario_id: ScenarioId,
+        /// The candidate expected to rank higher.
+        preferred: CandidateId,
+        /// The candidate expected to rank lower.
+        other: CandidateId,
+    },
     /// A scenario's expected preferences contain a directed cycle.
     CyclicPreferences {
         /// The affected scenario.
@@ -164,6 +173,17 @@ impl fmt::Display for EvaluationError {
             } => write!(
                 formatter,
                 "scenario {} preference {} over {} is defined more than once",
+                scenario_id.get(),
+                preferred.get(),
+                other.get()
+            ),
+            Self::RedundantPreference {
+                scenario_id,
+                preferred,
+                other,
+            } => write!(
+                formatter,
+                "scenario {} preference {} over {} is transitively redundant",
                 scenario_id.get(),
                 preferred.get(),
                 other.get()

@@ -1,6 +1,6 @@
 use nemosyne_core::activation::{
     ActivationChannel, ActivationProfile, CandidateId, EvidenceChannel, InhibitionChannel,
-    RankedActivation, UnitInterval, rank_activations,
+    UnitInterval, rank_activations,
 };
 
 use super::{
@@ -26,34 +26,12 @@ pub fn evaluate_parameters(
     suite: &EvaluationSuite,
 ) -> Result<EvaluationReport, EvaluationError> {
     let mut scenario_reports = Vec::with_capacity(suite.scenarios().len());
-    let mut preference_count = 0;
-    let mut satisfied_count = 0;
-    let mut tied_count = 0;
-    let mut violated_count = 0;
-    let mut passed_scenario_count = 0;
-    let mut scenario_accuracy_sum = 0.0;
 
     for scenario in suite.scenarios() {
-        let report = evaluate_scenario(parameters, scenario)?;
-        preference_count += report.preference_count();
-        satisfied_count += report.satisfied_count();
-        tied_count += report.tied_count();
-        violated_count += report.violated_count();
-        passed_scenario_count += usize::from(report.passed());
-        scenario_accuracy_sum += report.accuracy();
-        scenario_reports.push(report);
+        scenario_reports.push(evaluate_scenario(parameters, scenario)?);
     }
 
-    let macro_accuracy = scenario_accuracy_sum / scenario_reports.len() as f64;
-    Ok(EvaluationReport::new(
-        scenario_reports.into_boxed_slice(),
-        preference_count,
-        satisfied_count,
-        tied_count,
-        violated_count,
-        passed_scenario_count,
-        macro_accuracy,
-    ))
+    Ok(EvaluationReport::new(scenario_reports.into_boxed_slice()))
 }
 
 fn evaluate_scenario(
@@ -68,29 +46,23 @@ fn evaluate_scenario(
         }
     })?;
 
-    let mut scores_by_candidate = ranking.clone();
-    scores_by_candidate.sort_unstable_by_key(RankedActivation::candidate_id);
+    let mut scores_by_candidate: Vec<CandidateScore> = ranking
+        .iter()
+        .map(|activation| CandidateScore {
+            candidate_id: activation.candidate_id(),
+            score: activation.score(),
+        })
+        .collect();
+    scores_by_candidate.sort_unstable_by_key(|candidate| candidate.candidate_id);
 
     let mut preference_reports = Vec::with_capacity(scenario.preferences().len());
-    let mut satisfied_count = 0;
-    let mut tied_count = 0;
-    let mut violated_count = 0;
     for &expectation in scenario.preferences() {
         let preferred_score = find_score(&scores_by_candidate, expectation.preferred());
         let other_score = find_score(&scores_by_candidate, expectation.other());
         let outcome = match preferred_score.get().total_cmp(&other_score.get()) {
-            std::cmp::Ordering::Greater => {
-                satisfied_count += 1;
-                PreferenceOutcome::Satisfied
-            }
-            std::cmp::Ordering::Equal => {
-                tied_count += 1;
-                PreferenceOutcome::Tied
-            }
-            std::cmp::Ordering::Less => {
-                violated_count += 1;
-                PreferenceOutcome::Violated
-            }
+            std::cmp::Ordering::Greater => PreferenceOutcome::Satisfied,
+            std::cmp::Ordering::Equal => PreferenceOutcome::Tied,
+            std::cmp::Ordering::Less => PreferenceOutcome::Violated,
         };
         preference_reports.push(PreferenceEvaluation::new(
             expectation,
@@ -104,9 +76,6 @@ fn evaluate_scenario(
         scenario.scenario_id(),
         ranking.into_boxed_slice(),
         preference_reports.into_boxed_slice(),
-        satisfied_count,
-        tied_count,
-        violated_count,
     ))
 }
 
@@ -167,9 +136,15 @@ fn build_profile(
     })
 }
 
-fn find_score(ranking: &[RankedActivation], candidate_id: CandidateId) -> UnitInterval {
-    ranking
-        .binary_search_by_key(&candidate_id, RankedActivation::candidate_id)
-        .map(|index| ranking[index].score())
+#[derive(Clone, Copy)]
+struct CandidateScore {
+    candidate_id: CandidateId,
+    score: UnitInterval,
+}
+
+fn find_score(scores: &[CandidateScore], candidate_id: CandidateId) -> UnitInterval {
+    scores
+        .binary_search_by_key(&candidate_id, |candidate| candidate.candidate_id)
+        .map(|index| scores[index].score)
         .expect("preference candidates were validated and ranked")
 }

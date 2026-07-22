@@ -2,12 +2,14 @@
 
 mod error;
 mod evaluate;
-mod model;
+mod input;
+mod preference_graph;
+mod report;
 
 pub use error::EvaluationError;
 pub use evaluate::evaluate_parameters;
-pub use model::{
-    ActivationParameter, ActivationParameters, EvaluationReport, EvaluationScenario,
-    EvaluationSuite, EvidenceGate, EvidenceParameter, ExpectedPreference, InhibitionParameter,
-    PreferenceEvaluation, PreferenceOutcome, ScenarioEvaluation, ScenarioId,
+pub use input::{
+    ActivationParameter, ActivationParameters, EvaluationScenario, EvaluationSuite, EvidenceGate,
+    EvidenceParameter, ExpectedPreference, InhibitionParameter, ScenarioId,
 };
+pub use report::{EvaluationReport, PreferenceEvaluation, PreferenceOutcome, ScenarioEvaluation};
