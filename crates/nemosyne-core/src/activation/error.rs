@@ -22,6 +22,11 @@ pub enum ActivationError {
         /// The affected evidence channel.
         channel_id: ChannelId,
     },
+    /// A positive effective evidence weight became unrepresentable after normalization.
+    NormalizedWeightUnderflow {
+        /// The affected evidence channel.
+        channel_id: ChannelId,
+    },
     /// No evidence channel has a positive effective weight.
     NoEffectiveEvidence,
     /// A candidate supplies a channel identifier more than once.
@@ -66,6 +71,11 @@ impl fmt::Display for ActivationError {
             Self::EffectiveWeightUnderflow { channel_id } => write!(
                 formatter,
                 "evidence channel {} has positive weight and gate whose product underflows to zero",
+                channel_id.get()
+            ),
+            Self::NormalizedWeightUnderflow { channel_id } => write!(
+                formatter,
+                "evidence channel {} has a positive effective weight that underflows to zero after normalization",
                 channel_id.get()
             ),
             Self::NoEffectiveEvidence => {

@@ -68,7 +68,7 @@ impl UnitInterval {
         self.0
     }
 
-    pub(crate) fn from_computed(value: f64) -> Self {
+    pub(super) fn from_computed(value: f64) -> Self {
         debug_assert!(value.is_finite());
         Self(canonical_zero(value.clamp(0.0, 1.0)))
     }
@@ -221,7 +221,7 @@ impl From<InhibitionChannel> for ActivationChannel {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub(crate) enum PreparedChannel {
+pub(super) enum PreparedChannel {
     Evidence {
         channel: EvidenceChannel,
         effective_weight: UnitInterval,
@@ -231,7 +231,7 @@ pub(crate) enum PreparedChannel {
 }
 
 impl PreparedChannel {
-    pub(crate) const fn channel_id(self) -> ChannelId {
+    pub(super) const fn channel_id(self) -> ChannelId {
         match self {
             Self::Evidence { channel, .. } => channel.channel_id,
             Self::Inhibition(channel) => channel.channel_id,
@@ -243,7 +243,7 @@ impl PreparedChannel {
 #[derive(Clone, Debug, PartialEq)]
 pub struct ActivationProfile {
     channels: Box<[ActivationChannel]>,
-    pub(crate) prepared_channels: Box<[PreparedChannel]>,
+    prepared_channels: Box<[PreparedChannel]>,
 }
 
 impl ActivationProfile {
@@ -298,12 +298,16 @@ impl ActivationProfile {
                     let (channel_id, effective_weight) = effective_weights[evidence_index];
                     debug_assert_eq!(channel_id, channel.channel_id);
                     evidence_index += 1;
+                    let normalized_weight = effective_weight / denominator;
+                    if effective_weight > 0.0 && normalized_weight == 0.0 {
+                        return Err(ActivationError::NormalizedWeightUnderflow {
+                            channel_id: channel.channel_id,
+                        });
+                    }
                     prepared.push(PreparedChannel::Evidence {
                         channel: *channel,
                         effective_weight: UnitInterval::from_computed(effective_weight),
-                        normalized_weight: UnitInterval::from_computed(
-                            effective_weight / denominator,
-                        ),
+                        normalized_weight: UnitInterval::from_computed(normalized_weight),
                     });
                 }
                 ActivationChannel::Inhibition(channel) => {
@@ -322,6 +326,10 @@ impl ActivationProfile {
     #[must_use]
     pub fn channels(&self) -> &[ActivationChannel] {
         &self.channels
+    }
+
+    pub(super) fn prepared_channels(&self) -> &[PreparedChannel] {
+        &self.prepared_channels
     }
 }
 
@@ -379,16 +387,36 @@ impl ActivationCandidate {
 /// The contribution of one evidence channel to a candidate's evidence score.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct EvidenceContribution {
-    pub(crate) channel_id: ChannelId,
-    pub(crate) weight: UnitInterval,
-    pub(crate) gate: UnitInterval,
-    pub(crate) signal: UnitInterval,
-    pub(crate) effective_weight: UnitInterval,
-    pub(crate) normalized_weight: UnitInterval,
-    pub(crate) contribution: UnitInterval,
+    channel_id: ChannelId,
+    weight: UnitInterval,
+    gate: UnitInterval,
+    signal: UnitInterval,
+    effective_weight: UnitInterval,
+    normalized_weight: UnitInterval,
+    contribution: UnitInterval,
 }
 
 impl EvidenceContribution {
+    pub(super) const fn new(
+        channel_id: ChannelId,
+        weight: UnitInterval,
+        gate: UnitInterval,
+        signal: UnitInterval,
+        effective_weight: UnitInterval,
+        normalized_weight: UnitInterval,
+        contribution: UnitInterval,
+    ) -> Self {
+        Self {
+            channel_id,
+            weight,
+            gate,
+            signal,
+            effective_weight,
+            normalized_weight,
+            contribution,
+        }
+    }
+
     /// Returns the channel identifier.
     #[must_use]
     pub const fn channel_id(&self) -> ChannelId {
@@ -429,13 +457,27 @@ impl EvidenceContribution {
 /// The retention effect of one inhibition channel.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct InhibitionContribution {
-    pub(crate) channel_id: ChannelId,
-    pub(crate) strength: UnitInterval,
-    pub(crate) signal: UnitInterval,
-    pub(crate) retention_factor: UnitInterval,
+    channel_id: ChannelId,
+    strength: UnitInterval,
+    signal: UnitInterval,
+    retention_factor: UnitInterval,
 }
 
 impl InhibitionContribution {
+    pub(super) const fn new(
+        channel_id: ChannelId,
+        strength: UnitInterval,
+        signal: UnitInterval,
+        retention_factor: UnitInterval,
+    ) -> Self {
+        Self {
+            channel_id,
+            strength,
+            signal,
+            retention_factor,
+        }
+    }
+
     /// Returns the channel identifier.
     #[must_use]
     pub const fn channel_id(&self) -> ChannelId {
@@ -461,13 +503,27 @@ impl InhibitionContribution {
 /// One compact ranked activation result.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct RankedActivation {
-    pub(crate) candidate_id: CandidateId,
-    pub(crate) evidence_score: UnitInterval,
-    pub(crate) retention: UnitInterval,
-    pub(crate) score: UnitInterval,
+    candidate_id: CandidateId,
+    evidence_score: UnitInterval,
+    retention: UnitInterval,
+    score: UnitInterval,
 }
 
 impl RankedActivation {
+    pub(super) const fn new(
+        candidate_id: CandidateId,
+        evidence_score: UnitInterval,
+        retention: UnitInterval,
+        score: UnitInterval,
+    ) -> Self {
+        Self {
+            candidate_id,
+            evidence_score,
+            retention,
+            score,
+        }
+    }
+
     /// Returns the candidate identifier.
     #[must_use]
     pub const fn candidate_id(&self) -> CandidateId {
@@ -493,12 +549,24 @@ impl RankedActivation {
 /// A complete explanation of one candidate's activation score.
 #[derive(Clone, Debug, PartialEq)]
 pub struct ActivationExplanation {
-    pub(crate) activation: RankedActivation,
-    pub(crate) evidence_contributions: Box<[EvidenceContribution]>,
-    pub(crate) inhibition_contributions: Box<[InhibitionContribution]>,
+    activation: RankedActivation,
+    evidence_contributions: Box<[EvidenceContribution]>,
+    inhibition_contributions: Box<[InhibitionContribution]>,
 }
 
 impl ActivationExplanation {
+    pub(super) fn new(
+        activation: RankedActivation,
+        evidence_contributions: Box<[EvidenceContribution]>,
+        inhibition_contributions: Box<[InhibitionContribution]>,
+    ) -> Self {
+        Self {
+            activation,
+            evidence_contributions,
+            inhibition_contributions,
+        }
+    }
+
     /// Returns the compact activation values reproduced by this explanation.
     #[must_use]
     pub const fn activation(&self) -> &RankedActivation {

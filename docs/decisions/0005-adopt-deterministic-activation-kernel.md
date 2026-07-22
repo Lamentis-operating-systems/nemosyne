@@ -26,7 +26,7 @@ R_i = \prod_j (1 - \lambda_j p_{i,j}), \qquad
 A_i = E_i R_i
 \]
 
-Evaluate channels in ascending numeric identifier order. Return all candidates by descending activation and then ascending candidate identifier for exact ties. Return a complete contribution breakdown and explicit errors for invalid numeric values, duplicate identifiers, incomplete or unknown signals, and a non-positive evidence denominator.
+Evaluate channels in ascending numeric identifier order. Return compact aggregate scores for all candidates by descending activation and then ascending candidate identifier for exact ties. Provide a separate operation that returns a complete contribution breakdown for one candidate. Return explicit errors for invalid numeric values, duplicate identifiers, incomplete or unknown signals, and a non-positive evidence denominator.
 
 Use private fields, validated constructors, documented getters, and no default weights. Add no production dependency. The exact behavioral contract is maintained in [`situation-conditioned-activation.md`](../specifications/situation-conditioned-activation.md).
 
@@ -34,7 +34,7 @@ Use private fields, validated constructors, documented getters, and no default w
 
 The weighted evidence mean keeps differently scaled channel counts comparable while situation gates make relevance explicit. Multiplicative retention preserves a bounded score and makes each inhibition independently inspectable. Generic channels allow experiments with semantic, temporal, goal, risk, or other signals without encoding an unvalidated ontology into the core API.
 
-Canonical evaluation and identifier-based tie-breaking remove input-order ambiguity. Complete breakdowns make the calculation testable and auditable. Requiring callers to provide parameters prevents experimental values from becoming implicit project policy.
+Canonical evaluation and identifier-based tie-breaking remove input-order ambiguity. Targeted complete breakdowns make the calculation testable and auditable without imposing their storage cost on every ranked result. Requiring callers to provide parameters prevents experimental values from becoming implicit project policy.
 
 ## Alternatives
 
@@ -51,4 +51,4 @@ Upstream code is responsible for producing normalized signals and explicit param
 
 This change does not provide text or embedding processing, vector metrics, persistence, graph activation, hard eligibility rules, top-k selection, diversity, token budgeting, an attention state, or an attention-text renderer. It makes no claim that selected parameters are learned, optimal, or suitable for safety-critical decisions.
 
-The public contract is experimental and may evolve through the repository's specification and decision process. Deterministic evaluation order and score breakdowns support reproducible diagnosis, but this decision does not claim bit-for-bit equality across distinct floating-point environments.
+The public contract is experimental and may evolve through the repository's specification and decision process. Deterministic evaluation order and targeted score explanations support reproducible diagnosis, but this decision does not claim bit-for-bit equality across distinct floating-point environments.

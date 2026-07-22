@@ -63,7 +63,7 @@ For `f64` evaluation, the implementation first computes the normalized weight
 n_c = \frac{a_c}{D}
 \]
 
-and then computes `q_(i,c) = n_c e_(i,c)`. This division-first evaluation avoids losing a representable normalized contribution when `a_c` is subnormal.
+and then computes `q_(i,c) = n_c e_(i,c)`. This division-first evaluation avoids losing a representable normalized contribution when `a_c` is subnormal. A positive `a_c` whose normalized weight is not representable as a positive `f64` is rejected explicitly.
 
 For each inhibition channel, the retention factor is:
 
@@ -96,6 +96,7 @@ The API validates the complete input before returning ranked results:
 - every supplied `f64` must be finite and in `U`;
 - each channel identifier must occur exactly once in the profile, including across channel kinds;
 - an evidence channel with positive `w_c` and `g_c` must have a representable nonzero `f64` product; otherwise construction reports effective-weight underflow rather than silently disabling the channel;
+- every positive effective evidence weight must remain representable and positive after division by `D`; otherwise construction reports normalized-weight underflow;
 - at least one evidence channel must have `w_c * g_c > 0`, so `D > 0`;
 - every candidate identifier must be unique in the input;
 - every candidate must contain exactly one signal for each profile channel; and
@@ -127,11 +128,12 @@ The output contains every input candidate exactly once. Results are ordered by d
 - A candidate whose evidence signals are all zero has `E_i = A_i = 0`.
 - An evidence channel with weight zero or gate zero has effective weight and contribution zero.
 - Positive weight and gate values whose product underflows to zero are rejected explicitly.
+- A positive effective weight whose normalized weight underflows to zero is rejected explicitly.
 - With no inhibition channels, `R_i = 1` and `A_i = E_i`.
 - If any inhibition channel has strength one and signal one, its retention factor is zero and `A_i = 0`.
 - `NaN`, positive or negative infinity, negative values, and values above one are invalid.
 - Negative zero is valid and is stored and reported as positive zero.
-- Duplicate profile channels, duplicate candidates, missing signals, duplicate signals, unknown signals, effective-weight underflow, and a non-positive evidence denominator are errors.
+- Duplicate profile channels, duplicate candidates, missing signals, duplicate signals, unknown signals, effective- or normalized-weight underflow, and a non-positive evidence denominator are errors.
 
 ## Operational boundary
 
@@ -143,7 +145,7 @@ The evidence denominator depends on the complete active evidence-channel set. Ad
 
 Public-boundary tests must cover valid interval boundaries, every invalid numeric class, every structural error, an empty candidate list, absent and complete inhibition, inactive evidence channels, deterministic tie-breaking, and input-order invariance.
 
-Tests must include a hand-calculated case with `E = 0.6`, `R = 0.8`, and `A = 0.48`; reconstruct scores from an explanation; verify bounded finite outputs; verify evidence and inhibition monotonicity; verify effective-weight underflow handling; and verify bit-identical aggregates from ranking and explanation.
+Tests must include a hand-calculated case with `E = 0.6`, `R = 0.8`, and `A = 0.48`; reconstruct scores from an explanation; verify bounded finite outputs; verify evidence and inhibition monotonicity; verify effective- and normalized-weight underflow handling; verify both public operations' structural validation; and verify bit-identical aggregates from ranking and explanation.
 
 A numeric red-light-versus-appointment example must demonstrate that caller-selected signals and gates can rank an immediate candidate above a secondary candidate. This example is algorithm evidence only and does not establish a safety policy or safety guarantee.
 
@@ -157,4 +159,5 @@ None within this kernel. Signal derivation, semantic channel selection, calibrat
 
 - [Decision 0005: Adopt a deterministic activation kernel](../decisions/0005-adopt-deterministic-activation-kernel.md)
 - [Decision 0006: Canonicalize activation data and separate explanation](../decisions/0006-canonicalize-activation-data-and-separate-explanation.md)
+- [Decision 0007: Reject normalized evidence underflow](../decisions/0007-reject-normalized-evidence-underflow.md)
 - [`nemosyne-core`](../../crates/nemosyne-core/)

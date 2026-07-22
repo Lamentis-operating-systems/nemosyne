@@ -1,4 +1,6 @@
-use nemosyne_core::activation::{ActivationError, CandidateId, ChannelId, rank_activations};
+use nemosyne_core::activation::{
+    ActivationError, CandidateId, ChannelId, explain_activation, rank_activations,
+};
 
 use super::{candidate, evidence, inhibition, profile};
 
@@ -23,6 +25,28 @@ fn unexpected_signal_is_rejected() {
         rank_activations(&profile, &candidates),
         Err(ActivationError::UnexpectedSignal {
             candidate_id: CandidateId::new(7),
+            channel_id: ChannelId::new(1)
+        })
+    );
+}
+
+#[test]
+fn explanation_rejects_missing_and_unexpected_signals() {
+    let profile = profile(vec![evidence(2, 1.0, 1.0), inhibition(4, 0.5)]);
+    let missing = candidate(7, &[(2, 0.4)]);
+    assert_eq!(
+        explain_activation(&profile, &missing),
+        Err(ActivationError::MissingSignal {
+            candidate_id: CandidateId::new(7),
+            channel_id: ChannelId::new(4)
+        })
+    );
+
+    let unexpected = candidate(8, &[(1, 0.3), (2, 0.4), (4, 0.2)]);
+    assert_eq!(
+        explain_activation(&profile, &unexpected),
+        Err(ActivationError::UnexpectedSignal {
+            candidate_id: CandidateId::new(8),
             channel_id: ChannelId::new(1)
         })
     );

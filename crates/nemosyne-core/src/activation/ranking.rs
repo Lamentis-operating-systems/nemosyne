@@ -40,10 +40,10 @@ pub fn rank_activations(
 
     ranked.sort_unstable_by(|left, right| {
         right
-            .score
+            .score()
             .get()
-            .total_cmp(&left.score.get())
-            .then_with(|| left.candidate_id.cmp(&right.candidate_id))
+            .total_cmp(&left.score().get())
+            .then_with(|| left.candidate_id().cmp(&right.candidate_id()))
     });
     Ok(ranked)
 }
@@ -72,7 +72,7 @@ fn validate_signals(
     profile: &ActivationProfile,
     candidate: &ActivationCandidate,
 ) -> Result<(), ActivationError> {
-    let expected = &profile.prepared_channels;
+    let expected = profile.prepared_channels();
     let actual = candidate.signals();
     let mut expected_index = 0;
     let mut actual_index = 0;
@@ -112,7 +112,7 @@ fn evaluate_candidate<T: Trace>(
     let mut retention = 1.0;
 
     for (channel, signal) in profile
-        .prepared_channels
+        .prepared_channels()
         .iter()
         .copied()
         .zip(candidate.signals().iter().copied())
@@ -125,37 +125,37 @@ fn evaluate_candidate<T: Trace>(
             } => {
                 let contribution = normalized_weight.get() * signal.value().get();
                 evidence_score += contribution;
-                trace.evidence(EvidenceContribution {
-                    channel_id: channel.channel_id(),
-                    weight: channel.weight(),
-                    gate: channel.gate(),
-                    signal: signal.value(),
+                trace.evidence(EvidenceContribution::new(
+                    channel.channel_id(),
+                    channel.weight(),
+                    channel.gate(),
+                    signal.value(),
                     effective_weight,
                     normalized_weight,
-                    contribution: UnitInterval::from_computed(contribution),
-                });
+                    UnitInterval::from_computed(contribution),
+                ));
             }
             PreparedChannel::Inhibition(channel) => {
                 let factor = 1.0 - channel.strength().get() * signal.value().get();
                 retention *= factor;
-                trace.inhibition(InhibitionContribution {
-                    channel_id: channel.channel_id(),
-                    strength: channel.strength(),
-                    signal: signal.value(),
-                    retention_factor: UnitInterval::from_computed(factor),
-                });
+                trace.inhibition(InhibitionContribution::new(
+                    channel.channel_id(),
+                    channel.strength(),
+                    signal.value(),
+                    UnitInterval::from_computed(factor),
+                ));
             }
         }
     }
 
     let evidence_score = UnitInterval::from_computed(evidence_score);
     let retention = UnitInterval::from_computed(retention);
-    RankedActivation {
-        candidate_id: candidate.candidate_id(),
+    RankedActivation::new(
+        candidate.candidate_id(),
         evidence_score,
         retention,
-        score: UnitInterval::from_computed(evidence_score.get() * retention.get()),
-    }
+        UnitInterval::from_computed(evidence_score.get() * retention.get()),
+    )
 }
 
 trait Trace {
@@ -178,22 +178,22 @@ struct ExplanationTrace {
 impl ExplanationTrace {
     fn new(profile: &ActivationProfile) -> Self {
         let evidence_count = profile
-            .prepared_channels
+            .prepared_channels()
             .iter()
             .filter(|channel| matches!(channel, PreparedChannel::Evidence { .. }))
             .count();
         Self {
             evidence: Vec::with_capacity(evidence_count),
-            inhibition: Vec::with_capacity(profile.prepared_channels.len() - evidence_count),
+            inhibition: Vec::with_capacity(profile.prepared_channels().len() - evidence_count),
         }
     }
 
     fn finish(self, activation: RankedActivation) -> ActivationExplanation {
-        ActivationExplanation {
+        ActivationExplanation::new(
             activation,
-            evidence_contributions: self.evidence.into_boxed_slice(),
-            inhibition_contributions: self.inhibition.into_boxed_slice(),
-        }
+            self.evidence.into_boxed_slice(),
+            self.inhibition.into_boxed_slice(),
+        )
     }
 }
 

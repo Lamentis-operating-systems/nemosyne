@@ -126,6 +126,21 @@ fn representable_subnormal_effective_weight_keeps_its_evidence() {
 }
 
 #[test]
+fn positive_effective_weight_that_underflows_during_normalization_is_rejected() {
+    let smallest_positive = f64::from_bits(1);
+    assert_eq!(
+        ActivationProfile::new(vec![
+            evidence(1, smallest_positive, 1.0),
+            evidence(2, 1.0, 1.0),
+            evidence(3, 1.0, 1.0),
+        ]),
+        Err(ActivationError::NormalizedWeightUnderflow {
+            channel_id: ChannelId::new(1)
+        })
+    );
+}
+
+#[test]
 fn candidate_uses_one_global_canonical_signal_order() {
     let candidate = candidate(5, &[(4, 0.4), (1, 0.1), (3, 0.3), (2, 0.2)]);
     assert_eq!(
