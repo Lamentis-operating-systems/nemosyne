@@ -175,6 +175,12 @@ impl ActivationEvidenceCorpus {
     /// accidental edits to an immutable corpus revision. Equal artifacts
     /// produce equal values, but equality does not prove artifact identity,
     /// authenticity, or integrity.
+    ///
+    /// # Panics
+    ///
+    /// Panics if an internally constructed corpus contains an activation
+    /// parameter kind that the fingerprint protocol does not encode. The
+    /// current revision-1 constructor cannot produce that state.
     #[must_use]
     pub fn regression_fingerprint(&self) -> u64 {
         super::super::fingerprint::regression_fingerprint(self)

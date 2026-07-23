@@ -6,6 +6,56 @@ use nemosyne_evaluation::activation::{EvaluationError, ScenarioId};
 
 use super::{CorpusSplit, FactId, ReferenceId, ScenarioCategoryId, SemanticCaseId};
 
+/// The exact evidence item containing a scenario-fact reference.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum FactReferenceLocation {
+    /// A situation-level gate judgment.
+    Gate {
+        /// The affected evidence channel.
+        channel_id: ChannelId,
+    },
+    /// A candidate-level signal judgment.
+    CandidateSignal {
+        /// The affected candidate.
+        candidate_id: CandidateId,
+        /// The affected evidence channel.
+        channel_id: ChannelId,
+    },
+    /// An expected pairwise preference.
+    Preference {
+        /// The preferred candidate.
+        preferred: CandidateId,
+        /// The other candidate.
+        other: CandidateId,
+    },
+}
+
+impl fmt::Display for FactReferenceLocation {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Gate { channel_id } => {
+                write!(formatter, "gate channel {}", channel_id.get())
+            }
+            Self::CandidateSignal {
+                candidate_id,
+                channel_id,
+            } => write!(
+                formatter,
+                "candidate {} channel {}",
+                candidate_id.get(),
+                channel_id.get()
+            ),
+            Self::Preference { preferred, other } => write!(
+                formatter,
+                "preference {} over {}",
+                preferred.get(),
+                other.get()
+            ),
+        }
+    }
+}
+
 /// A defect in corpus metadata, structure, or derived evaluator input.
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
@@ -20,6 +70,11 @@ pub enum CorpusError {
         /// The duplicated channel.
         channel_id: ChannelId,
     },
+    /// Two evidence channels use the same stable key.
+    DuplicateChannelKey {
+        /// The duplicated channel key.
+        key: Box<str>,
+    },
     /// The corpus channel set differs from the revision-1 schema.
     InvalidChannelSet {
         /// The observed channel identifiers.
@@ -30,10 +85,20 @@ pub enum CorpusError {
         /// The duplicated category.
         category_id: ScenarioCategoryId,
     },
+    /// Two scenario categories use the same stable key.
+    DuplicateCategoryKey {
+        /// The duplicated category key.
+        key: Box<str>,
+    },
     /// A reference parameter identifier occurs more than once.
     DuplicateReference {
         /// The duplicated reference.
         reference_id: ReferenceId,
+    },
+    /// Two reference parameter sets use the same stable key.
+    DuplicateReferenceKey {
+        /// The duplicated reference key.
+        key: Box<str>,
     },
     /// A corpus partition contains no scenario.
     EmptyPartition {
@@ -56,6 +121,8 @@ pub enum CorpusError {
     UnknownFact {
         /// The affected scenario.
         scenario_id: ScenarioId,
+        /// The evidence item containing the reference.
+        location: FactReferenceLocation,
         /// The unknown fact.
         fact_id: FactId,
     },
@@ -63,6 +130,8 @@ pub enum CorpusError {
     DuplicateFactReference {
         /// The affected scenario.
         scenario_id: ScenarioId,
+        /// The evidence item containing the reference.
+        location: FactReferenceLocation,
         /// The repeated fact.
         fact_id: FactId,
     },
@@ -70,6 +139,8 @@ pub enum CorpusError {
     EmptyFactReferences {
         /// The affected scenario.
         scenario_id: ScenarioId,
+        /// The evidence item without references.
+        location: FactReferenceLocation,
     },
     /// A scenario refers to an undefined broad category.
     UnknownCategory {
@@ -83,11 +154,11 @@ pub enum CorpusError {
         /// The leaked semantic source.
         semantic_case_id: SemanticCaseId,
     },
-    /// A held-out preference repeats a complete calibration preference shape.
-    CrossSplitPreferenceShape {
-        /// The calibration scenario that first defines the numeric shape.
+    /// A held-out preference repeats a calibration algebraic signature.
+    CrossSplitAlgebraicPreferenceSignature {
+        /// The calibration scenario that first defines the signature.
         calibration_scenario_id: ScenarioId,
-        /// The held-out scenario that repeats the numeric shape.
+        /// The held-out scenario that repeats the signature.
         held_out_scenario_id: ScenarioId,
     },
     /// One semantic case refers to more than one broad category.
@@ -191,6 +262,12 @@ impl fmt::Display for CorpusError {
                 "corpus channel {} is defined more than once",
                 channel_id.get()
             ),
+            Self::DuplicateChannelKey { key } => {
+                write!(
+                    formatter,
+                    "corpus channel key {key:?} is defined more than once"
+                )
+            }
             Self::InvalidChannelSet { channel_ids } => write!(
                 formatter,
                 "corpus channels differ from revision 1: {:?}",
@@ -204,10 +281,18 @@ impl fmt::Display for CorpusError {
                 "scenario category {} is defined more than once",
                 category_id.get()
             ),
+            Self::DuplicateCategoryKey { key } => write!(
+                formatter,
+                "scenario category key {key:?} is defined more than once"
+            ),
             Self::DuplicateReference { reference_id } => write!(
                 formatter,
                 "reference parameter set {} is defined more than once",
                 reference_id.get()
+            ),
+            Self::DuplicateReferenceKey { key } => write!(
+                formatter,
+                "reference parameter key {key:?} is defined more than once"
             ),
             Self::EmptyPartition { split } => {
                 write!(formatter, "{split:?} corpus partition contains no scenario")
@@ -228,25 +313,30 @@ impl fmt::Display for CorpusError {
             ),
             Self::UnknownFact {
                 scenario_id,
+                location,
                 fact_id,
             } => write!(
                 formatter,
-                "scenario {} cites unknown fact {}",
+                "scenario {} {location} cites unknown fact {}",
                 scenario_id.get(),
                 fact_id.get()
             ),
             Self::DuplicateFactReference {
                 scenario_id,
+                location,
                 fact_id,
             } => write!(
                 formatter,
-                "scenario {} cites fact {} more than once in one evidence item",
+                "scenario {} {location} cites fact {} more than once",
                 scenario_id.get(),
                 fact_id.get()
             ),
-            Self::EmptyFactReferences { scenario_id } => write!(
+            Self::EmptyFactReferences {
+                scenario_id,
+                location,
+            } => write!(
                 formatter,
-                "scenario {} contains evidence without cited facts",
+                "scenario {} {location} cites no facts",
                 scenario_id.get()
             ),
             Self::UnknownCategory {
@@ -263,12 +353,12 @@ impl fmt::Display for CorpusError {
                 "semantic case {} occurs in both corpus partitions",
                 semantic_case_id.get()
             ),
-            Self::CrossSplitPreferenceShape {
+            Self::CrossSplitAlgebraicPreferenceSignature {
                 calibration_scenario_id,
                 held_out_scenario_id,
             } => write!(
                 formatter,
-                "held-out scenario {} repeats an evaluated preference shape from calibration scenario {}",
+                "held-out scenario {} repeats a real-arithmetic preference signature from calibration scenario {}",
                 held_out_scenario_id.get(),
                 calibration_scenario_id.get()
             ),

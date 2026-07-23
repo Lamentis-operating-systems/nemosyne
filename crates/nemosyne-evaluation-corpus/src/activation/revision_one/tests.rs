@@ -1,13 +1,20 @@
 use std::error::Error;
 
-use nemosyne_core::activation::{CandidateId, ChannelId};
-use nemosyne_evaluation::activation::{EvaluationError, ScenarioId};
+use nemosyne_core::activation::{
+    ActivationCandidate, CandidateId, ChannelId, ChannelSignal, UnitInterval,
+};
+use nemosyne_evaluation::activation::{
+    ActivationParameter, ActivationParameters, EvaluationError, EvaluationScenario,
+    EvaluationSuite, EvidenceGate, EvidenceParameter, ExpectedPreference, PreferenceOutcome,
+    ScenarioId, evaluate_parameters,
+};
 
-use super::corpus::{build_partition, canonicalize_preference_coefficients};
-use super::{RevisionOneVector, build_revision_one};
+use super::corpus::{build_partition, canonicalize_algebraic_preference_coefficients};
+use super::{ALL_LEVELS, RevisionOneVector, build_revision_one};
 use crate::activation::coding_agent::coding_agent_definition;
 use crate::activation::{
-    CorpusError, CorpusSplit, EvidenceLevel, FactId, ReferenceId, ScenarioCategoryId,
+    CorpusError, CorpusSplit, EvidenceChannelDefinition, EvidenceLevel, FactId,
+    FactReferenceLocation, ReferenceId, ScenarioCategory, ScenarioCategoryId,
 };
 
 #[test]
@@ -35,6 +42,66 @@ fn rejects_duplicate_and_invalid_channel_schemas() {
             .into(),
         })
     );
+}
+
+#[test]
+fn permuted_authoring_collections_produce_the_same_complete_artifact() {
+    let canonical =
+        build_revision_one(coding_agent_definition()).expect("canonical definition is valid");
+    let mut definition = coding_agent_definition();
+    definition.channels.reverse();
+    definition.categories.reverse();
+    definition.references.reverse();
+    let scenario = definition
+        .scenarios
+        .iter_mut()
+        .find(|scenario| scenario.scenario_id == ScenarioId::new(1001))
+        .expect("permutation probe scenario exists");
+    scenario
+        .gates
+        .channels
+        .set_fact_ids(ChannelId::new(10), &[5, 2]);
+    scenario
+        .candidates
+        .iter_mut()
+        .find(|candidate| candidate.candidate_id == CandidateId::new(1))
+        .expect("permutation probe candidate exists")
+        .judgment
+        .channels
+        .set_fact_ids(ChannelId::new(10), &[5, 2]);
+    scenario.preferences[0].fact_ids = &[3, 2, 1];
+    definition.scenarios.reverse();
+    for scenario in &mut definition.scenarios {
+        scenario.facts.reverse();
+        scenario.candidates.reverse();
+        scenario.preferences.reverse();
+    }
+
+    let permuted = build_revision_one(definition).expect("permuted definition is valid");
+    assert_eq!(permuted, canonical);
+    assert_eq!(
+        permuted.regression_fingerprint(),
+        canonical.regression_fingerprint()
+    );
+
+    for (canonical_reference, permuted_reference) in
+        canonical.references().iter().zip(permuted.references())
+    {
+        for (canonical_partition, permuted_partition) in [
+            (canonical.calibration(), permuted.calibration()),
+            (canonical.held_out(), permuted.held_out()),
+        ] {
+            assert_eq!(
+                evaluate_parameters(
+                    canonical_reference.parameters(),
+                    canonical_partition.suite(),
+                )
+                .expect("canonical reference evaluates"),
+                evaluate_parameters(permuted_reference.parameters(), permuted_partition.suite(),)
+                    .expect("permuted reference evaluates"),
+            );
+        }
+    }
 }
 
 #[test]
@@ -70,6 +137,57 @@ fn rejects_invalid_metadata_and_category_references() {
 }
 
 #[test]
+fn rejects_duplicate_stable_keys_in_each_namespace() {
+    let mut duplicate_channel_key = coding_agent_definition();
+    let replacement = {
+        let duplicate_key = duplicate_channel_key.channels[0].key();
+        let channel = &duplicate_channel_key.channels[1];
+        EvidenceChannelDefinition::new(
+            channel.channel_id(),
+            duplicate_key,
+            channel.gate_meaning(),
+            channel.signal_meaning(),
+            ALL_LEVELS.map(|level| channel.gate_anchor(level)),
+            ALL_LEVELS.map(|level| channel.signal_anchor(level)),
+        )
+    };
+    duplicate_channel_key.channels[1] = replacement;
+    assert_eq!(
+        build_revision_one(duplicate_channel_key),
+        Err(CorpusError::DuplicateChannelKey {
+            key: "trigger_alignment".into(),
+        })
+    );
+
+    let mut duplicate_category_key = coding_agent_definition();
+    let replacement = {
+        let duplicate_key = duplicate_category_key.categories[0].key();
+        let category = &duplicate_category_key.categories[1];
+        ScenarioCategory::new(
+            category.category_id(),
+            duplicate_key,
+            category.description(),
+        )
+    };
+    duplicate_category_key.categories[1] = replacement;
+    assert_eq!(
+        build_revision_one(duplicate_category_key),
+        Err(CorpusError::DuplicateCategoryKey {
+            key: "active_constraints".into(),
+        })
+    );
+
+    let mut duplicate_reference_key = coding_agent_definition();
+    duplicate_reference_key.references[1].key = duplicate_reference_key.references[0].key;
+    assert_eq!(
+        build_revision_one(duplicate_reference_key),
+        Err(CorpusError::DuplicateReferenceKey {
+            key: "trigger_only".into(),
+        })
+    );
+}
+
+#[test]
 fn rejects_duplicate_unknown_and_empty_fact_evidence() {
     let mut duplicate = coding_agent_definition();
     let duplicate_fact = duplicate.scenarios[0].facts[0].clone();
@@ -91,6 +209,9 @@ fn rejects_duplicate_unknown_and_empty_fact_evidence() {
         build_revision_one(unknown),
         Err(CorpusError::UnknownFact {
             scenario_id: ScenarioId::new(1001),
+            location: FactReferenceLocation::Gate {
+                channel_id: ChannelId::new(10),
+            },
             fact_id: FactId::new(999),
         })
     );
@@ -104,6 +225,10 @@ fn rejects_duplicate_unknown_and_empty_fact_evidence() {
         build_revision_one(empty),
         Err(CorpusError::EmptyFactReferences {
             scenario_id: ScenarioId::new(1001),
+            location: FactReferenceLocation::CandidateSignal {
+                candidate_id: CandidateId::new(1),
+                channel_id: ChannelId::new(10),
+            },
         })
     );
 }
@@ -111,14 +236,15 @@ fn rejects_duplicate_unknown_and_empty_fact_evidence() {
 #[test]
 fn rejects_duplicate_fact_references() {
     let mut duplicate = coding_agent_definition();
-    duplicate.scenarios[0]
-        .gates
-        .channels
-        .set_fact_ids(ChannelId::new(10), &[1, 1]);
+    duplicate.scenarios[0].preferences[0].fact_ids = &[1, 1];
     assert_eq!(
         build_revision_one(duplicate),
         Err(CorpusError::DuplicateFactReference {
             scenario_id: ScenarioId::new(1001),
+            location: FactReferenceLocation::Preference {
+                preferred: CandidateId::new(1),
+                other: CandidateId::new(2),
+            },
             fact_id: FactId::new(1),
         })
     );
@@ -214,7 +340,7 @@ fn rejects_indistinct_pairs_and_missing_category_coverage() {
 }
 
 #[test]
-fn rejects_cross_split_numeric_preference_leakage() {
+fn rejects_cross_split_algebraic_preference_signature_leakage() {
     let mut leaked = coding_agent_definition();
     let calibration = leaked.scenarios[0].clone();
     let held_out = leaked
@@ -231,7 +357,7 @@ fn rejects_cross_split_numeric_preference_leakage() {
 
     assert_eq!(
         build_revision_one(leaked),
-        Err(CorpusError::CrossSplitPreferenceShape {
+        Err(CorpusError::CrossSplitAlgebraicPreferenceSignature {
             calibration_scenario_id: ScenarioId::new(1001),
             held_out_scenario_id: ScenarioId::new(2201),
         })
@@ -239,39 +365,68 @@ fn rejects_cross_split_numeric_preference_leakage() {
 }
 
 #[test]
-fn canonicalizes_one_sign_preference_shapes_by_signed_support() {
+fn canonicalizes_one_sign_algebraic_signatures_by_signed_support() {
     let mut first_positive = [4, 4, 4, 4, 0];
     let mut second_positive = [12, 12, 9, 4, 0];
-    canonicalize_preference_coefficients(&mut first_positive);
-    canonicalize_preference_coefficients(&mut second_positive);
+    canonicalize_algebraic_preference_coefficients(&mut first_positive);
+    canonicalize_algebraic_preference_coefficients(&mut second_positive);
     assert_eq!(first_positive, [1, 1, 1, 1, 0]);
     assert_eq!(second_positive, first_positive);
 
     let mut first_negative = [-4, -4, 0, -8, 0];
     let mut second_negative = [-1, -9, 0, -2, 0];
-    canonicalize_preference_coefficients(&mut first_negative);
-    canonicalize_preference_coefficients(&mut second_negative);
+    canonicalize_algebraic_preference_coefficients(&mut first_negative);
+    canonicalize_algebraic_preference_coefficients(&mut second_negative);
     assert_eq!(first_negative, [-1, -1, 0, -1, 0]);
     assert_eq!(second_negative, first_negative);
 
     let mut zero = [0; 5];
-    canonicalize_preference_coefficients(&mut zero);
+    canonicalize_algebraic_preference_coefficients(&mut zero);
     assert_eq!(zero, [0; 5]);
 }
 
 #[test]
-fn canonicalizes_mixed_sign_preference_shapes_by_positive_ray() {
+fn canonicalizes_mixed_sign_algebraic_signatures_by_positive_ray() {
     let mut first = [-4, 8, 12, 0, 0];
     let mut proportional = [-2, 4, 6, 0, 0];
     let mut different = [-4, 8, 3, 0, 0];
-    canonicalize_preference_coefficients(&mut first);
-    canonicalize_preference_coefficients(&mut proportional);
-    canonicalize_preference_coefficients(&mut different);
+    canonicalize_algebraic_preference_coefficients(&mut first);
+    canonicalize_algebraic_preference_coefficients(&mut proportional);
+    canonicalize_algebraic_preference_coefficients(&mut different);
 
     assert_eq!(first, [-1, 2, 3, 0, 0]);
     assert_eq!(proportional, first);
     assert_eq!(different, [-4, 8, 3, 0, 0]);
     assert_ne!(different, first);
+}
+
+#[test]
+fn algebraic_signature_does_not_claim_exact_f64_outcome_equivalence() {
+    let mut small_difference = [1, 0, 0, 0, 0];
+    let mut large_difference = [16, 0, 0, 0, 0];
+    canonicalize_algebraic_preference_coefficients(&mut small_difference);
+    canonicalize_algebraic_preference_coefficients(&mut large_difference);
+    assert_eq!(small_difference, large_difference);
+
+    let tied = evaluate_f64_boundary_case([0.25, 1.0], [0.5, 0.5], [0.25, 0.5]);
+    assert_eq!(
+        tied,
+        (
+            0x3fe0_0000_0000_0000,
+            0x3fe0_0000_0000_0000,
+            PreferenceOutcome::Tied,
+        )
+    );
+
+    let satisfied = evaluate_f64_boundary_case([1.0, 1.0], [1.0, 0.5], [0.0, 0.5]);
+    assert_eq!(
+        satisfied,
+        (
+            0x3fe0_0000_0000_0001,
+            0x3fe0_0000_0000_0000,
+            PreferenceOutcome::Satisfied,
+        )
+    );
 }
 
 #[test]
@@ -376,4 +531,67 @@ fn preserves_evaluator_scenario_and_reference_evaluation_errors() {
         } if *reference_id == ReferenceId::new(10)
     ));
     assert!(error.source().is_some());
+}
+
+fn evaluate_f64_boundary_case(
+    gates: [f64; 2],
+    preferred: [f64; 2],
+    other: [f64; 2],
+) -> (u64, u64, PreferenceOutcome) {
+    let channel_ids = [ChannelId::new(10), ChannelId::new(20)];
+    let parameters = ActivationParameters::new(
+        channel_ids
+            .into_iter()
+            .zip([1.0e-16, 1.0])
+            .map(|(channel_id, weight)| {
+                ActivationParameter::from(EvidenceParameter::new(channel_id, interval(weight)))
+            })
+            .collect(),
+    )
+    .expect("boundary parameters are valid");
+    let scenario = EvaluationScenario::new(
+        ScenarioId::new(1),
+        channel_ids
+            .into_iter()
+            .zip(gates)
+            .map(|(channel_id, gate)| EvidenceGate::new(channel_id, interval(gate)))
+            .collect(),
+        vec![
+            boundary_candidate(CandidateId::new(1), channel_ids, preferred),
+            boundary_candidate(CandidateId::new(2), channel_ids, other),
+        ],
+        vec![ExpectedPreference::new(
+            CandidateId::new(1),
+            CandidateId::new(2),
+        )],
+    )
+    .expect("boundary scenario is valid");
+    let suite = EvaluationSuite::new(vec![scenario]).expect("boundary suite is valid");
+    let report = evaluate_parameters(&parameters, &suite).expect("boundary case must evaluate");
+    let preference = report.scenarios()[0].preferences()[0];
+    (
+        preference.preferred_score().get().to_bits(),
+        preference.other_score().get().to_bits(),
+        preference.outcome(),
+    )
+}
+
+fn boundary_candidate(
+    candidate_id: CandidateId,
+    channel_ids: [ChannelId; 2],
+    signals: [f64; 2],
+) -> ActivationCandidate {
+    ActivationCandidate::new(
+        candidate_id,
+        channel_ids
+            .into_iter()
+            .zip(signals)
+            .map(|(channel_id, signal)| ChannelSignal::new(channel_id, interval(signal)))
+            .collect(),
+    )
+    .expect("boundary candidate is valid")
+}
+
+fn interval(value: f64) -> UnitInterval {
+    UnitInterval::new(value).expect("test value is in the unit interval")
 }

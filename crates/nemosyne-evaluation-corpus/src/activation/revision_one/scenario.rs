@@ -11,12 +11,12 @@ use super::{
 };
 use crate::activation::{
     AnchoredValue, CandidateEvidence, CorpusError, CorpusSplit, EvidenceChannelDefinition,
-    EvidenceLevel, FactId, GateEvidence, JudgmentApplicability, PreferenceEvidence,
-    ScenarioCategory, ScenarioCategoryId, ScenarioEvidence, ScenarioFact,
+    EvidenceLevel, FactId, FactReferenceLocation, GateEvidence, JudgmentApplicability,
+    PreferenceEvidence, ScenarioCategory, ScenarioCategoryId, ScenarioEvidence, ScenarioFact,
 };
 
 pub(super) fn validate_channels(
-    channels: &mut Vec<EvidenceChannelDefinition>,
+    channels: &mut [EvidenceChannelDefinition],
 ) -> Result<(), CorpusError> {
     channels.sort_unstable_by_key(EvidenceChannelDefinition::channel_id);
     if let Some(pair) = channels
@@ -35,11 +35,17 @@ pub(super) fn validate_channels(
         return Err(CorpusError::InvalidChannelSet { channel_ids });
     }
 
-    for channel in channels {
+    let mut keys = BTreeSet::new();
+    for channel in channels.iter() {
         validate_text(
             format!("channel {} key", channel.channel_id().get()),
             channel.key(),
         )?;
+        if !keys.insert(channel.key()) {
+            return Err(CorpusError::DuplicateChannelKey {
+                key: channel.key().into(),
+            });
+        }
         validate_text(
             format!("channel {} gate meaning", channel.channel_id().get()),
             channel.gate_meaning(),
@@ -71,9 +77,7 @@ pub(super) fn validate_channels(
     Ok(())
 }
 
-pub(super) fn validate_categories(
-    categories: &mut Vec<ScenarioCategory>,
-) -> Result<(), CorpusError> {
+pub(super) fn validate_categories(categories: &mut [ScenarioCategory]) -> Result<(), CorpusError> {
     categories.sort_unstable_by_key(ScenarioCategory::category_id);
     if let Some(pair) = categories
         .windows(2)
@@ -84,11 +88,17 @@ pub(super) fn validate_categories(
         });
     }
 
-    for category in categories {
+    let mut keys = BTreeSet::new();
+    for category in categories.iter() {
         validate_text(
             format!("category {} key", category.category_id().get()),
             category.key(),
         )?;
+        if !keys.insert(category.key()) {
+            return Err(CorpusError::DuplicateCategoryKey {
+                key: category.key().into(),
+            });
+        }
         validate_text(
             format!("category {} description", category.category_id().get()),
             category.description(),
@@ -203,7 +213,15 @@ pub(super) fn materialize_scenario(
             ),
             preference.rationale,
         )?;
-        let fact_ids = validated_fact_references(scenario_id, preference.fact_ids, &known_facts)?;
+        let fact_ids = validated_fact_references(
+            scenario_id,
+            FactReferenceLocation::Preference {
+                preferred: preference.preferred,
+                other: preference.other,
+            },
+            preference.fact_ids,
+            &known_facts,
+        )?;
         let expectation = ExpectedPreference::new(preference.preferred, preference.other);
         preferences.push(PreferenceEvidence::new(
             expectation,
@@ -302,7 +320,17 @@ fn materialize_judgment(
         .iter()
         .zip(judgment.channels.canonical())
         .map(|(channel, authored)| {
-            let fact_ids = validated_fact_references(scenario_id, authored.fact_ids, known_facts)?;
+            let location = candidate_id.map_or(
+                FactReferenceLocation::Gate {
+                    channel_id: channel.channel_id(),
+                },
+                |candidate_id| FactReferenceLocation::CandidateSignal {
+                    candidate_id,
+                    channel_id: channel.channel_id(),
+                },
+            );
+            let fact_ids =
+                validated_fact_references(scenario_id, location, authored.fact_ids, known_facts)?;
             let context = candidate_id.map_or_else(
                 || {
                     format!(
@@ -349,17 +377,22 @@ fn materialize_judgment(
 
 fn validated_fact_references(
     scenario_id: ScenarioId,
+    location: FactReferenceLocation,
     fact_ids: &[u64],
     known_facts: &BTreeSet<FactId>,
 ) -> Result<Box<[FactId]>, CorpusError> {
     let mut references: Vec<_> = fact_ids.iter().copied().map(FactId::new).collect();
     if references.is_empty() {
-        return Err(CorpusError::EmptyFactReferences { scenario_id });
+        return Err(CorpusError::EmptyFactReferences {
+            scenario_id,
+            location,
+        });
     }
     references.sort_unstable();
     if let Some(pair) = references.windows(2).find(|pair| pair[0] == pair[1]) {
         return Err(CorpusError::DuplicateFactReference {
             scenario_id,
+            location,
             fact_id: pair[0],
         });
     }
@@ -367,6 +400,7 @@ fn validated_fact_references(
         if !known_facts.contains(&fact_id) {
             return Err(CorpusError::UnknownFact {
                 scenario_id,
+                location,
                 fact_id,
             });
         }

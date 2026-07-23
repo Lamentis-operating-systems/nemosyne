@@ -59,7 +59,7 @@ pub(super) fn validate_corpus_relationships(
         }
     }
 
-    validate_cross_split_preference_shapes(scenarios)?;
+    validate_cross_split_algebraic_preference_signatures(scenarios)?;
 
     for category in categories {
         for split in [CorpusSplit::Calibration, CorpusSplit::HeldOut] {
@@ -75,17 +75,20 @@ pub(super) fn validate_corpus_relationships(
     Ok(())
 }
 
-fn validate_cross_split_preference_shapes(
+fn validate_cross_split_algebraic_preference_signatures(
     scenarios: &[MaterializedScenario],
 ) -> Result<(), CorpusError> {
-    let mut calibration_shapes = BTreeMap::new();
+    let mut calibration_signatures = BTreeMap::new();
     for scenario in scenarios
         .iter()
         .filter(|scenario| scenario.split == CorpusSplit::Calibration)
     {
         for preference in scenario.evidence.preferences() {
-            calibration_shapes
-                .entry(preference_shape(&scenario.evidence, preference))
+            calibration_signatures
+                .entry(algebraic_preference_signature(
+                    &scenario.evidence,
+                    preference,
+                ))
                 .or_insert(scenario.evidence.scenario_id());
         }
     }
@@ -95,10 +98,10 @@ fn validate_cross_split_preference_shapes(
         .filter(|scenario| scenario.split == CorpusSplit::HeldOut)
     {
         for preference in scenario.evidence.preferences() {
-            if let Some(&calibration_scenario_id) =
-                calibration_shapes.get(&preference_shape(&scenario.evidence, preference))
-            {
-                return Err(CorpusError::CrossSplitPreferenceShape {
+            if let Some(&calibration_scenario_id) = calibration_signatures.get(
+                &algebraic_preference_signature(&scenario.evidence, preference),
+            ) {
+                return Err(CorpusError::CrossSplitAlgebraicPreferenceSignature {
                     calibration_scenario_id,
                     held_out_scenario_id: scenario.evidence.scenario_id(),
                 });
@@ -166,10 +169,10 @@ fn authored_shape(evidence: &ScenarioEvidence) -> AuthoredShape {
     }
 }
 
-fn preference_shape(
+fn algebraic_preference_signature(
     evidence: &ScenarioEvidence,
     preference: &PreferenceEvidence,
-) -> PreferenceShape {
+) -> AlgebraicPreferenceSignature {
     let expectation = preference.expectation();
     let preferred = candidate_levels(evidence, expectation.preferred());
     let other = candidate_levels(evidence, expectation.other());
@@ -183,11 +186,14 @@ fn preference_shape(
             level_index(gate) * (level_index(preferred) - level_index(other))
         })
         .collect();
-    canonicalize_preference_coefficients(&mut coefficients);
-    PreferenceShape { coefficients }
+    canonicalize_algebraic_preference_coefficients(&mut coefficients);
+    AlgebraicPreferenceSignature { coefficients }
 }
 
-pub(super) fn canonicalize_preference_coefficients(coefficients: &mut [i16]) {
+// This is a conservative structural guard over idealized nonnegative real
+// weights. It deliberately does not model exact `f64` accumulation or strict
+// evaluator outcomes.
+pub(super) fn canonicalize_algebraic_preference_coefficients(coefficients: &mut [i16]) {
     let has_positive = coefficients.iter().any(|coefficient| *coefficient > 0);
     let has_negative = coefficients.iter().any(|coefficient| *coefficient < 0);
 
@@ -285,20 +291,29 @@ pub(super) fn build_references(
         });
     }
 
+    let mut keys = BTreeSet::new();
+    for definition in &definitions {
+        validate_text(
+            format!("reference {} key", definition.reference_id.get()),
+            definition.key,
+        )?;
+        if !keys.insert(definition.key) {
+            return Err(CorpusError::DuplicateReferenceKey {
+                key: definition.key.into(),
+            });
+        }
+        validate_text(
+            format!("reference {} rationale", definition.reference_id.get()),
+            definition.rationale,
+        )?;
+    }
+
     let channel_ids: Vec<_> = channels
         .iter()
         .map(EvidenceChannelDefinition::channel_id)
         .collect();
     let mut references = Vec::with_capacity(definitions.len());
     for definition in definitions {
-        validate_text(
-            format!("reference {} key", definition.reference_id.get()),
-            definition.key,
-        )?;
-        validate_text(
-            format!("reference {} rationale", definition.reference_id.get()),
-            definition.rationale,
-        )?;
         let parameters = ActivationParameters::new(
             channel_ids
                 .iter()
@@ -340,6 +355,6 @@ struct AuthoredShape {
 }
 
 #[derive(Eq, Ord, PartialEq, PartialOrd)]
-struct PreferenceShape {
+struct AlgebraicPreferenceSignature {
     coefficients: Vec<i16>,
 }

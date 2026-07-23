@@ -116,9 +116,9 @@ partition therefore exercises the separation workflow but cannot support an
 independent performance or generalization claim.
 
 Semantic-source separation alone is insufficient when two expected
-preferences reduce to the same numeric inequality. Let `q` map the five levels
-to the integers `0` through `4`. For every expected preference \(p \succ o\),
-revision `1` computes the exact coefficient vector
+preferences have the same algebraic structure. Let `q` map the five levels to
+the integers `0` through `4`. For every expected preference \(p \succ o\),
+revision `1` computes the integer coefficient vector
 
 \[
 z_c=q(g_c)\left(q(e_{p,c})-q(e_{o,c})\right).
@@ -128,13 +128,16 @@ For mixed-sign vectors, the vector is divided by the greatest common divisor of
 its nonzero absolute coefficients. For a vector with only positive or only
 negative coefficients, each nonzero coefficient is reduced to its sign. Zero
 coordinates and coefficient signs are retained; an all-zero vector has its own
-canonical form. No canonical preference signature may occur in both
-partitions. With nonnegative evidence weights and no inhibition, a one-sign
-inequality depends only on signed support, while a mixed-sign inequality is
-preserved by positive scaling. The check therefore prevents those direct
-functional test duplicates without floating-point comparisons. It does not
-establish statistical independence or prove that every possible form of
-distributional leakage is absent.
+canonical form. No canonical algebraic preference signature may occur in both
+partitions. Under idealized nonnegative real arithmetic without inhibition, a
+one-sign inequality depends only on signed support, while a mixed-sign
+inequality is preserved by positive scaling. The check is therefore a
+conservative structural leakage guard. It may reject two preferences whose
+exact `f64` evaluator scores or outcomes differ because floating-point
+normalization and rounding are not part of the signature. Signature equality
+does not imply equal score bits or equal `Satisfied`, `Tied`, or `Violated`
+outcomes. The guard is not a complete test for distributional leakage and does
+not establish statistical independence.
 
 Merged corpus revisions are immutable. Any observable change to channels,
 rubrics, facts, judgments, preferences, splits, or reference parameters creates
@@ -143,18 +146,22 @@ influenced parameters, channels, rubrics, or authoring, later held-out claims
 require previously unauthored semantic cases; revising observed cases does not
 restore independence.
 
-The five channels have explicit discrimination coverage:
+Revision `1` contains authored contrasts involving all five channels. Those
+contrasts also vary other channel judgments and therefore do not demonstrate
+independent channel discrimination. Cases 1001 and 1002 provide semantic
+constraint coverage, but trigger, observed-state, and outcome evidence already
+support their expected preference when constraint weight is zero.
 
-| Semantic case | Independently varied channel |
-| --- | --- |
-| 1001, 1002 | Constraint alignment |
-| 1101, 1102 | Observed-state alignment |
-| 1201, 1202 | Trigger alignment |
-| 1301, 1302 | Active-outcome alignment |
-| 2001, 2002 | Capability fit |
+One fixed local sensitivity observation is executable for cases 2201 and 2202:
 
-Other cases exercise combinations. This finite coverage does not establish
-statistical independence or channel identifiability beyond the authored cases.
+| Cases | Baseline weights for channels 10, 20, 30, 40, 50 | Ablation weights | Baseline outcomes | Ablated outcomes |
+| --- | --- | --- | --- | --- |
+| 2201, 2202 | `1, 1, 1, 1, 1` | `1, 1, 1, 1, 0` | `Satisfied`, `Satisfied` | `Violated`, `Satisfied` |
+
+At those exact authored inputs and parameter points, removing constraint
+evidence changes case 2201 but not case 2202. This observation does not
+establish a controlled intervention, causal effect, channel independence,
+identifiability, or generalization.
 
 Revision `1` defines two reference parameter sets:
 
@@ -192,7 +199,10 @@ prefix `nemosyne.activation-evidence-corpus.regression-fingerprint.v1`.
 Canonical sequences include their length, strings use a length-prefixed UTF-8
 encoding, integers use little-endian bytes, floating-point values use their
 exact bit pattern, and level, applicability, split, and provenance variants use
-fixed tags.
+fixed tags. Protocol version `1` defines explicit encodings for its supported
+evidence and inhibition parameter kinds. Encountering a future unsupported
+parameter kind fails loudly rather than silently assigning a shared fallback
+encoding.
 
 ## Preconditions
 
@@ -201,6 +211,8 @@ Corpus construction enforces:
 - nonempty, already-trimmed human-readable metadata;
 - unique channel, category, reference, scenario, fact, and candidate identifiers
   in their documented scopes;
+- unique, byte-exact, case-sensitive channel, category, and reference stable
+  keys within their namespaces;
 - exactly the five revision-1 evidence channels and no inhibition parameter;
 - one gate and one candidate signal per channel, using only `EvidenceLevel`;
 - fact references that resolve within the containing scenario;
@@ -210,7 +222,7 @@ Corpus construction enforces:
 - nonempty calibration and held-out partitions;
 - corpus-wide unique scenario identifiers;
 - semantic cases that never cross split or category boundaries;
-- no canonical evaluated-preference signature shared by calibration and
+- no canonical algebraic preference signature shared by calibration and
   held-out evidence;
 - exactly two scenarios per semantic case, with matching candidate identities
   and reversed expected preferences;
@@ -264,7 +276,10 @@ inspected. Revision `1` does not claim that stronger process property.
 ## Edge cases
 
 - Empty or whitespace-padded metadata is invalid rather than normalized.
-- Missing, duplicate, or unknown fact references are errors.
+- Missing, duplicate, or unknown fact references are errors that identify the
+  exact gate, candidate signal, or preference containing the reference.
+- Duplicate channel, category, or reference stable keys are invalid even when
+  their numeric identifiers differ.
 - A nonzero candidate signal under an absent gate is an error.
 - A semantic case crossing splits is an error even when scenario identifiers
   differ.
@@ -272,7 +287,8 @@ inspected. Revision `1` does not claim that stronger process property.
 - A paired contrast with different candidate identities or descriptions, or
   preferences that do not reverse exactly, is an error.
 - Unassessed candidates and other unevaluated aspects may share coarse numeric
-  representations across splits, but evaluated-preference signatures may not.
+  representations across splits, but canonical algebraic preference signatures
+  may not.
 - Candidates absent from the expected partial order remain valid and appear in
   the complete evaluator ranking.
 - Reference ties and violations remain reportable and do not invalidate the
@@ -283,13 +299,18 @@ inspected. Revision `1` does not claim that stronger process property.
 Tests must verify the complete revision-1 artifact through its public API,
 including channel definitions, evidence-grid conversion, canonical order,
 partition sizes, split disjointness, case pairing, category coverage,
-per-channel provenance resolution, functional preference-shape isolation,
-partial-order distractors, absence of inhibition, and the complete revision
-fingerprint.
+per-channel provenance resolution, conservative algebraic preference-signature
+isolation, the exact-`f64` non-equivalence boundary of that guard, partial-order
+distractors, absence of inhibition, the fixed constraint-ablation observation,
+adversarial permutation of every reorderable authoring collection, and the
+complete revision fingerprint.
 
 Both reference parameter sets must evaluate both partitions through
-`evaluate_parameters`. Tests record and reconstruct the observed outcome counts
-as regression evidence.
+`evaluate_parameters`. Tests freeze every scenario's ordered candidate ranking,
+exact final-score bits, expected preference, and observed preference outcome.
+Evidence scores must equal final scores and retention must equal one because
+revision `1` contains no inhibition. Aggregate counts are reconstructed from
+those scenario fixtures before they are compared with the evaluator report.
 Reference success, ties, or violations are observations, not corpus validity
 rules, quality thresholds, or proof of non-circular authoring.
 
@@ -304,10 +325,11 @@ Revision `1` records these derived observations:
 
 `CorpusError` distinguishes invalid metadata, unresolved fact references,
 inactive-signal encoding, split, category, semantic-case, paired-contrast,
-cross-split preference-shape, and reference-parameter violations, plus wrapped
-activation or evaluation failures. Wrapped failures retain the affected split,
-scenario, or reference identifier as applicable and preserve their underlying
-source through `Error::source`.
+cross-split algebraic preference-signature, stable-key, and reference-parameter
+violations, plus wrapped activation or evaluation failures. Fact-reference
+failures retain the exact evidence location. Wrapped failures retain the
+affected split, scenario, or reference identifier as applicable and preserve
+their underlying source through `Error::source`.
 
 Repository verification follows the documentation, formatting, Clippy, Rustdoc,
 and test checks required by `AGENTS.md`.

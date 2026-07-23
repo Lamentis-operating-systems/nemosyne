@@ -5,6 +5,8 @@ use nemosyne_evaluation_corpus::activation::{
     ActivationEvidenceCorpus, CorpusPartition, coding_agent_v1,
 };
 
+#[path = "coding_agent_v1/discrimination.rs"]
+mod discrimination;
 #[path = "coding_agent_v1/provenance.rs"]
 mod provenance;
 #[path = "coding_agent_v1/references.rs"]

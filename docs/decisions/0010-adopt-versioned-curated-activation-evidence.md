@@ -42,18 +42,38 @@ it independent semantics.
 
 Partition semantic cases explicitly into calibration and held-out evidence.
 Keep every paired contrast in one split, require broad category coverage in
-both splits, reject functionally equivalent evaluated-preference inequalities
-shared across the two partitions, and treat all provenance as constructed
-rather than empirical. For nonnegative weights, canonicalize one-sign
-inequalities by signed support and mixed-sign inequalities by their positive
-ray. Preserve merged revisions unchanged and expose a complete
-non-cryptographic regression fingerprint. Once held-out results influence later
-work, require previously unauthored cases for a later independent claim.
+both splits, reject matching canonical algebraic preference signatures across
+the two partitions, and treat all provenance as constructed rather than
+empirical. Under idealized nonnegative real arithmetic without inhibition,
+canonicalize one-sign inequalities by signed support and mixed-sign
+inequalities by their positive ray. Treat this as a conservative structural
+guard, not exact `f64` evaluator equivalence or complete leakage protection.
+Preserve merged revisions unchanged and expose a complete non-cryptographic
+regression fingerprint. Once held-out results influence later work, require
+previously unauthored cases for a later independent claim.
+
+Require channel, category, and reference stable keys to be byte-exact,
+case-sensitive, and unique within their namespaces. Report invalid fact
+references with their exact gate, candidate-signal, or preference location.
+Give every supported activation-parameter kind an explicit fingerprint
+encoding and fail loudly when protocol version `1` encounters an unsupported
+kind.
 
 Provide two explicit reference parameter sets: trigger-only evidence and
 uniform evidence. Neither is a runtime default or selected parameter set.
 Validate numeric compatibility by delegating to the existing evaluator, without
 copying its ranking or metric logic.
+Freeze complete per-scenario reference observations: ordered candidate
+identifiers, exact final-score bits, expected preferences, and observed
+outcomes. Derive aggregate regression expectations from those fixtures.
+
+Describe revision-1 channel coverage as authored semantic coverage, not
+independent discrimination. Record one local sensitivity observation for cases
+2201 and 2202: uniform weights satisfy both preferences; changing only
+constraint weight from one to zero makes case 2201 violated while case 2202
+remains satisfied. Do not interpret this fixed comparison as a controlled
+intervention, causal effect, channel independence, identifiability, or
+generalization.
 
 The detailed contract is maintained in
 [`curated-activation-evidence.md`](../specifications/curated-activation-evidence.md).
@@ -69,10 +89,17 @@ The discrete grid makes authored judgments comparable and avoids false
 precision while mapping exactly to the kernel's unit interval. Separate
 rubrics distinguish situation-level channel relevance from candidate-level fit.
 Paired contrasts exercise related situations with reversed expected orders
-without claiming a controlled intervention. Semantic-case isolation and exact
-integer preference signatures together prevent direct semantic variants and
-the covered equivalent numeric inequalities from being used for both parameter
-selection and held-out reporting.
+without claiming a controlled intervention. Semantic-case isolation and
+integer algebraic preference signatures together reject direct semantic
+variants and the covered structural duplicates across partitions. The
+signature deliberately ignores floating-point normalization and rounding, so
+equal signatures need not produce equal score bits or preference outcomes.
+
+Stable keys are public machine-readable identities and therefore require the
+same unambiguous construction boundary as numeric identifiers. Exact fact
+locations make authoring defects actionable. Failing on an unknown fingerprint
+input is safer than producing a plausible collision. Per-scenario bit fixtures
+detect ranking and arithmetic drift that aggregate counts can hide.
 
 Reference successes, ties, and violations are retained as observations. No
 outcome is a corpus-validity condition: selecting cases to force reference
@@ -105,10 +132,25 @@ reports are inspected.
   would leak one semantic source across calibration and held-out evidence.
 - **Rely only on semantic-case identifiers for split isolation.** Rejected
   because unrelated labels can still encode the same evaluated inequality.
+- **Treat equal algebraic signatures as exact evaluator equivalence.** Rejected
+  because floating-point normalization and rounding provide concrete
+  counterexamples.
+- **Remove the algebraic split guard.** Rejected because its conservative
+  structural protection remains useful when its limits are explicit.
+- **Rewrite cases to isolate one channel at a time.** Rejected because this
+  would create new evidence instead of describing revision `1` honestly.
+- **Claim that the fixed constraint ablation identifies causality.** Rejected
+  because two fixed parameter points do not establish a data-generating process
+  or control every semantic factor.
+- **Enumerate exact `f64` behavior for every parameter tuple.** Rejected because
+  the public parameter domain admits an astronomically large finite set of
+  representable tuples.
+- **Keep only aggregate reference snapshots.** Rejected because offsetting
+  scenario changes can leave aggregate counts unchanged.
 - **Reject every equal numeric value across splits.** Rejected because
   unassessed candidates and other unevaluated aspects may legitimately share a
-  coarse representation; only complete evaluated-preference signatures are
-  isolated.
+  coarse representation; the guard is scoped to canonical algebraic preference
+  signatures.
 - **Claim empirical ground truth.** Rejected because revision `1` contains
   project-authored synthetic judgments.
 - **Add serialization, a database, or a CLI.** Rejected because the first
@@ -122,10 +164,15 @@ insufficient channel semantics. Any later evidence change creates a new
 revision and preserves revision `1`. Observing held-out results permanently
 precludes treating revised versions of those same semantic cases as new
 independent evidence. The regression fingerprint detects accidental revision
-rewrites but is not an integrity or authenticity mechanism.
+rewrites but is not an integrity or authenticity mechanism. A future
+activation-parameter kind requires an explicit fingerprint-protocol decision
+before use. The exact regression fixtures intentionally make arithmetic drift
+visible across supported platforms.
 
 The corpus establishes reproducible semantic provenance and reference reports,
 not real-world validity, statistical generalization, safety, optimal channels,
-or calibrated parameters. The next runtime task may define one narrow,
+calibrated parameters, channel independence, identifiability, or causal effects.
+The algebraic split guard may conservatively reject cases that differ under
+exact evaluator arithmetic. The next runtime task may define one narrow,
 deterministic signal-derivation contract against this corpus. Parameter
 calibration remains a later, separate decision.

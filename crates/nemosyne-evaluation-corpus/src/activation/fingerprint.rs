@@ -64,7 +64,7 @@ fn hash_parameter(fingerprint: &mut Fingerprint, parameter: &ActivationParameter
         fingerprint.u64(inhibition.channel_id().get());
         fingerprint.u64(inhibition.strength().get().to_bits());
     } else {
-        fingerprint.tag(u8::MAX);
+        panic!("regression fingerprint protocol v1 does not encode this activation parameter kind");
     }
 }
 
