@@ -9,10 +9,13 @@ Nemosyne V1 product contract. It defines component responsibilities, data-flow
 boundaries, trust boundaries, memory-revision semantics, failure classes, and
 the decisions that must be resolved before production implementation.
 
-This is a reference architecture, not an accepted implementation architecture.
-It does not select crates, processes, a database engine, an embedding model, an
-index, a renderer, or a model runtime. A later decision record may adopt,
-replace, or split any proposed component after the required evidence exists.
+This remains a proposed logical decomposition rather than an implemented or
+validated product. Decisions 0012 and 0013 nevertheless select the intended V1
+implementation path: typed numerical memory and query facets, request-local
+focus consolidation, a canonical numerical attention plan, and a qualified
+local vector-prefix renderer. Physical database, encoder, index, process,
+packaging, release-model, and production-runtime choices remain independently
+evidence-gated.
 
 The architecture has four maturity labels:
 
@@ -64,6 +67,9 @@ Situation encoding       Immutable memory revision acquisition
     |---------------------------|
                 |
                 v
+Request-compatible validity and historical-scope gate
+    |
+    v
 Authorized candidate generation
     |
     v
@@ -73,13 +79,22 @@ Signal and gate derivation
 Activation ranking
     |
     v
+Proposition support and conflict consolidation
+    |
+    v
 Budgeted attention planning
     |
     v
-Structured attention plan
+Canonical numerical attention plan
     |
     v
-Local rendering
+Typed latent resampling and virtual-prefix projection
+    |
+    v
+Local non-thinking language-model rendering
+    |
+    v
+Exact-slot substitution
     |
     v
 Faithfulness and policy validation
@@ -98,9 +113,11 @@ the table below states otherwise.
 | --- | --- |
 | Product input, result, read-only behavior, and local trust boundary | Accepted boundary from Decision 0011 |
 | Exact framing and prompt-byte preservation | Required property from the product contract |
-| Ingress, preflight, snapshot, authorization, encoding, retrieval, derivation, planning, rendering, and validation decomposition | Proposed boundaries |
+| Numerical memory, query facets, request-local focus consolidation, and focus narrative | Accepted implementation direction from Decision 0012 |
+| Vector-prefix bridge, exact slots, local renderer qualification, and non-thinking generation | Accepted implementation direction from Decision 0013 |
+| Ingress, preflight, snapshot, authorization, encoding, retrieval, derivation, planning, rendering, and validation decomposition | Proposed boundaries governed by the focused specifications |
 | Existing activation kernel, evaluator, and corpus | Experimental implementations and evidence |
-| Database, schema, models, indexes, algorithms, runtimes, processes, and resource thresholds | Open choices |
+| Physical database and schema, exact encoders and indexes, calibrated parameters, release model and quantization, production runtime, processes, and resource thresholds | Open choices |
 
 ### Configuration and artifact preflight
 
@@ -110,6 +127,8 @@ policy, and one content-identified compiler configuration before validation.
 After basic request validation and before persistent memory access, artifact
 preflight:
 
+- verifies an authenticated artifact manifest against a pinned installation
+  trust root held outside the mutable artifact bundle;
 - opens immutable handles to required encoder, tokenizer, renderer, validator,
   and schema artifacts; and
 - pins content or implementation identities for principal resolution,
@@ -117,9 +136,13 @@ preflight:
   supersession policy evaluators; and
 - verifies that every artifact is present, compatible, and integrity-checked.
 
-No artifact may be downloaded or replaced during compilation. A version label
-without content identity and an immutable handle is insufficient because the
-underlying file could change during a call.
+The authenticated manifest establishes which identities are authorized;
+content digests then establish that the opened bytes have those identities.
+An unsigned self-consistent manifest is insufficient. No artifact may be
+downloaded or replaced during compilation. Trust-root rotation, installation,
+and update occur through a separately authenticated management path. A version
+label without provenance, content identity, and an immutable handle is
+insufficient because the underlying file could change during a call.
 
 ### Ingress validation
 
@@ -197,20 +220,24 @@ requires a later privacy and concurrency decision before implementation.
 
 ### Memory planes
 
-The proposed memory read model has two planes.
+Decision 0012 selects a two-plane logical memory model.
 
-The **authoritative plane** preserves the minimum lossless information needed
-to establish identity, provenance, validity, authority, exact values, and
-support for later attention propositions. It may store exact source material,
-canonical propositions, or both. The final choice must define which
-representation is authoritative and how corrections and deletion affect it.
+The **authoritative exact plane** preserves immutable record-version and
+canonical-proposition identities, provenance, validity, authority,
+authorization, supersession, source-dependency groups, conflicts, and
+loss-sensitive values. Its representation is numerical in the broad machine
+sense: typed identifiers, enums, booleans, scalars, timestamps, coordinates,
+relations, and byte-preserving payloads. It is lossless for every claim the
+compiler may emit and never depends on inversion of an embedding.
 
-The **derived numerical plane** contains versioned, rebuildable typed vectors,
-scalars, numerical relations, and search indexes. It is computational state,
-not an independent source of truth. Deleting or rebuilding this plane must not
-change the meaning of the authoritative plane.
+The **derived numerical plane** contains versioned, rebuildable typed facet
+vectors, calibrated scalars, numerical relations, and search indexes. It is
+the sole computational state for similarity, activation, propagation,
+consolidation, and adapter input, but it is not an independent source of
+truth. Deleting or rebuilding this plane must not change the meaning of the
+authoritative exact plane.
 
-The following logical entities require future exact contracts:
+The exact physical representation remains open, but its contract must expose:
 
 - stable memory identity and immutable record-version identity;
 - source and import provenance;
@@ -223,7 +250,8 @@ The following logical entities require future exact contracts:
 - logical deletion, physical erasure, export, migration, and repair state.
 
 This list does not require one universal memory-object row or one physical
-schema.
+schema. The complete logical record and facet contract is defined in
+[`cognitive-memory-activation-and-focus.md`](cognitive-memory-activation-and-focus.md).
 
 ### Situation encoding
 
@@ -231,8 +259,9 @@ Situation encoding converts `P`, `S`, `X`, and `t_auth` into a versioned
 numerical query state `Q`. The query contains separate facets for the declared
 contextual time and trusted authorization time so relevance can use temporal
 context without granting the caller control over authorization or expiry. The
-query state may contain typed vectors, scalars, and numerical relations, while
-retaining source references and exact values outside lossy representations.
+query state contains typed vectors, scalars, identifiers, presence masks, and
+numerical relations corresponding to available memory facets, while retaining
+source references and exact values outside lossy representations.
 
 The encoder contract must define:
 
@@ -285,7 +314,11 @@ N = D(Q, C^r; K_D)
 
 It owns channel semantics, gates, evidence signals, inhibition signals, and
 their provenance. It must not assign arbitrary numbers without an authored or
-learned derivation contract and independent evaluation targets.
+learned derivation contract and independent evaluation targets. Decision 0012
+selects cue, temporal-context, base-availability, active-goal, procedural,
+hazard, and social-perspective fit as the initial channel hypotheses when the
+required facets exist. The focused specification defines their candidate
+mathematics and the separation between hard policy gates and soft inhibition.
 
 The five channels in the revision-1 coding-agent corpus are experimental
 evidence labels. They are not the V1 memory ontology or an accepted runtime
@@ -316,12 +349,19 @@ instruction authority.
 Runtime compilation may depend on an adopted runtime kernel. It must not
 depend on the offline evaluation or corpus crates.
 
-### Attention planning
+### Proposition consolidation and attention planning
 
-Attention planning converts source-bound query evidence, ranked memory
-candidates, and the resolved budget into a bounded structured plan. Request,
-situation, and metadata evidence can therefore support attention even when the
-memory candidate set is empty. The planner owns:
+Request-local proposition consolidation first groups activated memory facets by
+canonical proposition and source-dependency group. Duplicates from one
+dependency group cannot multiply support. Independent corroboration remains
+visible, and unresolved conflicting propositions remain separate. This stage
+does not create, update, or delete persistent memory.
+
+Attention planning then converts source-bound query evidence, consolidated
+propositions, ranked candidates, and the resolved budget into a bounded
+structured plan. Request, situation, and metadata evidence can therefore
+support attention even when the memory candidate set is empty. The planner
+owns:
 
 - proposition selection;
 - redundancy and diversity control;
@@ -336,14 +376,17 @@ The planner produces empty attention only when no additional focus is
 justified. If materially required context cannot be expressed faithfully
 within `B`, planning fails with insufficient budget.
 
-Top-k selection, fixed thresholds, maximal-marginal relevance, a submodular
-objective, and learned selection remain open alternatives. No selection
-formula or default threshold is accepted here.
+Decision 0012 selects a deterministic coverage-and-nonredundancy objective as
+the first planning hypothesis. The focused specification defines its terms,
+canonical tie-breaking, conflict-preservation rule, and mandatory baseline
+comparisons. Its coefficients, budget, and promotion thresholds remain frozen
+experiment parameters rather than defaults inferred at runtime.
 
-### Structured attention plan
+### Canonical numerical attention plan
 
-The proposed internal attention plan is the single source of meaning for
-rendering and diagnostics. Each planned proposition contains at least:
+The internal attention plan is the single source of meaning for rendering and
+diagnostics. It is a canonical set of typed numerical plan items rather than a
+draft prose block. Each planned proposition contains at least:
 
 - a stable proposition identity;
 - the intended meaning;
@@ -355,33 +398,63 @@ rendering and diagnostics. Each planned proposition contains at least:
 - inclusion priority and budget estimate; and
 - allowed omission or mandatory-inclusion status.
 
-The plan contains explicit exclusions for content that must not appear. It
-does not contain a draft answer to the original prompt.
+The plan contains canonical control-only exclusions for content that must not
+appear. They cannot be removed by output-budget optimization, but they are not
+renderable items, substitution sources, or generative-prefix inputs. They are
+available only to validation. The plan does not contain a draft answer to the
+original prompt. Its renderable roles distinguish current situation, dominant
+goal, immediate constraint or hazard, relevant background, secondary
+influence, conflict, uncertainty, and social perspective. Exact output values
+are referenced through authorized slots rather than encoded as content to
+reconstruct.
+
+The plan envelope also owns its schema identity, canonical item order,
+mandatory and optional sets, exact-value sidecar, resolved output language, and
+post-substitution rendering budget. These values have no second renderer-side
+source of truth.
 
 The plan is internal. It does not change the one-text successful product
 contract.
 
-### Renderer
+### Vector-prefix adapter and renderer
 
-The renderer accepts only the bounded attention plan, the declared output
-language, and rendering configuration. It does not receive the whole memory
-universe and does not retrieve, rerank, select new facts, invent policy, or
-answer the original prompt.
+The renderer accepts only the bounded numerical attention-plan envelope and
+the compatible rendering configuration. It reads output language and budget
+from that envelope and rejects a configuration-schema mismatch. It does not
+receive the whole memory universe, raw memory prose, or decimal serializations
+of plan vectors. It does not retrieve, rerank, select new facts, invent policy,
+or answer the original prompt.
+
+Decision 0013 selects a typed latent resampler followed by direct virtual input
+embeddings as the first generative renderer hypothesis. The renderer
+specification owns the experimental dimensions, tensor mapping, training
+phases, and required simple baselines.
 
 Its internal result is a `RenderedAttention` value containing:
 
-- the attention text;
+- the slot-bearing attention text and token-origin map;
 - a complete segmentation into output units; and
-- untrusted bindings from every output unit to planned proposition identities.
+- untrusted bindings from every assertion-bearing output unit to planned
+  proposition identities.
 
-These bindings are validation input, not proof that the text expresses the
-identified propositions. They are omitted from the successful product result.
+A closed surface-only class permits only whitespace, punctuation, and
+configuration-listed structural delimiters; it cannot carry a connective,
+relation, exact value, or independent semantic claim. Bindings are validation
+input, not proof that the text expresses the identified propositions. They are
+omitted from the successful product result.
 
-A model-based renderer is a fallible, untrusted transformation even when it
-runs locally. A deterministic template renderer, a constrained generative
-renderer, and a hybrid renderer remain open alternatives. Model family,
-parameter count, quantization, prompt format, decoding, loading policy, and
-runtime are not selected.
+The renderer emits only registered placeholder tokens for loss-sensitive exact
+values. A deterministic resolver rejects unauthorized, unknown, omitted,
+duplicated, or invented slots and substitutes the approved surface bytes
+before final faithfulness validation.
+
+A model-based renderer remains a fallible, untrusted transformation even when
+it runs locally. Qwen3 is the first integration family, but the model
+qualification specification owns the candidate slate, selection rule, resource
+protocol, and release evidence. A deterministic template renderer remains a
+mandatory baseline and may be a separately qualified renderer configuration
+selected before a request. It is not an automatic substitute after another
+renderer fails.
 
 Renderer artifacts must be provisioned, versioned, integrity-checked, and
 available before compilation. Download and update mechanisms run outside the
@@ -389,9 +462,10 @@ no-network compile path.
 
 ### Faithfulness and policy validation
 
-Validation compares `RenderedAttention` with the structured plan and receives a
-read-only view of the retained original prompt, prompt-derived intent, and
-resolved output language. It rejects:
+Validation compares the post-substitution `RenderedAttention` with the
+structured plan and receives a read-only view of the retained original prompt
+and prompt-derived intent. It reads output language and budget from the plan
+envelope. It rejects:
 
 - unsupported propositions;
 - omitted mandatory qualifications;
@@ -408,9 +482,14 @@ identities. It accepts the exact rendered text unchanged or returns an error.
 It is not a second renderer.
 
 Validation establishes conformance to a bounded plan, not truth of the source
-memory. Deterministic, model-assisted, and hybrid validation are open
-alternatives. A model judging its own output without independent checks is not
-sufficient evidence.
+memory. Decision 0013 selects a fail-closed hybrid contract: deterministic
+structural, slot, and literal checks followed by an independently trained and
+calibrated dual-branch semantic verifier. The focused renderer specification
+fixes its inputs, independence boundary, classifier heads, threshold-selection
+procedure, and failure semantics. Its exact encoder, dimensions, confidence
+targets, and resulting thresholds remain frozen qualification-manifest
+choices. Renderer self-attribution without independent checks is insufficient
+evidence.
 
 ### Serializer and adapters
 
@@ -506,7 +585,14 @@ The following decisions are already accepted and constrain this proposal:
 - exact combined text with byte-identical prompt bytes;
 - no required network service, autonomous discovery, downstream model
   invocation, or automatic learning during compilation; and
-- coding agents as the first domain eligible for a supported V1 claim.
+- coding agents as the first domain eligible for a supported V1 claim;
+- typed numerical memory and query facets with a parallel authoritative exact
+  plane;
+- request-local proposition consolidation into a bounded numerical focus plan;
+- an evidence-bound focus narrative rather than a claimed chain of thought;
+- a direct vector-prefix bridge with deterministic exact-value slots; and
+- a frozen, task-specific local-model qualification path before any release
+  model is selected.
 
 The proposed product contract additionally requires compilation without any
 network access. This stricter boundary is a required property of this proposed
@@ -521,18 +607,20 @@ implemented:
 | Request and API | Boundary cases, exact time and metadata semantics, stable error behavior |
 | Memory read and authority model | Provenance, validity, supersession, authorization, conflict, and exact-value cases over supplied revisions |
 | Snapshot and derived indexes | Concurrent publication, revision binding, recovery, and corruption tests |
-| Numerical representation | Reconstruction limits, exact-value preservation, perturbation tests, and artifact versioning |
+| Physical numerical representation | Encoder-specific reconstruction limits, perturbation tests, and artifact versioning under the accepted logical representation |
 | Candidate generation | Recall, false-negative, cross-context, scale, and authorization measurements |
 | Signal derivation | Grounded channel semantics, independent labels, sensitivity, and robustness |
 | Activation adoption | Improvement over simpler ranking baselines on disjoint evidence |
-| Attention planning | Coverage, exclusion, conflict, redundancy, abstention, and budget evidence |
-| Renderer and validation | Faithfulness, leakage, language, qualification, and resource evidence |
+| Attention planning | Accepted objective instantiated with coverage, exclusion, conflict, redundancy, abstention, and budget evidence |
+| Renderer and validation | Accepted vector-prefix path compared with templates and MLP; model selected by faithfulness, leakage, language, exact-slot, downstream, and resource evidence |
 | Runtime topology | Offline enforcement, packaging, failure isolation, and reference-hardware measurements |
 | Release claim | Sealed end-to-end evaluation and all predeclared gates |
 
-Database engine, physical schema, vector representation, encoder, index,
-renderer model, model runtime, caching strategy, and process topology are
-chosen only after their owning contracts and minimum evidence exist.
+Database engine, physical schema, concrete facet encoders and dimensions,
+index, release renderer model and quantization, production model runtime,
+caching strategy, and process topology are chosen only after their owning
+contracts and minimum evidence exist. The logical numerical representation and
+renderer qualification path are no longer open.
 Initialization, create/import, correction, revocation, deletion, export,
 consolidation, migration, and recovery are separately scoped management
 operations. Each requires a contract before its own implementation, but this
@@ -557,6 +645,8 @@ A conforming implementation requires:
 
 - Original prompt bytes flow only from ingress retention to serialization.
 - One call uses one immutable compiler configuration and artifact set.
+- Every artifact identity is authorized by an authenticated manifest anchored
+  outside the mutable artifact bundle before its content digest is trusted.
 - Every source used after authorization belongs to the pinned authorized
   revision.
 - No derived representation or proposition has greater instruction authority
@@ -588,6 +678,11 @@ A conforming implementation requires:
   remains an explicit alternative to decide.
 - A relevant exact name, path, timestamp, or number must not be guessed from a
   lossy vector.
+- Two copies derived from one source must not masquerade as independent
+  corroboration.
+- Conflicting propositions must not be averaged into a false compromise.
+- A renderer must not expose a reasoning trace or label its focus narrative as
+  human thought.
 - Conflicting sources remain conflicting unless an accepted authority and
   supersession rule resolves them.
 - Renderer inability to preserve a necessary qualification is a failure, not
@@ -633,13 +728,19 @@ conditions are defined in
 - Authoritative memory representation and minimum provisioning operation.
 - Storage engine, encryption policy, filesystem ownership, and physical
   deletion.
+- Artifact-manifest signature format, installation trust root, rollback
+  protection, and authenticated update and recovery path.
 - Snapshot-stable versus immediate in-flight authorization revocation.
-- Vector spaces, dimensions, encoders, exact-value sidecars, and relations.
+- Concrete vector spaces, dimensions, encoders, and relation-learning method
+  within the accepted typed-facet and exact-value boundary.
 - Retrieval indexes, candidate budgets, and permitted false-negative rates.
-- Runtime channels, parameters, inhibitions, and calibration.
-- Selection, abstention, diversity, and budget-allocation algorithm.
-- Attention-plan schema and public diagnostic authorization.
-- Renderer, validator, supported languages, and reproducibility level.
+- Calibrated runtime channel parameters, inhibition strengths, and
+  normalization artifacts.
+- Planning coefficients, item and cost penalties, mandatory-set policy, and
+  attention budget.
+- Public diagnostic authorization for the internal plan and bindings.
+- Release renderer checkpoint, adapter configuration, quantization, validator,
+  supported languages, and reproducibility level selected by qualification.
 - Crate, process, service, packaging, caching, and platform topology.
 - Resource budgets, release thresholds, and artifact distribution.
 
@@ -654,4 +755,9 @@ omnibus acceptance of those choices.
 - [Situation-conditioned activation](situation-conditioned-activation.md)
 - [Activation parameter evaluation](activation-parameter-evaluation.md)
 - [Curated activation evidence](curated-activation-evidence.md)
+- [Cognitive memory activation and focus](cognitive-memory-activation-and-focus.md)
+- [Vector-to-attention renderer](vector-to-attention-renderer.md)
+- [Local renderer model qualification](local-renderer-model-qualification.md)
 - [Decision 0011: Adopt a local read-only attention compiler for V1](../decisions/0011-adopt-local-read-only-attention-compiler-v1.md)
+- [Decision 0012: Adopt numerical cognitive memory and focus compilation](../decisions/0012-adopt-numerical-cognitive-memory-and-focus-compilation.md)
+- [Decision 0013: Adopt a vector-prefix local renderer qualification path](../decisions/0013-adopt-a-vector-prefix-local-renderer-qualification-path.md)

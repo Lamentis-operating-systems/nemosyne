@@ -43,7 +43,8 @@ Let:
 - `B` be the attention budget resolved by configuration and policy;
 - `M^r` be immutable memory revision `r` with policy revision `p`; and
 - `K` be one pinned content-identified compiler configuration and immutable
-  artifact set.
+  artifact set, including exactly one renderer configuration selected before
+  the call.
 
 The proposed logical stages are:
 
@@ -56,7 +57,11 @@ Q = encode(P,S,X,t_{auth};K)
 \]
 
 \[
-C = retrieve(Q,M_A^{r,p,t_{auth},U};K)
+M_Q = usageGate(Q,M_A^{r,p,t_{auth},U},t_{auth};K)
+\]
+
+\[
+C = retrieve(Q,M_Q;K)
 \]
 
 \[
@@ -68,15 +73,26 @@ R = rank(N;K)
 \]
 
 \[
-L = plan(Q,R,C,B;K)
+\Phi = consolidate(Q,R,C;K)
 \]
 
 \[
-Z=(T,segments,bindings) = render(L,\ell;K)
+L = plan(Q,\Phi,\ell,B;K)
 \]
 
 \[
-T' = validate(Z,L,P,Q,\ell,B;K)
+Z_{\mathrm{slot}}=
+(T_{\mathrm{slot}},segments_{\mathrm{slot}},bindings_{\mathrm{slot}},origins)
+=render(L;K)
+\]
+
+\[
+Z_{\mathrm{exact}} =
+substitute(Z_{\mathrm{slot}},exactSlots(L);K)
+\]
+
+\[
+T' = validate(Z_{\mathrm{exact}},L,P,Q;K)
 \]
 
 \[
@@ -91,10 +107,18 @@ where:
 
 Each stage is partial: it returns either its complete value or an explicit
 error. It does not return a plausible substitute after a failed precondition.
-`segments` and `bindings` are untrusted renderer claims that cover `T` and
-refer to planned proposition identities. Validation verifies their structure
-and returns the exact text component `T` unchanged as `T'` or returns an error;
-it is not another rendering stage.
+In particular, renderer or validation failure ends the call; the orchestrator
+does not retry the same request with another renderer.
+`Phi` contains request-local propositions with preserved support, scope,
+qualification, and conflict. `L` is the canonical plan envelope and contains
+its resolved language, exact-slot table, and budget. `segments_slot` and
+`bindings_slot` are untrusted renderer claims. `origins` records whether each
+generated token came from ordinary vocabulary or one registered slot.
+Substitution validates slot identity and authorization, inserts approved exact
+surface bytes, and deterministically recomputes byte offsets without semantic
+rewriting. Validation verifies the post-substitution structure and returns the
+exact substituted text component unchanged as `T'` or returns an error; it is
+not another rendering stage.
 
 ### Formal obligations
 
@@ -110,9 +134,9 @@ normalization.
 
 #### F2: Authorization before relevance
 
-Candidate generation receives only `M_A^(r,p,t_auth,U)`. Every downstream
-source reference must be constructed from the candidate source set or from
-the compile request.
+Candidate generation receives only the request-compatible `M_Q`, which is a
+subset of `M_A^(r,p,t_auth,U)`. Every downstream source reference must be
+constructed from the candidate source set or from the compile request.
 Therefore, if constructors prevent forged references and no stage has ambient
 memory access, every memory-derived source in a successful plan belongs to
 `M_A^(r,p,t_auth,U)`.
@@ -187,11 +211,14 @@ The exact labels and derivation rules remain a required future contract.
 
 #### F6: Structural provenance completeness
 
-Every planned proposition has a nonempty essential support set. The renderer
-returns an internal mapping from each output unit to existing planned
-proposition identities, and validation rejects missing or unknown identities.
-By construction, every structurally accepted output unit has request or
-authorized-memory provenance.
+Every planned proposition has a nonempty essential support set. Every
+assertion-bearing output unit maps to one or more existing planned proposition
+identities, and validation rejects missing or unknown identities. A closed
+surface-only class may contain only whitespace, punctuation, and structural
+delimiters enumerated by the rendering configuration; it cannot carry a noun,
+verb, modifier, relation, connective, exact value, or independent semantic
+claim. By construction, every structurally accepted assertion-bearing unit has
+request or authorized-memory provenance.
 
 This formal property does not prove that free natural language is semantically
 equivalent to the mapped proposition. Semantic support, qualification
@@ -201,16 +228,17 @@ factual truth.
 
 #### F7: Budget safety
 
-Let `cost_K(T)` be the declared attention-cost function and `B` the available
+Let `cost_K(T')` be the declared attention-cost function and `B` the available
 budget. Validation accepts only when:
 
 \[
-cost_K(T) \leq B
+cost_K(T') \leq B
 \]
 
-Planning and rendering never truncate semantic content after validation. If
-mandatory qualified content cannot fit, the call fails with insufficient
-budget.
+Budget is evaluated after exact-slot substitution. Planning, substitution,
+rendering, and validation never truncate semantic content. If mandatory
+qualified content and its exact surface values cannot fit, the call fails with
+insufficient budget.
 
 #### F8: Activation properties
 
@@ -243,6 +271,18 @@ the retained prompt owns original prompt bytes. Reports and diagnostics are
 derived views. An implementation must not maintain independently editable
 copies of these truths.
 
+#### F11: Artifact authenticity before artifact identity
+
+Content digests establish identity only after a trusted manifest establishes
+which identities are authorized. A successful compile pins an authenticated
+artifact manifest through an installation trust root held outside the mutable
+artifact bundle, verifies the manifest's authenticity and policy scope, and
+then verifies every opened artifact against its manifest digest. Replacing a
+model, encoder, tokenizer, policy evaluator, formatter, renderer, or validator
+together with an unsigned self-consistent manifest therefore cannot satisfy
+preflight. Trust-root rotation and artifact installation occur outside
+compilation and require a separate authenticated update path.
+
 ### Requirement traceability
 
 | ID | Product requirement | Owning boundary | Required evidence |
@@ -255,7 +295,7 @@ copies of these truths.
 | `V1-R06` | Source support, qualification, and no authority promotion | Plan and validation | F5, F6, adversarial provenance, and semantic-fidelity cases |
 | `V1-R07` | Focus description, not answer, unsupported claim, or raw dump | Planner, renderer, and validation | Proposition labels, leakage, support, and raw-copy metrics |
 | `V1-R08` | Declared language, finite budget, faithful empty attention, and budget error | Planner, renderer, and validation | Per-language evaluation and exact budget-boundary tests |
-| `V1-R09` | Local memory and no compile network access or disclosure | Runtime and packaging | Network-denied integration, capability audit, and storage-location tests |
+| `V1-R09` | Local memory and no compile network access or disclosure | Runtime and packaging | F11, network-denied integration, capability audit, artifact-authenticity, and storage-location tests |
 | `V1-R10` | No discovery, downstream AI invocation, or automatic learning | Compile dependency boundary | Capability tests and prohibited-call detection |
 | `V1-R11` | Numerical relevance after ingress with retained exact evidence | Encoding through planning | Schema, reconstruction-limit, provenance, and perturbation tests |
 | `V1-R12` | Coding agents are the first supported domain and claims remain bounded | End-to-end harness and release process | Sealed coding-task outcomes and frozen evidence receipts |
@@ -301,7 +341,9 @@ Each hypothesis is falsifiable and configuration-specific.
 | H3 | Proposed candidate generation finds required memory more reliably than semantic top-k at the same candidate budget | Candidate recall and downstream outcomes |
 | H4 | Proposed signal derivation adds value, and the proposed activation rule adds value over simpler rankers when derived signals are held fixed | Separate fixed-signal ranking and end-to-end derivation comparisons |
 | H5 | Proposed planning improves coverage and exclusion when ranking, budget, and renderer are held fixed | Planner-only comparison over frozen ranked inputs |
-| H6 | The renderer preserves planned meaning without material unsupported claims or answer leakage | Candidate renderer versus deterministic and expert rendering |
+| H6a | A learned numerical bridge carries the required typed plan information more faithfully than a simple projection | Registered latent resampler versus MLP projection over identical frozen plans and model |
+| H6b | The local renderer preserves planned meaning without material unsupported claims, exact-value errors, or answer leakage | Candidate renderer versus deterministic and expert rendering |
+| H6c | The qualified release checkpoint is the smallest tested local model that passes every frozen renderer and resource gate | Model slate compared under identical plan, adapter, training, quantization, and hardware conditions |
 | H7 | The complete compiler improves context-dependent task success without unacceptable harm on context-independent tasks | Candidate V1 versus prompt only and the strongest frozen non-oracle |
 | H8 | V1 meets frozen local resource budgets on reference hardware | Cold/warm operational measurements |
 
@@ -341,6 +383,23 @@ this carryover isolation. Only the named treatment changes.
 H4 and H5 additionally use component-level swaps over frozen signals, rankings,
 and plans; the ten end-to-end conditions alone do not identify those internal
 effects.
+
+Signal, consolidation, adapter, and model choices also require the following
+component-level ablations over immutable intermediates:
+
+| Boundary | Frozen comparisons |
+| --- | --- |
+| Signal derivation | one global semantic similarity; typed direct cues; cues plus temporal and base availability; cues plus active-goal, procedural, hazard, and social channels |
+| Associative activation | no graph propagation; each registered bounded hop and restart configuration over the same direct seeds |
+| Focus consolidation | record-level top-k; canonical-proposition grouping without corroboration bonus; accepted support-dependency and conflict-preserving consolidation |
+| Plan selection | score-only top-k; deterministic template-oriented selection; accepted coverage-and-nonredundancy objective |
+| Adapter | deterministic plan labels; two-layer MLP prefix; typed latent resampler with `8`, `16`, and `32` virtual tokens |
+| Training | frozen model with bridge only; identical bridge plus LoRA; quantized and unquantized inference |
+| Local model | The mandatory cohort slate, deployment pairing, and capacity fallback owned by the local-renderer model-qualification specification |
+
+No model comparison may use a different semantic plan, target set, split,
+exact-slot policy, or validation rule. General benchmark scores are descriptive
+metadata and cannot select the Nemosyne renderer.
 
 These comparisons isolate:
 
@@ -408,6 +467,8 @@ Measure:
 - normative-authority violations;
 - answer leakage;
 - language match;
+- mandatory exact-slot recall and authorized-slot precision;
+- wrong-slot, duplicate-slot, and altered exact-value rates;
 - exact budget compliance; and
 - raw-source copying beyond explicitly permitted exact values.
 
@@ -647,7 +708,7 @@ The proof program proceeds in risk order:
 | G0: Contract | Product, architecture, and proof documents are internally consistent | Resolve contracts before implementation |
 | G1: Headroom | Expert reference beats prompt-only and situation-only by the predeclared meaningful margin | Reject or narrow the V1 premise |
 | G2: Boundary model | Formal obligations are reviewed and executable harnesses can represent every boundary | Do not select implementation technologies |
-| G3: Renderer feasibility | The candidate renderer faithfully renders frozen expert plans within local budgets | Replace or constrain rendering before retrieval integration |
+| G3: Renderer feasibility | A registered numerical bridge and the smallest passing local checkpoint faithfully render frozen expert inclusion plans and exact slots, preserve qualifications, and avoid control-only exclusions within local budgets | Replace or constrain the bridge, model, or rendering contract before retrieval integration; do not weaken a failed gate |
 | G4: Memory read and snapshots | Supplied revisions, authorization views, pinned indexes, concurrent publication, and compile/management separation satisfy their contracts | Do not build persistent-memory retrieval |
 | G5: Retrieval | Required-proposition recall and cross-context behavior beat frozen simple baselines | Replace or simplify retrieval |
 | G6: Ranking and planning | Fixed-intermediate comparisons show value over semantic and rule baselines | Do not calibrate a mechanism without added value |
@@ -752,6 +813,18 @@ Before architecture implementation:
   placement and budget; and
 - freeze the decision criteria for advancing to component implementation.
 
+For the numerical-memory and renderer path, G2 also requires executable
+fixtures that preserve:
+
+- typed facet-space incompatibility and missing-value semantics;
+- authorization before candidate generation;
+- historical validity without revival of current instruction authority;
+- provenance-root duplicate suppression and unresolved conflict;
+- exact-value slot identity and deterministic surface substitution;
+- plan-role distinctions such as dominant versus secondary context; and
+- explicit separation between a focus narrative, an answer, and a claimed
+  chain of thought.
+
 Before any component is accepted:
 
 - execute its required counterexamples;
@@ -793,4 +866,9 @@ after the sealed outcomes are known.
 - [Situation-conditioned activation](situation-conditioned-activation.md)
 - [Activation parameter evaluation](activation-parameter-evaluation.md)
 - [Curated activation evidence](curated-activation-evidence.md)
+- [Cognitive memory activation and focus](cognitive-memory-activation-and-focus.md)
+- [Vector-to-attention renderer](vector-to-attention-renderer.md)
+- [Local renderer model qualification](local-renderer-model-qualification.md)
 - [Decision 0011: Adopt a local read-only attention compiler for V1](../decisions/0011-adopt-local-read-only-attention-compiler-v1.md)
+- [Decision 0012: Adopt numerical cognitive memory and focus compilation](../decisions/0012-adopt-numerical-cognitive-memory-and-focus-compilation.md)
+- [Decision 0013: Adopt a vector-prefix local renderer qualification path](../decisions/0013-adopt-a-vector-prefix-local-renderer-qualification-path.md)

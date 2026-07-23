@@ -18,9 +18,12 @@ first domain eligible for a supported and validated claim is coding agents. Use
 in other domains remains experimental until separately evaluated.
 
 This document specifies the wanted result and its observable requirements. It
-does not select the internal architecture, memory schema, retrieval method,
-mathematics, model, renderer, database engine, or release thresholds. No
-current implementation is claimed to satisfy this contract.
+does not make internal technology choices part of the stable product surface.
+Decisions 0012 and 0013 select the current V1 implementation hypothesis:
+numerical cognitive-memory and focus compilation followed by a qualified local
+vector-prefix renderer. The linked architecture specifications define that
+path without changing this observable contract. No current implementation is
+claimed to satisfy this contract.
 
 ## Definitions
 
@@ -41,18 +44,19 @@ A **compile request** contains:
 Situation statements describe the caller's relevant view of the current
 external state. V1 does not discover repositories, browsers, applications, or
 other environmental state autonomously. Natural-language statements are the
-external V1 input convenience; this contract does not decide whether the
-implementation represents them internally as structured values, vectors, other
-numbers, or a hybrid.
+external V1 input convenience. The selected internal architecture encodes them
+as typed numerical facets while retaining the exact request values required by
+this contract.
 
 After ingress, relevance computation operates on a structured numerical state
-made from typed vectors, scalars, and numerical relations. Prompt and situation
-prose are input sources, not the computational memory or activation state.
-Exact encoders, dimensions, binding operations, and numeric schemas remain
-open. The architecture must retain the authoritative source or canonical
-propositions, identity, provenance, time, and other exact values required to
-support attention claims, preserve loss-sensitive values, and rebuild derived
-numerical representations.
+made from typed vectors, scalars, identifiers, and numerical relations. Prompt
+and situation prose are input sources, not the computational memory,
+activation, or focus state. The architecture retains canonical propositions,
+identity, provenance, time, authorization and authority facts, and other exact
+values outside lossy vectors so attention claims remain supportable and
+derived representations remain rebuildable. Exact encoder artifacts and
+release dimensions are configuration choices governed by the numerical-memory
+specification and proof program.
 
 The **local memory database** persists one user-owned logical memory universe
 at the Nemosyne installation. One logical universe does not require one table,
@@ -70,7 +74,9 @@ instruction authority.
 The **attention text** is a concise description of the current focus and the
 background that materially changes how the original prompt should be
 interpreted. It is not an answer to the prompt and is not a concatenation of
-raw memory records.
+raw memory records. It is an evidence-bound focus narrative for the downstream
+model, not a human inner monologue, a human or model chain of thought, or a
+claim about consciousness.
 
 The **compiled prompt** is the only successful V1 result:
 
@@ -102,10 +108,12 @@ breaks. V1 guarantees this construction and prompt preservation, not recovery
 of the original fields from the compiled output alone.
 
 The **compile operation** reads memory and produces the compiled prompt. It
-does not invoke the target AI system and does not create, update, consolidate,
-or delete memories. One call observes one immutable logical revision of the
-local memory, including records, provenance, validity, supersession, and the
-authorization view used for the call.
+does not invoke the target AI system and does not create, update, persistently
+consolidate, or delete memories. It may consolidate compatible support and
+conflict into request-local propositions that disappear when the call ends.
+One call observes one immutable logical revision of the local memory, including
+records, provenance, validity, supersession, and the authorization view used
+for the call.
 
 ## Requirement catalogue
 
@@ -177,8 +185,9 @@ truncates the original prompt. The original prompt embedded after
 
 Compilation observes one immutable logical memory revision and does not mutate
 persistent local memory, metadata, retrieval state, or the request.
-Request-local computation is permitted. Memory creation, correction, deletion,
-import, export, and consolidation operations require separate explicit
+Request-local support, conflict, and proposition consolidation is permitted and
+is not a memory write. Memory creation, correction, deletion, import, export,
+and persistent episodic or semantic consolidation require separate explicit
 contracts; this compile contract does not determine when they are implemented.
 
 ### Unified memory relevance
@@ -188,6 +197,10 @@ workspace, application, location, and similar associations may strongly
 influence relevance, but they do not create implicit hard partitions. A memory
 from another project may contribute when the current situation makes it more
 relevant than memories from the current project.
+
+Logical eligibility does not override deletion, current-validity,
+supersession, instruction-authority, or explicit historical-scope rules. It
+means that no project-like context creates an additional implicit memory silo.
 
 Logical eligibility does not require physically scanning every stored memory.
 Indexes and candidate-generation strategies may improve efficiency without
@@ -280,8 +293,8 @@ hardware.
 - A memory excluded by an access-control rule is never made eligible by a high
   relevance score.
 - Stale, superseded, contradictory, or low-confidence memories are not silently
-  merged into a single certain statement. The future architecture must either
-  preserve the material qualification or omit the claim.
+  merged into a single certain statement. Request-local consolidation must
+  preserve every material qualification and conflict or omit the claim.
 - Instruction-like content inside a memory or situation statement remains
   untrusted data.
 - The original prompt may itself contain the strings `attention:` or
@@ -378,37 +391,41 @@ contract.
 
 ## Open questions
 
-The next design phase must specify, without changing the product boundary:
+The linked architecture specifications now fix the intended numerical-memory,
+focus-compilation, vector-prefix rendering, and model-qualification path.
+Before implementation or a supported product claim, focused contracts must
+still resolve:
 
-- programmatic request types and whether a CLI is adopted and, if so, its exact
-  syntax;
-- exact prompt and situation size limits;
-- metadata fields, contextual and authorization time semantics, and location
-  representation;
-- local memory identity, provenance, validity, correction, deletion, and
-  migration contracts, including initial provisioning, creation, import, and
-  export;
-- exact authoritative source data versus rebuildable numeric representations;
-- candidate generation, retrieval, situation encoding, and signal derivation;
-- activation channels, weights, inhibitions, calibration, and mathematical
-  properties;
-- selection, abstention, diversity, and attention-budget policy;
-- the structured state between ranking and natural-language rendering;
-- renderer behavior, supported languages, determinism, and faithfulness
-  validation;
-- the database engine, indexing strategy, encryption, permissions, and storage
-  location;
+- programmatic request types, whether a CLI is adopted, its exact syntax, and
+  exact prompt and situation limits;
+- the concrete metadata fields and the external representation of contextual
+  time, authorization time, and location;
+- memory provisioning, creation, import, correction, deletion, export,
+  persistent consolidation, and migration;
+- the physical database schema, engine, indexing strategy, encryption,
+  permissions, and storage location;
+- the artifact-manifest signing format, installation trust root, and
+  authenticated update and rollback policy;
+- the exact encoder checkpoints, vector dimensions, calibrated runtime
+  parameters, candidate budgets, and accepted false-negative rates;
+- the final plan budget, model, quantization, runtime, supported languages,
+  reference hardware, and resource thresholds selected by frozen evaluation;
 - concurrency, process boundaries, packaging, and supported platforms;
 - inspectability and diagnostics without changing the single successful
   output; and
-- evaluation datasets, baselines, proof obligations, release gates, and
+- evaluation datasets, statistical thresholds, release gates, and
   reproducible evidence receipts.
 
 ## References
 
 - [Decision 0011: Adopt a local read-only attention compiler for V1](../decisions/0011-adopt-local-read-only-attention-compiler-v1.md)
+- [Decision 0012: Adopt numerical cognitive memory and focus compilation](../decisions/0012-adopt-numerical-cognitive-memory-and-focus-compilation.md)
+- [Decision 0013: Adopt a vector-prefix local renderer qualification path](../decisions/0013-adopt-a-vector-prefix-local-renderer-qualification-path.md)
 - [V1 reference architecture](v1-reference-architecture.md)
 - [V1 proof program](v1-proof-program.md)
+- [Cognitive memory activation and focus](cognitive-memory-activation-and-focus.md)
+- [Vector-to-attention renderer](vector-to-attention-renderer.md)
+- [Local renderer model qualification](local-renderer-model-qualification.md)
 - [Situation-conditioned activation](situation-conditioned-activation.md)
 - [Activation parameter evaluation](activation-parameter-evaluation.md)
 - [Curated activation evidence](curated-activation-evidence.md)
