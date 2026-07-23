@@ -1,0 +1,16 @@
+[package]
+name = "nemosyne-evaluation-corpus"
+description = "Versioned evaluation evidence for Nemosyne."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+nemosyne-core = { path = "../nemosyne-core" }
+nemosyne-evaluation = { path = "../nemosyne-evaluation" }
+
+[lints]
+workspace = true

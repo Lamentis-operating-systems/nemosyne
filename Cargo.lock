@@ -12,3 +12,11 @@ version = "0.1.0"
 dependencies = [
  "nemosyne-core",
 ]
+
+[[package]]
+name = "nemosyne-evaluation-corpus"
+version = "0.1.0"
+dependencies = [
+ "nemosyne-core",
+ "nemosyne-evaluation",
+]

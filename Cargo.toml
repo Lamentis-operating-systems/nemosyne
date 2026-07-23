@@ -1,5 +1,9 @@
 [workspace]
-members = ["crates/nemosyne-core", "crates/nemosyne-evaluation"]
+members = [
+    "crates/nemosyne-core",
+    "crates/nemosyne-evaluation",
+    "crates/nemosyne-evaluation-corpus",
+]
 resolver = "3"
 
 [workspace.package]
