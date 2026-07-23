@@ -34,9 +34,9 @@ A **compile request** contains:
 
 - one original user prompt;
 - zero to three concise natural-language situation statements; and
-- request metadata that identifies the current time and may identify the
-  location, host application, workspace, project, output language, or other
-  explicit context.
+- request metadata that identifies the declared contextual time and may
+  identify the location, host application, workspace, project, output
+  language, or other explicit context.
 
 Situation statements describe the caller's relevant view of the current
 external state. V1 does not discover repositories, browsers, applications, or
@@ -49,8 +49,10 @@ After ingress, relevance computation operates on a structured numerical state
 made from typed vectors, scalars, and numerical relations. Prompt and situation
 prose are input sources, not the computational memory or activation state.
 Exact encoders, dimensions, binding operations, and numeric schemas remain
-open. Lossless source, identity, provenance, time, and other exact values may
-remain alongside rebuildable numerical representations.
+open. The architecture must retain the authoritative source or canonical
+propositions, identity, provenance, time, and other exact values required to
+support attention claims, preserve loss-sensitive values, and rebuild derived
+numerical representations.
 
 The **local memory database** persists one user-owned logical memory universe
 at the Nemosyne installation. One logical universe does not require one table,
@@ -105,6 +107,28 @@ or delete memories. One call observes one immutable logical revision of the
 local memory, including records, provenance, validity, supersession, and the
 authorization view used for the call.
 
+## Requirement catalogue
+
+These identifiers provide stable traceability into architecture,
+implementation, tests, and evaluation. The detailed clauses in this
+specification remain normative.
+
+| ID | Requirement |
+| --- | --- |
+| `V1-R01` | Accept one authentic original prompt, zero to three situation statements, one resolved contextual time, and explicit optional request metadata; obtain caller identity and authorization time from a separate trusted local invocation context. |
+| `V1-R02` | Return one complete compiled text or one explicit error; keep compile and adapter transport failures distinct. |
+| `V1-R03` | Preserve the original prompt byte-for-byte inside the exact required framing and add no suffix. |
+| `V1-R04` | Compile read-only against one immutable logical revision without persistent side effects. |
+| `V1-R05` | Apply authorization before relevance while keeping every authorized memory logically eligible across contextual associations. |
+| `V1-R06` | Preserve source support, authority ceilings, validity, uncertainty, and material conflict without promoting data into instructions. |
+| `V1-R07` | Produce concise focus and response-changing background, not an answer, unsupported claim, or raw context dump. |
+| `V1-R08` | Enforce the declared language and finite attention budget, including faithful empty attention and explicit insufficient-budget failure. |
+| `V1-R09` | Keep persistent memory local and perform compilation without network access or disclosure. |
+| `V1-R10` | Perform no autonomous environment discovery, downstream AI invocation, or automatic memory learning during compilation. |
+| `V1-R11` | Use structured numerical relevance state after ingress while retaining required exact and authoritative evidence. |
+| `V1-R12` | Limit the first supported and validated product claim to the declared coding-agent evidence boundary. |
+| `V1-R13` | Keep initialization, memory creation, import, correction, deletion, export, consolidation, and maintenance outside the compile operation under separate contracts. |
+
 ## Preconditions
 
 - The original prompt and situation statements are valid UTF-8, remain within
@@ -113,8 +137,11 @@ authorization view used for the call.
 - The request contains no more than three situation statements.
 - The trusted caller preserves the origin of the current user prompt and does
   not present generated agent text as authenticated user input.
-- The request resolves one unambiguous current time. The exact input
+- The request resolves one unambiguous contextual time. The exact input
   representation and whether a CLI may use the local clock remain open.
+- Authorization, disclosure expiry, and security policy use a separate trusted
+  invocation time. Caller-supplied contextual time cannot revive expired
+  access.
 - Optional metadata is supplied explicitly. Absence of optional metadata is
   not evidence for a guessed value.
 - The local memory installation is readable. An initialized but empty memory
@@ -135,11 +162,10 @@ partial compiled prompt.
 ### Single-call behavior
 
 The compile API produces one complete in-memory compiled prompt or one explicit
-error. The CLI begins writing the compiled prompt to standard output only after
-compilation succeeds; diagnostics and errors do not share that output stream,
-and a transport failure exits unsuccessfully. This does not claim that the
-operating system can deliver an entire standard-output write atomically.
-Programmatic entry points preserve the same successful-result semantics.
+error. An adapter begins exposing the compiled prompt only after compilation
+succeeds, keeps diagnostics and errors outside the successful product result,
+and reports a delivery failure as an unsuccessful invocation. This does not
+claim that every external transport can deliver an entire write atomically.
 
 ### Prompt integrity
 
@@ -180,6 +206,13 @@ promote embedded instructions from untrusted content.
 Every factual or contextual claim in the attention text must be supportable by
 the compile request or authorized memory. Uncertainty, conflict, validity, and
 source authority must not be silently converted into certainty.
+
+Caller-supplied temporal metadata is data. It may affect situational relevance,
+historical interpretation, and retrieval of explicitly historical context, but
+authorization, disclosure policy, current normative authority, and
+supersession use the trusted invocation time. Historical instructions may be
+described with their historical qualification; contextual time cannot revive
+them as current instructions.
 
 Derived attention never has greater authority than its sources. Only an
 authenticated current user instruction or an authorized, still-valid stored
@@ -281,8 +314,8 @@ This proposed contract requires future observable-boundary tests for:
 - absence of answer leakage and unsupported attention claims;
 - attention-size enforcement;
 - same-language behavior for every declared supported language;
-- explicit compile errors and distinct CLI transport failures;
-- CLI standard-output isolation; and
+- explicit compile errors and distinct adapter transport failures;
+- result-channel isolation for every adopted adapter; and
 - operation without network access.
 
 Evaluation cases must label propositions that attention must include, may
@@ -314,9 +347,11 @@ message placement, decoding settings, and effective context or token budget.
 
 A successful V1 release claim requires improvement on context-dependent coding
 tasks over no attention and the strongest non-oracle baseline, a predeclared
-non-inferiority bound on context-independent tasks, and a predeclared maximum
-harm rate. Exact thresholds remain for the later evaluation specification.
-Claims in another domain require separate evidence for that domain.
+non-inferiority bound on context-independent tasks, and predeclared maximum
+harm rates against both required baselines and within every subgroup included
+in the supported claim. Exact thresholds remain for the later evaluation
+specification. Claims in another domain require separate evidence for that
+domain.
 
 Before a sealed evaluation set is opened or executed, its manifest and semantic
 lineage split, the architecture revision, parameters, downstream model
@@ -345,9 +380,11 @@ contract.
 
 The next design phase must specify, without changing the product boundary:
 
-- the exact CLI syntax and programmatic request types;
+- programmatic request types and whether a CLI is adopted and, if so, its exact
+  syntax;
 - exact prompt and situation size limits;
-- metadata fields, time semantics, and location representation;
+- metadata fields, contextual and authorization time semantics, and location
+  representation;
 - local memory identity, provenance, validity, correction, deletion, and
   migration contracts, including initial provisioning, creation, import, and
   export;
@@ -370,6 +407,8 @@ The next design phase must specify, without changing the product boundary:
 ## References
 
 - [Decision 0011: Adopt a local read-only attention compiler for V1](../decisions/0011-adopt-local-read-only-attention-compiler-v1.md)
+- [V1 reference architecture](v1-reference-architecture.md)
+- [V1 proof program](v1-proof-program.md)
 - [Situation-conditioned activation](situation-conditioned-activation.md)
 - [Activation parameter evaluation](activation-parameter-evaluation.md)
 - [Curated activation evidence](curated-activation-evidence.md)
