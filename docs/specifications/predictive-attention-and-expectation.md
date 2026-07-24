@@ -110,7 +110,7 @@ that introduces them.
 | \(\chi_{i,\psi}\) | Hard frame-local eligibility indicator |
 | \(C_i^x,C_i^c,C_i^h\) | State, condition, and horizon compatibility |
 | \(\gamma_i^{\mathrm{cov}},\eta_i^{\mathrm{match}}\) | Comparable-facet coverage and conditional match |
-| \(\varrho_i,\alpha_i\) | Transition reliability and qualified support weight |
+| \(\varrho_i,\alpha_i\) | Compatible typed transition-reliability value and qualified support weight |
 | \(a,h,d\) | Alternative family, outcome group, and dependency group |
 | \(\mathcal A_f,class(a),class(\psi)\) | Frame-family set and total configured family/frame classifiers |
 | \(\mathcal K_a,\bot_a,\mathcal H_a\) | Known, unknown, and complete groups of family \(a\) |
@@ -119,7 +119,7 @@ that introduces them.
 | \(N_{\mathrm{support},a},N_{a,h}\) | Family and hypothesis participation-ratio diagnostics |
 | \(\mathcal M_{f,a},\mathcal M_f,\mathcal O_{f,a}\) | Material family groups, tagged material frame union, and non-material positive known groups |
 | \(\mu^{\mathrm{rep}}_{a,h}\) | Selected stored representative for one outcome group |
-| \(\Gamma,\gamma_\psi^{\max}\) | Nearest compatible-case score and best comparable-facet coverage |
+| \(\mathcal E_\psi^{\mathrm{cov}},\Gamma,\gamma_\psi^{\max}\) | Coverage-qualified transition set, its nearest compatible-case score, and best eligible comparable-facet coverage |
 | \(K_{\max}\) | Positive frame-wide material-hypothesis limit |
 | \(n_{\mathcal A},q_{\mathcal A}\) | Shared activated-set record count and total bounded field/reference count validated by this stage |
 | \(n_b,x_b,p_b,g_b,d_{b,h},o_b,e_b\) | Per-frame transition, facet, support-entry, group, representative, output-reference, and exact-sidecar-byte counts used by the complexity contract |
@@ -174,7 +174,7 @@ pub struct TransitionRecord {
     after: OutcomeObservation,
     horizon: Horizon,
     validity: ValidityInterval,
-    reliability: UnitInterval,
+    reliability: TransitionReliability,
     uncertainty: TransitionUncertainty,
     provenance_root: ProvenanceRootId,
     dependency_group: DependencyGroupId,
@@ -246,6 +246,37 @@ pub enum ObservationTime {
         reason: UnknownObservationTimeCode,
     },
 }
+
+pub struct TransitionReliability {
+    schema: ReliabilitySchemaId,
+    state: ReliabilityState,
+}
+
+pub enum ReliabilityState {
+    Derived {
+        value: UnitInterval,
+        derivation: ReliabilityDerivationId,
+        calibration_domain: ReliabilityCalibrationDomainId,
+        migration: Option<ReliabilityMigrationRef>,
+    },
+    Missing {
+        reason: MissingReliabilityCode,
+    },
+    Unknown {
+        reason: UnknownReliabilityCode,
+    },
+    Inapplicable {
+        reason: InapplicableReliabilityCode,
+    },
+}
+
+pub struct ReliabilityMigrationRef {
+    migration: ReliabilityMigrationId,
+    source_record: TransitionRecordRevisionId,
+    source_schema: ReliabilitySchemaId,
+    source_calibration_domain: ReliabilityCalibrationDomainId,
+    source_state_digest: ReliabilityStateDigest,
+}
 ```
 
 These are logical wireframes, not committed public Rust APIs. The two
@@ -260,6 +291,37 @@ unlabeled uncertainty scalar. The enum tag is the one closed canonical
 `ObservationStatus` vocabulary. A reading `status()` getter may expose
 `Observed`, `Derived`, `Unresolved`, `Censored`, `Contradicted`, or `Predicted`;
 there is no independently constructible status field.
+
+`TransitionReliability` is one typed, versioned value, not an unlabeled scalar.
+Its schema fixes the score's finite domain, interpretation, source-feature
+contract, missingness vocabulary, and canonical representation. A `Derived`
+state carries one finite `UnitInterval`, the registered derivation that
+produced it, and the calibration domain in which that derivation is permitted
+to support an expectation. Numeric zero is an available derived value and is
+not `Missing`, `Unknown`, or `Inapplicable`.
+
+The pinned expectation configuration supplies one total reliability-
+compatibility relation over reliability schema, derivation, calibration
+domain, transition schema, observation states, and prediction-frame class.
+A known, well-formed incompatibility or a non-`Derived` state makes that
+transition ineligible for the frame and retains a typed exclusion diagnostic.
+An unknown or malformed schema, derivation, calibration domain, missingness
+code, or migration identity is a structural error.
+
+Reliability migration never occurs implicitly during compilation. A separately
+authorized management operation or derived-artifact rebuild may apply one
+authenticated, versioned `ReliabilityMigrationId` with declared source and
+target schemas, derivations, calibration domains, missingness mapping,
+finite-range behavior, and compatibility proof. It publishes a new immutable
+record version or revision-bound derived artifact. Its
+`ReliabilityMigrationRef` binds the exact source record revision, source
+schema and calibration domain, and canonical digest of the complete source
+state, including its value or missingness variant and derivation when present.
+Compilation accepts that value only under the target contract pinned by the
+compile configuration. No matching migration means incompatibility; equal
+numeric payloads under different schemas or calibration domains do not
+establish compatibility. Rollback restores the prior immutable revision and
+artifact rather than translating a value in place.
 
 The payload and support contract is total:
 
@@ -500,13 +562,56 @@ Expectation-query predicates include:
 - an allowed-use ceiling that permits the requested expectation kind;
 - compatible subject, scope, facet schemas, vector spaces, and horizon type;
 - condition semantics required by the query kind;
-- and eligible observation status.
+- eligible observation status; and
+- one compatible `Derived` transition-reliability value under the pinned
+  reliability contract.
 
 General policy exclusion is not abstention and not inhibition and has already
 removed the record from the shared set. A record that is generally eligible
 but fails \(\chi_{i,\psi}\) remains available to the focus branch while
 contributing no support or content-bearing expectation diagnostic for frame
 \(\psi\).
+
+### Typed transition reliability
+
+Reliability admission is a typed operation performed before qualified support
+is evaluated.
+
+**EXP-REL-001 — typed reliability admission.**
+
+For one structurally valid transition and frame, the pinned compatibility
+contract returns exactly one of:
+
+\[
+\operatorname{admitRel}(\tau_i,\psi)=
+\begin{cases}
+\operatorname{Compatible}(v),
+&\text{the state is `Derived` and its complete contract is compatible},\\
+\operatorname{Excluded}(code),
+&\text{the valid state is unavailable or its contract is incompatible},\\
+\operatorname{Error}(code),
+&\text{an identity, state, or migration contract is unknown or malformed}.
+\end{cases}
+\]
+
+The complete contract includes reliability schema, derivation, calibration
+domain, transition schema, observation states, prediction-frame class, and
+any authenticated migration lineage. `Compatible` carries the exact finite
+value \(v\in\mathbb U\), sets \(\varrho_i=v\), and satisfies the reliability
+conjunct of \(\chi_{i,\psi}\). `Excluded` sets that conjunct to zero and emits
+one typed frame-local exclusion diagnostic; it does not synthesize
+\(\varrho_i\). `Error` aborts the evaluation and cannot be converted to either
+exclusion or abstention.
+
+A compatible derived value of zero remains an available reliability
+observation and may satisfy \(\chi_{i,\psi}\), although it makes the
+transition's qualified support zero. `Missing`, `Unknown`, and
+`Inapplicable` are unavailable states, not alternative spellings of zero.
+Values from distinct reliability schemas or calibration domains are
+incomparable unless the value carries a registered migration lineage admitted
+by the pinned compatibility contract. Compilation performs no migration,
+fallback calibration, neutral-value substitution, or numeric-only
+compatibility test.
 
 ### Facet compatibility and missing values
 
@@ -640,11 +745,16 @@ The baseline transition weight is:
 
 \[
 \alpha_i =
-\chi_{i,\psi} A_i C_i^x C_i^c C_i^h \varrho_i
+\begin{cases}
+0,&\chi_{i,\psi}=0,\\
+A_i C_i^x C_i^c C_i^h \varrho_i,&\chi_{i,\psi}=1.
+\end{cases}
 \]
 
-Every factor belongs to \(\mathbb U\), so real-number semantics give
-\(0\le\alpha_i\le1\).
+The second branch is evaluated only after `EXP-REL-001` has produced a
+compatible \(\varrho_i\); an excluded transition has no fabricated reliability
+value. Every evaluated factor belongs to \(\mathbb U\), so real-number
+semantics give \(0\le\alpha_i\le1\).
 
 The signal-lineage manifest covers every raw feature and derived channel used
 by \(A_i\), \(C_i^x\), \(C_i^c\), \(C_i^h\), and \(\varrho_i\). The reference
@@ -970,8 +1080,8 @@ subtracting counter-support; both are preserved.
 The baseline reports, rather than collapses:
 
 - comparable-facet coverage \(\gamma_i^{\mathrm{cov}}\);
-- best comparable-facet coverage and nearest compatible-case score, defined
-  below;
+- best eligible comparable-facet coverage and nearest coverage-qualified
+  compatible-case score, defined below;
 - distance-like novelty \(\nu=1-\Gamma\);
 - \(D_+\), \(N_{\mathrm{support},a}\), and \(N_{a,h}\);
 - unknown share \(r^{\mathrm{share}}_{\bot_a\mid a}\) per alternative family;
@@ -979,47 +1089,77 @@ The baseline reports, rather than collapses:
 - required missing facets; and
 - corpus, schema, encoder, and distance identities.
 
-For a nonempty canonical eligible-transition set \(\mathcal E_\psi\), define:
+For a nonempty canonical eligible-transition set \(\mathcal E_\psi\), define
+the report-only best coverage:
 
-**EXP-COV-001 — best coverage, nearest compatible case, and novelty.**
+**EXP-COV-001 — coverage-qualified nearest case and novelty.**
 
 \[
 \gamma_\psi^{\max}
 =
-\max_{i\in\mathcal E_\psi}\gamma_i^{\mathrm{cov}},
-\qquad
-\Gamma
-=
-\max_{i\in\mathcal E_\psi}(C_i^xC_i^cC_i^h),
-\qquad
-\nu=1-\Gamma.
+\max_{i\in\mathcal E_\psi}\gamma_i^{\mathrm{cov}}.
 \]
 
 The expectation configuration supplies two finite frozen minima by validated
 prediction-frame class:
 \(\theta_{\mathrm{cov}}(class(\psi))\in\mathbb U\) and
-\(\theta_{\mathrm{near}}(class(\psi))\in\mathbb U\). Define:
+\(\theta_{\mathrm{near}}(class(\psi))\in\mathbb U\). The transitions allowed
+to establish proximity are exactly:
+
+\[
+\mathcal E_\psi^{\mathrm{cov}}
+=
+\left\{
+\tau_i\in\mathcal E_\psi
+\mid
+\gamma_i^{\mathrm{cov}}
+\ge
+\theta_{\mathrm{cov}}(class(\psi))
+\right\}.
+\]
+
+Only when \(\mathcal E_\psi^{\mathrm{cov}}\ne\varnothing\), define:
+
+\[
+\Gamma
+=
+\max_{i\in\mathcal E_\psi^{\mathrm{cov}}}(C_i^xC_i^cC_i^h),
+\qquad
+\nu=1-\Gamma.
+\]
 
 **EXP-COV-002 — exact below-coverage predicate.**
 
 \[
 \operatorname{belowCoverage}(\psi)=
+\begin{cases}
+\operatorname{false},
+&\mathcal E_\psi=\varnothing,\\
+\operatorname{true},
+&\mathcal E_\psi\ne\varnothing
+\land\mathcal E_\psi^{\mathrm{cov}}=\varnothing,\\
 \left[
-\mathcal E_\psi\ne\varnothing
-\land
-\left(
-\gamma_\psi^{\max}<\theta_{\mathrm{cov}}(class(\psi))
-\lor
 \Gamma<\theta_{\mathrm{near}}(class(\psi))
-\right)
-\right].
+\right],
+&\mathcal E_\psi^{\mathrm{cov}}\ne\varnothing.
+\end{cases}
 \]
 
-Equality with either minimum passes that comparison. When
-\(\mathcal E_\psi\) is empty, \(\gamma_\psi^{\max}\), \(\Gamma\), and \(\nu\)
-are absent diagnostics, `belowCoverage` is false, and the result abstains with
-`NoEligibleTransitions`; no numeric default or additional `BelowCoverage`
-reason is invented. \(\nu\) is not an out-of-distribution proof unless the registered
+Equality with either minimum passes that comparison. The same transition that
+establishes proximity must therefore have passed the coverage minimum. A
+high-coverage but distant transition and a low-coverage but nearby transition
+cannot combine their separate maxima into a positive coverage disposition.
+
+When \(\mathcal E_\psi\) is empty, \(\gamma_\psi^{\max}\), \(\Gamma\), and
+\(\nu\) are absent diagnostics, `belowCoverage` is false, and the result
+abstains with `NoEligibleTransitions`; no numeric default or additional
+`BelowCoverage` reason is invented. When \(\mathcal E_\psi\) is nonempty but
+\(\mathcal E_\psi^{\mathrm{cov}}\) is empty,
+\(\gamma_\psi^{\max}\) remains available, \(\Gamma\) and \(\nu\) are absent,
+and `belowCoverage` is true. No nearest-case score is synthesized from a
+transition that failed the coverage minimum.
+
+\(\nu\) is not an out-of-distribution proof unless the registered
 representation supplies an appropriate metric and a threshold frozen on
 disjoint calibration data. Even then the claim is relative to the declared
 corpus and supported population. The expectation kernel cannot infer physical
@@ -1925,11 +2065,13 @@ tests include immediately below, at, and above each boundary.
 - The frame-query derivation, frame-key ordering, per-frame limits, total
   bundle-output limit, and closed record-tag order are versioned parts of the
   pinned configuration.
-- Every transition has validated observation status, provenance root,
-  dependency group, and exact/numerical revision bindings.
+- Every transition has validated observation status, reliability schema and
+  state, provenance root, dependency group, and exact/numerical revision
+  bindings.
 - Activation inputs satisfy the separate activation specification.
-- Facet, condition, horizon, equivalence, contradiction, and distance
-  functions are versioned and finite on their declared domains.
+- Reliability compatibility and migration registries and all facet, condition,
+  horizon, equivalence, contradiction, and distance functions are versioned
+  and total on their declared domains; every numeric result is finite.
 - Every outcome belongs to exactly one validated alternative family for each
   outcome variable it answers; compatible co-outcomes use separate families.
 - Equivalence and contradiction satisfy their algebraic consistency rules, and
@@ -1947,6 +2089,9 @@ tests include immediately below, at, and above each boundary.
   before final focus pruning.
 - Hard policy exclusion is never represented by a low soft score.
 - Unknown, absent, inapplicable, explicit none, and zero remain distinct.
+- Only a compatible typed `Derived` reliability value can enter
+  \(\alpha_i\); exclusion, missingness, and migration never synthesize a
+  neutral scalar.
 - Expectations never gain more authority than their essential sources.
 - Every hypothesis retains its condition, horizon, representative, support,
   counterevidence, uncertainty, and provenance bindings.
@@ -1958,6 +2103,8 @@ tests include immediately below, at, and above each boundary.
 - One dependency group contributes at most one total support budget across the
   mutually exclusive outcomes in one alternative family.
 - Relative support is never labeled or consumed as probability.
+- Coverage and proximity can authorize a positive disposition only through at
+  least one transition that satisfies both gates in sequence.
 - The kernel selects no action and produces no answer.
 - Prediction and renderer outputs are not observations and do not mutate
   persistent memory.
@@ -1969,6 +2116,12 @@ tests include immediately below, at, and above each boundary.
 
 - No eligible transition produces `NoEligibleTransitions`, not a fabricated
   default hypothesis.
+- A compatible derived reliability of zero remains available and yields zero
+  qualified support; `Missing`, `Unknown`, `Inapplicable`, and a known
+  incompatible reliability contract exclude the transition from that frame.
+- An unknown or malformed reliability schema, derivation, calibration domain,
+  missingness code, or migration lineage is a structural error. Equal numeric
+  values under incompatible contracts are not interchangeable.
 - Eligible transitions with all zero qualified weights produce `ZeroSupport`.
 - Unknown-only family support produces `NoKnownOutcomeSupport`.
 - One supported outcome may be rendered as a single hypothesis, but lack of a
@@ -1992,6 +2145,12 @@ tests include immediately below, at, and above each boundary.
 - A conditional expectation with no supplied condition is invalid.
 - A highly activated but condition-incompatible transition has
   \(\chi_{i,\psi}=0\) or \(C_i^c=0\).
+- A high-coverage distant transition and a low-coverage nearby transition do
+  not jointly satisfy coverage: proximity is computed only over the
+  coverage-qualified transition set.
+- A nonempty eligible set with no coverage-qualified transition reports best
+  eligible coverage, leaves \(\Gamma\) and \(\nu\) absent, and abstains with
+  `BelowCoverage`.
 - Below-materiality known support remains in the family denominator and its
   aggregate control; material hypotheses are never removed by count-based
   truncation.
@@ -2015,8 +2174,8 @@ tests include immediately below, at, and above each boundary.
 
 The first executable implementation requires:
 
-- constructor tests for every identifier, presence state, status, horizon,
-  relation, sidecar reference, and finite number;
+- constructor tests for every identifier, presence state, status, typed
+  reliability state, horizon, relation, sidecar reference, and finite number;
 - property tests for boundedness, permutation invariance, canonical ordering,
   dependency budgets, exact-duplicate invariance, submaximum and
   maximum-budget behavior, medoid membership, and reconstructibility;
@@ -2036,8 +2195,14 @@ The first executable implementation requires:
 - class-based materiality fixtures, equal underlying outcome identifiers in
   distinct tagged families, material-unknown equality, and complete
   frame-limit abstention without pruning;
-- empty/nonempty eligible sets and immediately below, equal, and above cases
-  for both coverage minima;
+- empty/nonempty eligible sets, no coverage-qualified transition, immediately
+  below/equal/above cases for both coverage minima, and the split-maxima
+  counterexample in which coverage and proximity are passed by different
+  transitions;
+- compatible derived zero and unit reliability, every unavailable reliability
+  state, schema/derivation/calibration-domain incompatibility, unknown
+  contract identities, authenticated migration acceptance, and missing,
+  stale, or mismatched migration rejection;
 - numerical-policy authentication, incomplete-policy rejection, operation
   ordering, rounding, positive-underflow, overflow, non-finite, negative-zero,
   exact-tie, and cross-platform receipt cases;
@@ -2047,6 +2212,8 @@ The first executable implementation requires:
 - nontransitive similarity counterexamples;
 - unknown, censored, unresolved, and omitted-support cases;
 - horizon and condition incompatibility cases;
+- receipt reconstruction that binds each admitted reliability value to its
+  schema, derivation, calibration domain, source state, and migration lineage;
 - retrieval `Complete`, `Bounded`, `Degraded`, and `Failed` cases;
 - structural and evidence abstention reason tests;
 - all-zero, unit, subnormal, and maximum-cardinality numerical cases;

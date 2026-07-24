@@ -61,6 +61,8 @@ flowchart TD
     R --> D["Signal and gate derivation"]
     D --> K["Activation ranking"]
     K --> S["Eligible activated-memory set"]
+    Q --> F["Focus planner"]
+    P --> F
     S --> F["Focus planner"]
     S --> E["Deterministic expectation kernel"]
     F --> J["Focus-and-expectation plan validation and selection"]
@@ -88,7 +90,7 @@ sequenceDiagram
     Store-->>Compiler: Revision, policy, exact data, and numerical views
     Compiler->>Compiler: Encode situation, retrieve, derive signals, activate
     par Shared eligible set
-        Compiler->>Focus: Immutable focus projection
+        Compiler->>Focus: Q, authorization receipt projection, configuration, and immutable focus projection
         Focus-->>Compiler: FocusCandidateSet
     and
         Compiler->>Expect: Immutable transition projection
@@ -273,7 +275,7 @@ flowchart TD
     PUB --> BAK["Authenticated backup or export"]
     BAK --> REST["Restore into a separately validated installation"]
     READY --> MIG["Stage schema or representation migration against a pinned source revision"]
-    MIG --> MVERIFY["Verify schema, record counts, provenance, derived-artifact bindings, and rollback fixture"]
+    MIG --> MVERIFY["Verify authoritative source-to-target manifest correspondence, registered transforms, derived bindings, and rollback"]
     MVERIFY -->|pass| MPUB["Atomically publish migrated revision and manifest"]
     MVERIFY -->|fail| MROLL["Discard staging state; retain prior revision"]
     MPUB --> READY
@@ -388,10 +390,18 @@ activated records, source and authority data, exact sidecars, and retrieval
 diagnostics. It is the only branch point.
 
 The focus planner and expectation kernel consume immutable projections of that
-same set before final focus pruning:
+same set before final focus pruning. The focus planner additionally consumes
+the validated numerical request-local situation \(Q\), the matching
+authorization-receipt projection \(\Lambda_A\), and the pinned configuration
+\(K\):
 
-- the focus planner consolidates canonical propositions and creates bounded
-  focus candidates;
+- the focus planner first derives the ephemeral canonical
+  `RequestPropositionSet` from prompt, situation-statement, and allowed
+  request-metadata evidence in \(Q\), checks that every entry is bound to the
+  exact `(request_id, situation_id, policy_revision_id,
+  authorization_view_id, configuration_id)` projection of \(\Lambda_A\), and
+  then consolidates request-supported and memory-supported compatible
+  propositions into bounded focus candidates;
 - the expectation kernel evaluates eligible direct observations and explicitly
   permitted registered derivations, retains competing outcome groups and
   counterevidence, and may abstain; and
@@ -401,8 +411,16 @@ same set before final focus pruning:
 The expectation derivation, support semantics, uncertainty vector, medoids,
 coverage, and abstention are owned only by
 [`predictive-attention-and-expectation.md`](predictive-attention-and-expectation.md).
-The focus derivation is owned by
+`RequestPropositionSet` is focus-only ephemeral state: it is neither persistent
+memory nor expectation evidence, and it cannot raise its source authority or
+allowed-use ceiling. Situation encoding validates exact source-byte locators
+into \(X_Q\); focus derivation consumes those bindings and never rereads or
+reparses raw request text. The focus derivation, including
+`deriveRequestPropositions(Q, Lambda_A, K)`, is owned by
 [`cognitive-memory-activation-and-focus.md`](cognitive-memory-activation-and-focus.md).
+An empty eligible memory set therefore does not force an empty
+`FocusCandidateSet`: authenticated prompt, situation-statement, or allowed
+request-metadata evidence may independently justify focus.
 
 ### Canonical focus-and-expectation plan
 
@@ -573,10 +591,32 @@ pub struct CompileRequest {
 }
 ```
 
-Fields are private. Validated constructors reject empty prompts, whitespace-only
-situation statements, whitespace-only original prompts, more than three
-statements, invalid coordinates, invalid time offsets, malformed or unsupported
-language tags, unknown metadata schemas, and unsupported budgets.
+Fields are private. Intrinsic request construction and installed-compiler
+compatibility are separate boundaries:
+
+```rust
+impl CompileRequest {
+    pub fn new(/* typed fields above */)
+        -> Result<Self, CompileRequestError>;
+}
+```
+
+`CompileRequestError` reports only context-independent shape, syntax, and
+representability failures: an empty or whitespace-only prompt, a
+whitespace-only situation statement, more than three statements, invalid or
+nonfinite coordinates, an invalid time or offset under the request's declared
+time schema, a syntactically malformed language tag or metadata record, and a
+zero, overflowing, or otherwise unrepresentable budget ceiling. Construction
+does not consult an installation, compiler configuration, model artifact,
+supported-language set, schema registry, or configured resource ceiling.
+
+`Compiler::compile` separately checks the already valid request against its
+pinned authenticated configuration. Unsupported request schema versions,
+configured byte or item ceilings, unavailable declared languages, incompatible
+time, location, metadata, encoder, or renderer schemas, and request ceilings
+outside the installed capability envelope are compile compatibility failures.
+They preserve a distinct typed source and must never be relabeled as malformed
+request construction.
 `String` denotes the exact valid UTF-8 bytes received by the API; no
 normalization is permitted. Reading getters borrow values. No public mutable
 field, unchecked public constructor, global singleton, unsafe Rust, or ambient
@@ -616,13 +656,22 @@ language from the original prompt or return `UnsupportedLanguage`; it never
 silently falls back. Explicit selection affects generated attention only and
 never translates or rewrites the retained prompt.
 
-`InvocationContext` is constructed by a trusted local adapter and contains the
-principal, caller identity, prompt-origin assertion, trusted authorization
-time, disclosure policy reference, selected installed configuration identity,
-and capability limits. The selected identity resolves only through the
-installation's authenticated manifest; caller input cannot name an arbitrary
-file or artifact. Request code cannot construct a higher-authority context from
-caller metadata.
+`InvocationContext` is constructed only by the platform-authenticated
+invocation adapter owned by `nemosyne-compiler` and `API-01`. Its constructors
+are not available to request or transport code. The adapter resolves the
+principal and caller from the selected platform trust mechanism, verifies
+prompt-origin evidence, reads the trusted authorization clock, and resolves the
+disclosure policy, installed configuration identity, and capability limits
+through the installation's authenticated registries. It returns either one
+validated request-local context or a typed trust/configuration error.
+
+The selected identity resolves only through the installation's authenticated
+manifest; caller input can transport an identifier but cannot name an
+arbitrary file or artifact. The CLI and other untrusted adapters may transport
+prompt-origin material and a requested installed identity to this adapter, but
+cannot assert a principal, trusted time, authority, origin verdict, policy
+reference, or capability. Request metadata cannot construct or raise an
+invocation context.
 
 The optional request attention budget is a ceiling only. It may reduce the
 maximum authorized by the selected configuration and invocation context, but
@@ -668,10 +717,15 @@ nonfinite numbers, invalid RFC 3339 values, malformed language tags, and an
 empty or whitespace-only prompt are usage errors. Accepted coordinate negative
 zero is canonicalized exactly as at the library boundary. Invalid UTF-8 from a
 file or standard input is an adapter input error before a Rust
-`CompileRequest` exists. Configuration supplies limits when
+`CompileRequest` exists. These adapter checks are followed by the same
+`CompileRequest::new` intrinsic validation used by every caller. The CLI does
+not duplicate installed compatibility, trust, or authorization logic.
+Configuration supplies limits when
 `--attention-budget` or `--configuration` is absent; it never guesses
 contextual time or location. `--configuration` selects an installed,
-authenticated manifest entry by exact identity. It never accepts an arbitrary
+authenticated manifest entry by exact identity only after the transported
+identity reaches the `API-01` platform invocation adapter. The CLI neither
+authenticates nor resolves that identity and never accepts an arbitrary
 configuration path. `--attention-budget` can only lower the selected
 configuration and invocation-context ceiling. `--output-language` follows the
 same resolution rule as the library field and is not general request metadata.
@@ -689,10 +743,10 @@ output; exit `10` makes that output invalid and callers must discard it.
 | Exit | Stable class |
 | ---: | --- |
 | `0` | Complete compiled prompt delivered |
-| `2` | CLI usage or invalid request |
+| `2` | CLI usage, intrinsic `CompileRequestError`, or unsupported requested language |
 | `3` | Prompt-origin, principal, authorization, or disclosure failure |
 | `4` | Memory, snapshot, or persistence failure |
-| `5` | Configuration, schema, or artifact failure |
+| `5` | Request/configuration incompatibility, schema, or artifact failure |
 | `6` | Retrieval, representation, signal, activation, expectation, or planning failure |
 | `7` | Renderer, exact-slot, or faithfulness failure |
 | `8` | Resource limit, deadline, or cancellation |
@@ -776,8 +830,8 @@ flowchart TD
 | `nemosyne-core` | Dependency-light validated domain types and deterministic activation, expectation, and plan algorithms | Filesystem, database, network, model runtime, CLI, or telemetry |
 | `nemosyne-memory` | Local storage, immutable revisions, authorization views, migrations, indexes, backup, recovery, and provisioning | Rendering, downstream model calls, or semantic planning |
 | `nemosyne-renderer` | Plan adapter, local lexicalizer runtime, exact slots, and independent faithfulness validation | Memory retrieval, hypothesis generation, authority policy, or action selection |
-| `nemosyne-compiler` | Public callable API, ingress, artifact preflight, situation encoding, retrieval orchestration, signal derivation, stage errors, and exact serialization | Persistent writes during compile or adapter-specific terminal behavior |
-| `nemosyne-cli` | Argument and stream transport, authenticated configuration selection, trusted local invocation construction, exit mapping, and one buffered stdout delivery attempt | Duplicate compile logic or claims of transport atomicity |
+| `nemosyne-compiler` | Public callable API, the sole platform-authenticated invocation adapter, ingress, artifact preflight, situation encoding, retrieval orchestration, signal derivation, stage errors, and exact serialization | Persistent writes during compile or adapter-specific terminal behavior |
+| `nemosyne-cli` | Argument, byte-stream, prompt-origin-material, and requested installed-identity transport; API invocation, exit mapping, and one buffered stdout delivery attempt | Trust or configuration resolution, `InvocationContext` construction, duplicate compile logic, or claims of transport atomicity |
 | `nemosyne-admin` | Privileged initialization, revision publication, backup, restore, migration, export, deletion, and later correction command transport under explicit management capabilities | Compile transport, implicit writes, or a shared unprivileged invocation context |
 | Evaluation crates | Offline corpora, reports, baselines, calibration, and receipts | Runtime compile dependencies |
 
@@ -804,6 +858,41 @@ Ownership rules are:
 - cancellation and budgets are explicit inputs; and
 - reports derive from source observations rather than mutable duplicated
   counters.
+
+### Existing public primitive compatibility
+
+The current public `CandidateId`, `ChannelId`, and `UnitInterval` definitions
+remain owned by `nemosyne_core::activation`. The current public `ScenarioId`
+remains owned by `nemosyne_evaluation::activation`. `CORE-01` begins with an
+inventory of these public definitions and their equality, ordering, hashing,
+validation, and path behavior. It must not introduce a second type with the
+same semantic domain merely to fit the proposed decomposition.
+
+When a later domain needs exactly the same semantics, it reuses or re-exports
+the existing type. If ownership must move, the new canonical path is introduced
+with an exact deprecated compatibility re-export at the old path for the
+declared support window. A semantically different value receives a distinct
+name and a validated explicit conversion; it is not presented as another
+`CandidateId`, `ChannelId`, `UnitInterval`, or `ScenarioId`. In particular,
+core does not duplicate the evaluation-owned `ScenarioId`.
+
+Replacing or moving one of these primitives requires a specification and
+decision, a semantic-version and deprecation plan, source and downstream
+migration instructions, and tests that prove:
+
+- old and new paths denote the same Rust type throughout the compatibility
+  window;
+- validation, equality, hashing, ordering, and canonical formatting are
+  unchanged;
+- public downstream code continues to compile through the supported old path;
+- any serialized or persisted representation remains identical or has an
+  explicit versioned migration; and
+- removal occurs only after the promised reader and deprecation window.
+
+Aliases, wrappers, and re-exports are reviewed for duplicate semantic
+primitives, not only duplicate names. A wrapper with identical invariants but a
+new identity is forbidden unless the accepted decision demonstrates a real
+semantic or authority boundary.
 
 ### Local persistence and migration contract
 
@@ -860,12 +949,42 @@ recoverable transaction or verified backup. The migration flow is:
 
 1. authenticate source installation and target schema;
 2. create and verify a backup or copy-on-write destination;
-3. migrate authoritative exact data;
-4. rebuild or invalidate derived numerical data and indexes;
-5. run integrity, reference, authorization, and semantic-count checks;
-6. atomically publish the target revision;
-7. retain the rollback artifact according to policy; and
-8. record an evidence receipt without private content.
+3. freeze a content-identified authoritative source manifest;
+4. migrate authoritative exact data while recording a target migration
+   manifest;
+5. rebuild or invalidate derived numerical data and indexes;
+6. verify source-to-target authoritative correspondence, registered
+   transformations, integrity, references, and authorization;
+7. atomically publish the target revision;
+8. retain the rollback artifact according to policy; and
+9. record an evidence receipt without private content.
+
+The source manifest enumerates every authoritative record and version identity,
+semantic and exact-value digest, exact sidecar identity and digest, provenance
+edge, policy revision and policy entry, validity interval, supersession edge,
+logical-deletion or tombstone state, and retention/erasure state. The target
+migration manifest covers the same authoritative dimensions. Rebuildable
+vectors and indexes are identified as derived and are excluded from
+authoritative equality, but their target bindings must reference the verified
+target authoritative identities and selected transform manifests.
+
+For every source authoritative item, the target must provide exactly one of:
+
+- an identical authoritative item with equal identity and digest; or
+- a correspondence entry naming one registered, deterministic, versioned
+  transformation, its implementation/artifact digest, source and target
+  identities, pre- and post-transformation digests, declared semantic effect,
+  and approved loss policy.
+
+Every target authoritative item must likewise have exactly one source item or
+an explicitly registered creation transformation authorized by the migration
+contract. Missing, duplicated, colliding, orphaned, or unregistered
+correspondence fails migration. Equal table, row, atom, relation, sidecar, or
+policy counts are never evidence of equivalence: fixtures that replace,
+reorder, cross-bind, truncate, or corrupt one item while preserving all counts
+must fail. The verification suite separately covers provenance, policy,
+validity, supersession, deletion/tombstone, retention, exact-sidecar, and
+foreign-reference corruption so that a compensating count cannot hide loss.
 
 Downgrade is not assumed. A release declares which prior schema versions it can
 read, migrate, and roll back. An incompatible or partially migrated store is
@@ -1127,7 +1246,7 @@ class and an inspectable underlying stage or cause.
 
 | Variant | Representative causes | CLI exit |
 | --- | --- | ---: |
-| `InvalidRequest` | Empty or whitespace-only prompt, invalid time, excessive input, malformed metadata, or too many statements | `2` |
+| `RequestIncompatible` | A valid request uses a schema, shape, size, or budget unsupported by the pinned installed configuration | `5` |
 | `PromptOrigin` | Caller cannot satisfy the authenticated prompt-origin precondition | `3` |
 | `UnsupportedLanguage` | Language is absent, undetermined, or outside declared support | `2` |
 | `AuthorizationUnavailable` | Caller trust or disclosure view cannot be established | `3` |
@@ -1148,8 +1267,11 @@ class and an inspectable underlying stage or cause.
 
 Invalid UTF-8 exists only at a byte-oriented adapter boundary because the
 library accepts a valid Rust `String`; it is a CLI input failure mapped to exit
-`2`, not a `CompileError`. Adapter delivery errors are separate from
-`OpenError` and `CompileError`. A `TransportFailure` means compilation
+`2`, not a `CompileError`. `CompileRequestError` is likewise produced before
+`Compiler::compile` and maps to exit `2`; `RequestIncompatible` is produced
+only after a valid request is checked against the pinned compiler
+configuration. Adapter delivery errors are separate from `OpenError`,
+`CompileRequestError`, and `CompileError`. A `TransportFailure` means compilation
 succeeded but an adapter could not deliver the complete text. It remains an
 unsuccessful invocation. CLI standard-output failure is one possible
 adapter-specific mapping.
@@ -1160,8 +1282,10 @@ external deadline, cancellation, or resource ceiling is `ResourceFailure`; and
 a missing, unauthenticated, digest-invalid, schema-incompatible, or otherwise
 unavailable pinned artifact is `ArtifactUnavailable`. Only after these
 conditions are excluded does the owning computational stage return its stage
-variant. The adapter does not inspect error-message text or nested I/O causes to
-choose an exit.
+variant. A valid request unsupported by an otherwise valid selected
+configuration is `RequestIncompatible`; a malformed request never reaches this
+classification. The adapter does not inspect error-message text or nested I/O
+causes to choose an exit.
 
 Planning-stage causes map as follows:
 

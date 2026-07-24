@@ -90,7 +90,7 @@ and claims must use registered or visibly qualified symbols.
 | \(\omega_f\) | \((0,1]\) | Registered normalized comparable-facet weight | [Predictive-attention specification](predictive-attention-and-expectation.md) |
 | \(\delta_{i,f}^{\mathrm{cmp}}\) | \(\{0,1\}\) | Comparable-facet presence indicator | [Predictive-attention specification](predictive-attention-and-expectation.md) |
 | \(\gamma_i^{\mathrm{cov}},\eta_i^{\mathrm{match}}\) | finite unit interval | Comparable-facet coverage and conditional match | [Predictive-attention specification](predictive-attention-and-expectation.md) |
-| \(\varrho_i\) | finite unit interval | Contract-derived transition reliability | [Predictive-attention specification](predictive-attention-and-expectation.md) |
+| \(\varrho_i\) | compatible typed finite unit interval | Transition reliability admitted under one versioned schema, derivation, calibration-domain, missingness, compatibility, and migration contract | [Predictive-attention specification](predictive-attention-and-expectation.md) |
 | \(\alpha_i\) | finite unit interval | Qualified transition support weight | [Predictive-attention specification](predictive-attention-and-expectation.md) |
 | \(a,h,d\) | typed identifiers | Alternative family, outcome group, and dependency group | [Predictive-attention specification](predictive-attention-and-expectation.md) |
 | \(\mathcal K_a,\bot_a,\mathcal H_a\) | finite tagged sets | Known, unknown, and complete outcome groups for family \(a\) | [Predictive-attention specification](predictive-attention-and-expectation.md) |
@@ -102,7 +102,7 @@ and claims must use registered or visibly qualified symbols.
 | \(N_{\mathrm{support},a}\) | bounded nonnegative scalar | Effective dependency-group support size | [Predictive-attention specification](predictive-attention-and-expectation.md) |
 | \(N_{a,h}\) | bounded nonnegative scalar | Effective support-group count for one hypothesis | [Predictive-attention specification](predictive-attention-and-expectation.md) |
 | \(N_{\mathrm{frame}},N_{\mathrm{frame,max}}\) | bounded nonnegative integers | Actual and configured maximum expectation-frame counts | [Predictive-attention specification](predictive-attention-and-expectation.md) |
-| \(\Gamma,\nu\) | finite unit interval | Nearest compatible-case score and novelty \(1-\Gamma\) | [Predictive-attention specification](predictive-attention-and-expectation.md) |
+| \(\Gamma,\nu\) | finite unit interval or absent | Nearest coverage-qualified compatible-case score and novelty \(1-\Gamma\) | [Predictive-attention specification](predictive-attention-and-expectation.md) |
 | \(\Delta_a^{\mathrm{disp}}\) | finite unit interval or absent | Report-only within-family support dispersion | [Predictive-attention specification](predictive-attention-and-expectation.md) |
 | \(\mathcal M_{f,a},\mathcal M_f,K_{\max}\) | finite sets and positive bound | Material family groups, complete material frame union, and per-frame limit | [Predictive-attention specification](predictive-attention-and-expectation.md) |
 | \(F\) | canonical finite set | Complete `FocusCandidateSet` | [Cognitive memory specification](cognitive-memory-activation-and-focus.md) |
@@ -276,13 +276,13 @@ normative and move only with a same-change registry update.
 | `ALG-MEM-07` | [Kernel composition](cognitive-memory-activation-and-focus.md#signal-derivation-and-existing-kernel-composition) | Derived channels and gates to activation candidates; exact channel identities, no defaults, typed errors | Preserve kernel bounds and explainability; test hidden zero fill and reused channel lineage | `ACT-00`, `ACT-01`, existing kernel tests | F8, F10; G4 |
 | `ALG-MEM-08` | [Proposition consolidation](cognitive-memory-activation-and-focus.md#request-local-proposition-consolidation) | Eligible activated records to complete bounded `FocusCandidateSet`; registered equivalence and conflict only | Deduplicate without losing conflict, authority, or provenance; test embedding-only equivalence and cloned sources | `PLAN-01`, `EVAL-01` | F5, F6, F12; G4 |
 | `ALG-ACT-01` | [Activation mathematics](situation-conditioned-activation.md#mathematics) | Valid profile and candidates to complete ranking; implemented `f64`, canonical channels, exact score tie then `CandidateId` | \(E_i,R_i,A_i\in[0,1]\), monotonicity, deterministic reconstruction | Existing `nemosyne-core` tests, `ACT-00` | F8; G4 |
-| `ALG-EXP-01` | [Expectation hard eligibility](predictive-attention-and-expectation.md#expectation-projection-hard-eligibility) | \(\psi,\tau_i,K\) to \(\chi_{i,\psi}\); closed use, observation, frame, condition, and missing-facet policy | Ineligible evidence cannot regain support through scores; test predicted evidence and unknown passive conditions | `EXP-01`, `EXP-02` | F2, F12, F15; G4 |
+| `ALG-EXP-01` | [Expectation hard eligibility](predictive-attention-and-expectation.md#expectation-projection-hard-eligibility) | \(\psi,\tau_i,K\) to \(\chi_{i,\psi}\); closed use, observation, frame, condition, missing-facet, and typed-reliability policy | Ineligible evidence cannot regain support through scores; test predicted evidence, unknown passive conditions, unavailable reliability, and incompatible reliability contracts | `EXP-01`, `EXP-02` | F2, F12, F15; G4 |
 | `ALG-EXP-02` | [Facet compatibility](predictive-attention-and-expectation.md#facet-compatibility-and-missing-values) | Comparable facets, condition, and horizon to compatibility plus diagnostics; real semantics and a frozen executable numerical policy | Preserve coverage versus mismatch; test missing values, unit mismatch, and each boundary | `EXP-02`, `EVAL-01` | F10, F15; G4 |
-| `ALG-EXP-03` | [Qualified support](predictive-attention-and-expectation.md#qualified-transition-support) | Eligible activation and compatibility factors to \(\alpha_i\); finite factors and named feature interactions | Bounded inspectable support, never probability; test duplicated raw-feature influence | `EXP-02`, `EVAL-01` | F8, F13; G4 |
+| `ALG-EXP-03` | [Qualified support](predictive-attention-and-expectation.md#qualified-transition-support) | Eligible activation, compatibility, and compatible typed reliability to \(\alpha_i\); finite factors, explicit unavailable states, registered migration lineage, and named feature interactions | Bounded inspectable support, never probability; test derived zero versus unavailable reliability, incompatible schemas and calibration domains, unregistered migration, and duplicated raw-feature influence | `EXP-02`, `EVAL-01` | F8, F13; G4 |
 | `ALG-EXP-04` | [Dependency-budgeted support](predictive-attention-and-expectation.md#dependency-budgeted-support) | Grouped support to \(s_{a,h},Z_a,r^{\mathrm{share}}_{h\mid a}\); one canonical budget per dependency group and family | Duplicates cannot multiply family budget; test cloned and split provenance roots | `EXP-02`, `EVAL-01`, `DATA-01` | F13, F14; G4 |
 | `ALG-EXP-05` | [Effective support count](predictive-attention-and-expectation.md#effective-support-group-count) | Positive group budgets to participation-ratio diagnostics; explicit zero case, canonical finite sums | Count is bounded by positive groups; test concentration and duplication | `EXP-02`, `EVAL-01` | F13-F15; G4 |
 | `ALG-EXP-06` | [Representative medoid](predictive-attention-and-expectation.md#representative-medoid) | Canonical outcome group and registered dissimilarity to one representative; finite limits and total fallback key | Deterministic representative without truth or metric claims; test unavailable and nontransitive distances | `EXP-02`, `PERF-01` | F10, F15; G4 |
-| `ALG-EXP-07` | [Bounded alternatives](predictive-attention-and-expectation.md#bounded-alternatives-and-diversity) | Complete frame families to positive set or typed abstention; closed inclusive thresholds and tagged family/outcome identities | Retain all material alternatives or abstain; test every threshold and frame-limit boundary | `EXP-03`, `EVAL-01`, `TGT-01` | F14, F15; G4 |
+| `ALG-EXP-07` | [Bounded alternatives](predictive-attention-and-expectation.md#bounded-alternatives-and-diversity) | Complete frame families to positive set or typed abstention; closed inclusive thresholds, proximity restricted to coverage-qualified transitions, and tagged family/outcome identities | Retain all material alternatives or abstain; test every threshold, no-qualified-case semantics, the split-maxima counterexample, and frame-limit boundaries | `EXP-03`, `EVAL-01`, `TGT-01` | F14, F15; G4 |
 | `ALG-EXP-08` | [Observation assessment](predictive-attention-and-expectation.md#observation-and-prediction-error-contract) | Immutable prior and independent sealed observation to typed assessment or error; validation precedes classification | Assessment cannot rewrite prior or memory; test predicted evidence, prior abstention, and compatible co-outcomes | `OBS-01`, `EVAL-02` | F4, F16; G9 |
 | `ALG-EXP-09` | [Learned-predictor research boundary](predictive-attention-and-expectation.md#learned-predictor-research-boundary) | Frozen supported envelope and detector artifacts to a pre-invocation disposition, then bounded in-domain slots to typed research candidates, abstention, or null; total through structural errors and independent OOD outcomes | Learned research cannot invent open-world outcomes, bypass eligibility, expose logits as probability, or become a silent V1 fallback | `ML-01`-`ML-03`, `EVAL-02` | P2 research only; F10, F12, F17 |
 | `ALG-EXP-10` | [Predictive-stage complexity](predictive-attention-and-expectation.md#computational-complexity) | Finite configured cardinalities and authenticated distance-cost bounds to explicit time and peak-additional-memory bounds | No hidden cross-frame all-pairs work; reject inputs or artifacts outside every declared finite ceiling | `EXP-02`, `PERF-01` | F8, F10; G4, G6 |
@@ -304,7 +304,7 @@ and fixed as follows:
 | --- | --- |
 | `ALG-EXP-01` | `EXP-QRY-001`, `EXP-LIN-001`, `EXP-ELIG-001` |
 | `ALG-EXP-02` | `EXP-CMP-001`-`EXP-CMP-003`, `EXP-HOR-001` |
-| `ALG-EXP-03` | `EXP-WGT-001` |
+| `ALG-EXP-03` | `EXP-REL-001`, `EXP-WGT-001` |
 | `ALG-EXP-04` | `EXP-FAM-001`, `EXP-SUP-001`-`EXP-SUP-004`, `EXP-OMIT-001`, `EXP-OMIT-002` |
 | `ALG-EXP-05` | `EXP-ESS-001`, `EXP-ESS-002`, `EXP-NUM-001` |
 | `ALG-EXP-06` | `EXP-REP-001`, `EXP-REP-002` |
@@ -546,16 +546,23 @@ accepted calibration contract and disjoint evidence.
 
 #### F15: Bounded alternatives, abstention, and no action selection
 
-Under `ALG-EXP-07`, a positive expectation requires structurally valid support from an eligible
-direct observation or an explicitly permitted registered derivation, positive
-known support, and every frozen materiality, coverage, dependency, retrieval,
-conflict, canonicalization, and faithful frame-local \(K_{\max}\)
-representation precondition. The expectation branch preserves material
-mutually exclusive alternatives and required unknown or omitted-support
-qualification together within that limit or abstains. Global plan-budget
-failure follows `ALG-PLAN-04`: it remains a typed planning error whenever justified
-nonempty attention cannot fit. An abstention is a successful semantic result,
-not a fabricated negative prediction.
+Under `ALG-EXP-03` and `ALG-EXP-07`, a positive expectation requires
+structurally valid support from an eligible direct observation or an explicitly
+permitted registered derivation, a compatible typed reliability value under
+its pinned schema, derivation, calibration-domain, and migration contract,
+positive known support, and every frozen materiality, coverage, dependency,
+retrieval, conflict, canonicalization, and faithful frame-local \(K_{\max}\)
+representation precondition. Coverage and proximity must be established by at
+least one jointly qualifying transition: proximity is evaluated only among
+transitions that pass the coverage minimum. Separate transitions cannot
+combine a coverage maximum and a proximity maximum.
+
+The expectation branch preserves material mutually exclusive alternatives and
+required unknown or omitted-support qualification together within that limit
+or abstains. Global plan-budget failure follows `ALG-PLAN-04`: it remains a
+typed planning error whenever justified nonempty attention cannot fit. An
+abstention is a successful semantic result, not a fabricated negative
+prediction.
 
 Expectation kinds describe a hidden present state, passive successor, or
 conditional outcome. They contain no action-selection field. Conditions may
@@ -642,12 +649,18 @@ Implementation evidence must include:
 - focus and expectation projections with identical and deliberately mismatched
   lineage identities;
 - transition conditions, horizons, statuses, provenance roots, dependency
-  groups, and alternative-family relations at every validity boundary;
+  groups, typed reliability states, reliability schema/derivation/calibration
+  domains, migration lineages, and alternative-family relations at every
+  validity boundary;
 - exact duplicate transitions, dependent paraphrases, saturated dependency
   groups, and one deliberately mislabeled hidden dependency;
 - compatible co-outcomes in separate alternative families and mutually
   exclusive outcomes inside one family;
 - known, unknown, omitted, censored, contradicted, and zero-support outcomes;
+- compatible derived-zero reliability versus missing, unknown, inapplicable,
+  incompatible, malformed, and explicitly migrated reliability;
+- a split-maxima case in which one transition passes only the coverage minimum
+  and another passes only the proximity minimum;
 - every expectation abstention reason and every corresponding malformed-input
   error so abstention is never used to hide corruption;
 - focus-only, expectation-only where the complete-scope precondition holds,
@@ -832,6 +845,8 @@ For every explicit alternative family, measure:
 
 - eligible-transition recall at the frozen transition budget;
 - condition-, horizon-, outcome-kind-, authority-, and usage compatibility;
+- typed-reliability admission by schema, derivation, calibration domain,
+  missingness state, and migration lineage;
 - exact-duplicate and dependency-group amplification under metamorphic
   additions;
 - known, unknown, omitted, censored, and counterevidence mass preservation;
@@ -839,7 +854,8 @@ For every explicit alternative family, measure:
 - dominant known-support stability and material-alternative preservation;
 - abstention sensitivity and specificity by reason code;
 - hypothesis-level and family-level effective support-group counts;
-- facet coverage, novelty, retrieval-completeness, and missingness diagnostics;
+- facet coverage, coverage-qualified novelty, retrieval-completeness, and
+  missingness diagnostics, including no-qualified and split-maxima cases;
 - rate of invalid probability, confidence, truth, causal, goal, or action
   interpretations; and
 - reconstruction of every hypothesis, control, and support summary from
@@ -1105,6 +1121,11 @@ The development suite must include:
 - a dominant known outcome with material unknown or omitted support;
 - zero known support with large unknown support;
 - one eligible transition versus many weak dependent transitions;
+- one high-coverage distant transition plus one low-coverage nearby transition,
+  which must not jointly pass coverage and proximity;
+- a bare or unavailable reliability value defaulted to a neutral scalar;
+- equal reliability numbers under incompatible schemas or calibration domains,
+  including an absent or unregistered migration;
 - an observed action condition rendered as a recommended action;
 - relative support rendered as probability or confidence;
 - a later observation from a different horizon or condition treated as direct
@@ -1171,6 +1192,9 @@ Every experiment records:
 
 - requirement, hypothesis, and configuration identifiers;
 - source and dataset revision hashes;
+- transition-reliability schema, state or missingness code,
+  compatibility-policy identity, applicable derivation and calibration-domain
+  identities, and migration identity when present for each predictive case;
 - semantic-lineage and split identifiers;
 - sampling-frame identity, inclusion probability, and design weight per case;
 - `t_context`, `t_auth`, memory revision, policy revision, and authorized-view
@@ -1200,7 +1224,10 @@ the frozen receipt when adopting a component or claim.
 - The frozen target population contains adequately powered context-dependent
   and context-independent strata for every claim-bearing subgroup.
 - Transition fixtures distinguish mutually exclusive alternative families
-  from compatible co-outcomes and retain known dependency lineages.
+  from compatible co-outcomes, retain known dependency lineages, and bind
+  every reliability state to its versioned schema and compatibility policy,
+  every derived state to its derivation and calibration domain, and every
+  migrated state to its migration lineage.
 - Every focus-only, focus-plus-renderable-abstention, expectation-only,
   combined, and wrong-expectation comparison reuses its frozen shared inputs
   exactly as declared.
@@ -1269,7 +1296,8 @@ fixtures that preserve:
 - historical validity without revival of current instruction authority;
 - provenance-root duplicate suppression and unresolved conflict;
 - transition kind, condition, horizon, observation status, dependency budget,
-  alternative-family, unknown-support, and abstention semantics;
+  typed reliability and migration, alternative-family, unknown-support,
+  jointly qualifying coverage/proximity, and abstention semantics;
 - separate focus and expectation projections from one shared activated-set
   identity;
 - exact-value slot identity and deterministic surface substitution;

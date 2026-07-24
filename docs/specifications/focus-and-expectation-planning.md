@@ -45,7 +45,9 @@ because later stages consume them.
 The planner joins:
 
 - one immutable request and numerical situation;
-- one `FocusCandidateSet` derived from the eligible activated-memory set;
+- one `FocusCandidateSet` derived from the numerical situation plus the
+  eligible activated-memory set, including validated ephemeral request
+  proposition sources when present;
 - one `ExpectationBundle` containing zero or more canonical per-frame
   `ExpectationSet` values derived independently from the same eligible
   activated-memory set;
@@ -64,12 +66,13 @@ change support, create a hypothesis, or select an action.
 ```mermaid
 flowchart TD
     A["Eligible activated-memory set"] --> F["Focus planner"]
+    Q["Validated numerical request and situation"] --> F
     A --> E["Expectation kernel"]
     F --> FC["FocusCandidateSet"]
     E --> ES["ExpectationBundle of per-frame sets"]
     FC --> J["Combined plan validator and selector"]
     ES --> J
-    Q["Request, authority, language, budget, exact sidecars"] --> J
+    C["Authority, language, budget, and exact sidecars"] --> J
     J --> P["Canonical FocusExpectationPlan"]
 ```
 
@@ -152,7 +155,8 @@ Every renderable item binds one canonical proposition meaning to:
 - stable proposition and plan-item identities;
 - role, surface-authority ceiling, and final surface disposition;
 - essential request or authorized-memory sources;
-- provenance roots and dependency groups;
+- request-source identities or authorized-memory provenance roots and
+  dependency groups, as applicable;
 - authority and disclosure ceiling;
 - validity, observation status, and uncertainty;
 - exact-value slot references;
@@ -1213,6 +1217,10 @@ using its own tools, authority, and current environment.
   exact complete \(\Lambda_A\) tuple, including request, situation, memory,
   policy, authorization-view, retrieval-result, activation-set, and
   configuration identities.
+- Every request source inside the focus input carries the exact
+  request/situation/policy/authorization-view/configuration projection of that
+  same \(\Lambda_A\); a request-only item has no invented persistent
+  provenance root or dependency group.
 - Both inputs are canonically ordered, finite, source-bound, and valid under
   their owning specifications.
 - The output language and post-substitution attention budget are resolved
@@ -1230,6 +1238,9 @@ using its own tools, authority, and current environment.
 - The combined planner consumes upstream semantics and does not retrieve,
   rerank activation, regroup outcomes, or invent propositions.
 - Every selected item retains complete essential support and authority ceiling.
+- Request-derived items remain ephemeral and preserve their source-kind
+  authority ceiling; planning cannot promote caller-reported situation or
+  metadata into an instruction, observed fact, expectation, or memory truth.
 - Expectation conditions, horizons, conflicts, counterevidence, and material
   uncertainty are rendered together with their hypothesis or the hypothesis is
   omitted.
@@ -1247,6 +1258,10 @@ using its own tools, authority, and current environment.
 ## Edge cases
 
 - Empty focus and expectation produce empty attention.
+- Empty memory may still produce focus through validated request proposition
+  sources. Planning treats those candidates exactly like other focus
+  candidates for closure and budget purposes while preserving their tagged
+  request attribution and empty persistent-provenance collection.
 - Useful focus plus validator-only expectation abstention produces focus-only
   attention; a selected renderable abstention produces the distinct
   focus-plus-abstention shape.
@@ -1292,6 +1307,9 @@ Required evidence includes:
   renderer-eligibility non-escalation;
 - focus-only, focus-plus-abstention, expectation-only, combined, and empty
   plans;
+- empty-memory request-only focus, including receipt equality, absence of
+  persistent provenance, source-kind authority preservation, and no
+  expectation creation;
 - dependency and authority non-amplification cases;
 - exact-slot authorization and byte-preservation cases;
 - no-answer and no-action adversarial cases;

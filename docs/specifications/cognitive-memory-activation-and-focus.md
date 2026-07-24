@@ -70,7 +70,8 @@ This table owns symbols reused only inside this specification:
 | \(k_{\mathrm{haz}},n_Q^{\mathrm{haz}},z_{k_{\mathrm{haz}}}^{\mathrm{haz}},h_{i,k_{\mathrm{haz}}},h_i\) | Hazard index and count, one represented hazard, per-hazard relevance, and aggregate hazard relevance |
 | \(a^{(k)},W,\rho,K_{\mathrm{spread}}\) | Spreading-activation state, relation matrix, restart factor, and fixed iteration count |
 | \(e_{i,c},w_c,g_c,p_{i,j},\lambda_j\) | Evidence signals, weights, gates, inhibition signals, and strengths passed to activation |
-| \(\phi,q_\phi,\operatorname{score}_\phi\) | Request-local proposition, request-derived support, and conservative proposition activation |
+| \(\mathcal R_Q,r_k^Q,q_k\) | Canonical request-proposition source set, one validated source entry, and its bounded request-support score |
+| \(\phi,q_\phi,\operatorname{score}_\phi\) | Request-local proposition, aggregated request support, and conservative proposition activation |
 | \(N_{\mathrm{focus}},W_{\mathrm{focus}}\) | Focus candidate-count and conservative work ceilings |
 
 Symbols with the same bare Latin letter in another specification are unrelated
@@ -190,7 +191,8 @@ where:
 
 - `F_Q` contains typed prompt, situation, temporal, spatial, task, social,
   procedural, and risk-related facets;
-- `X_Q` contains exact request-local values and source bindings;
+- `X_Q` contains exact request-local values and typed prompt, situation, and
+  metadata source bindings;
 - `G_Q` contains explicitly active goal states and their declared priorities;
   and
 - `Z_Q` contains absence, uncertainty, language, and observation-quality
@@ -201,7 +203,9 @@ affect relevance. It cannot change authorization, current normative validity,
 expiry, or supersession, which use `t_auth`.
 
 Situation encoding does not retrieve memory, assign instruction authority, or
-modify `P`.
+modify `P`. It does not decide that a facet is a renderable proposition. That
+decision belongs to the focus branch's validated request-proposition
+construction below.
 
 ### Eligible memory view
 
@@ -643,11 +647,195 @@ Weights, gates, calibrators, relation parameters, and inhibition strengths are
 versioned experimental parameters. Cognitive research motivates their
 qualitative roles but does not supply production-ready values.
 
+### Validated request-proposition sources
+
+The focus branch may derive focus from the validated request even when the
+eligible activated-memory set contains no records. This path is explicit
+rather than an implicit special case.
+
+Situation encoding owns typed facets and exact request-source bindings in
+`Q`. It does not decide proposition identity, renderability, or authority.
+Inside the existing `focusCandidates(Q, A; K)` stage, the focus branch alone
+owns the logical sub-boundary:
+
+\[
+\operatorname{deriveRequestPropositions}(Q,\Lambda_A;K)
+\rightarrow
+\mathcal R_Q
+\;\mid\;
+\operatorname{RequestPropositionError}.
+\]
+
+This is a logical interface, not a committed public Rust API.
+\(\Lambda_A\) is copied from the validated
+`EligibleActivatedMemorySet`, including when its activated-record collection
+is empty. Construction validates that the request, situation,
+authorization-view, and configuration identities bound by `Q` equal the
+corresponding fields of \(\Lambda_A\). It never reconstructs those identities
+from ambient process state.
+
+\(\mathcal R_Q\) is a finite canonical `RequestPropositionSet`:
+
+```text
+RequestPropositionSet
+├── schema_id
+├── source_receipt
+│   ├── request_id
+│   ├── situation_id
+│   ├── policy_revision_id
+│   ├── authorization_view_id
+│   └── configuration_id
+└── sources[]
+    ├── request_proposition_id
+    ├── source_kind
+    │   ├── AuthenticatedPrompt
+    │   ├── SituationStatement
+    │   └── RequestMetadata
+    ├── source_locator
+    ├── numerical_meaning
+    ├── exact_bindings[]
+    ├── qualifiers[]
+    ├── authority_ceiling
+    ├── allowed_use_ceiling
+    ├── derivation_id
+    ├── request_support_score
+    └── order_key: RequestPropositionSourceOrderKey
+```
+
+The five-field `source_receipt` is the exact ordered projection of
+\(\Lambda_A\), not a second lineage authority. Its field order is
+`request_id`, `situation_id`, `policy_revision_id`,
+`authorization_view_id`, then `configuration_id`. A missing field, mismatch,
+receipt assembled from different calls, or attempt to use a request source
+with another \(\Lambda_A\) is structural failure.
+
+`source_locator` is total by source kind:
+
+- `AuthenticatedPrompt` uses one nonempty canonical set of valid UTF-8 byte
+  ranges in the retained original prompt;
+- `SituationStatement` uses the zero-based statement ordinal plus one
+  nonempty canonical set of valid UTF-8 byte ranges in that exact statement;
+  and
+- `RequestMetadata` uses one registered metadata-schema identity and field
+  identity. Its exact value remains in `X_Q`.
+
+Situation encoding checks ranges against the original immutable request
+buffers, verifies that they do not split a UTF-8 code point, sorts them by
+`(start, end)`, rejects overlap, and retains the source-buffer content identity
+in `X_Q`. Request-proposition construction consumes those validated bindings;
+it does not reread or reconstruct the original text. The original prompt and
+situation bytes remain validator evidence and are not copied into the
+generative plan. Arbitrary prompt or situation passages cannot be smuggled
+through exact-value slots; only registered exact-value types with an
+authorized binding may enter the plan sidecar.
+
+Each source entry represents one typed proposition that a pinned derivation
+attributes to those exact request locations. A derivation may expose an
+explicit user request, explicit constraint, caller-reported situation,
+declared contextual time, or other registered metadata meaning. It may not
+infer an unstated preference, goal, fact, causal relation, emotion, intent, or
+world state. When a supported meaning cannot be established under the pinned
+derivation, the source is omitted; malformed input, an unknown derivation, or
+a derivation output outside its declared schema is an explicit error.
+
+Authority is source-kind bounded:
+
+- `AuthenticatedPrompt` may carry at most the authenticated current
+  user-prompt authority established by ingress and the invocation context. It
+  supports only the meaning actually bound to the cited prompt ranges.
+- `SituationStatement` is caller-supplied descriptive data. It is qualified
+  as `CallerReported`, cannot establish an independent world fact, and cannot
+  create a user instruction, goal, preference, permission, or action.
+- `RequestMetadata` is a caller-declared typed value. It may support a
+  qualified contextual statement under its registered schema, but it cannot
+  establish external truth or instruction authority.
+
+The installed policy maps each source kind and derivation class to one
+authority and allowed-use ceiling. The mapping is authenticated, total over
+the supported schema, and bound by `configuration_id` and
+`authorization_view_id`. A source may be `FocusUse` or excluded; no request
+source is eligible for the expectation branch's observed-transition use.
+Downstream consolidation takes the meet of all essential source ceilings and
+never promotes a caller report into an authenticated instruction or observed
+memory fact.
+
+For each canonical source entry \(r_k^Q\), the pinned request-support
+derivation computes:
+
+\[
+q_k=
+\operatorname{cal}_{\mathrm{request}}
+\left(
+\operatorname{supportFit}(Q,r_k^Q);K
+\right)
+\in[0,1].
+\]
+
+The metric, calibrator, numerical policy, input facets, missingness behavior,
+and accumulation order are content-identified configuration artifacts. The
+score measures request-local focus relevance only. It is not truth,
+confidence, instruction strength, probability, safety, or permission.
+Non-finite output or a value outside the declared domain is an explicit
+representation error.
+
+`RequestPropositionId` is content-derived from the source-receipt projection,
+source-kind tag, canonical locator, proposition schema and meaning identity,
+derivation identity, exact-binding identities, qualifiers, authority ceiling,
+and allowed-use ceiling. Display prose, insertion order, and \(q_k\) do not
+participate in identity.
+
+`RequestPropositionSourceOrderKey` is the closed lexicographic tuple:
+
+1. source-kind rank: `AuthenticatedPrompt`, `SituationStatement`, then
+   `RequestMetadata`;
+2. the source-kind locator defined above;
+3. ascending proposition-schema and meaning identities;
+4. ascending derivation identity; and
+5. ascending `RequestPropositionId`.
+
+The set is sorted by this key before scoring or consolidation. Unknown tags,
+invalid locators, duplicate complete keys, duplicate identities, incompatible
+exact bindings, or a key that disagrees with its entry are structural errors.
+Repeated statements at different ordinals remain separately attributable, but
+their repetition cannot increase a later proposition score because request
+support is aggregated by `max`.
+
+`RequestPropositionError` has closed internal reason codes for:
+
+- `LineageMismatch`;
+- `InvalidSourceLocator`;
+- `UnknownSourceKind`;
+- `UnknownDerivation`;
+- `InvalidPropositionMeaning`;
+- `AuthorityMappingUnavailable`;
+- `InvalidExactBinding`;
+- `InvalidSupportScore`;
+- `DuplicateSourceIdentity`;
+- `DuplicateSourceOrderKey`; and
+- `RequestPropositionLimitExceeded`.
+
+A derivation with no supported request proposition returns a valid empty set,
+not an error.
+The focus branch preserves these typed causes and does not map them to a public
+compiler class itself. Missing or invalid authenticated artifacts, defensive
+lineage failures, invalid numerical derivation, and configured resource-limit
+failures remain distinct so the reference architecture can map them without
+inspecting message text.
+
+\(\mathcal R_Q\) is ephemeral focus-branch state. Its entries are not inserted
+into the memory revision, retrieval index, activated-memory set, transition
+store, access history, or expectation bundle. They receive no persistent
+record identity, provenance root, dependency group, observation status, or
+memory validity merely by being derived. Renderer output and downstream agent
+output cannot turn them into memory truth. Persistent adoption requires a
+separate authorized memory-management operation and a later compile.
+
 ### Request-local proposition consolidation
 
-Ranking selects memory record versions, but rendering requires coherent
-propositions. Request-local proposition consolidation groups compatible
-activated facets without modifying persistent memory.
+Ranking selects memory record versions, while \(\mathcal R_Q\) supplies
+validated request sources. Rendering requires coherent propositions.
+Request-local proposition consolidation groups compatible sources from both
+paths without modifying persistent memory.
 
 A request-local proposition is:
 
@@ -668,6 +856,13 @@ where `support_phi` is a nonempty set partitioned into request support
 `support_phi^Q` and usage-compatible immutable memory support
 `support_phi^M`.
 
+`support_phi^Q` contains only entries from the canonical
+\(\mathcal R_Q\) bound to this call. `support_phi^M` contains only record
+versions from the exact shared `EligibleActivatedMemorySet`. A proposition may
+be request-only, memory-only, or jointly supported. The two source namespaces
+remain tagged and disjoint even when their numeric identifiers have equal
+underlying values.
+
 `meaning_phi` is a typed numerical proposition structure with role-bound
 facets and exact-sidecar references. It is not a prose sentence, draft
 attention text, or text chunk. Natural-language realization first occurs in
@@ -687,21 +882,28 @@ Incomparable, contradictory, differently scoped, or differently attributed
 claims remain distinct propositions. Their vectors are not averaged into a
 false compromise.
 
+The consolidation oracle begins with the canonically ordered
+\(\mathcal R_Q\), then the activated memory records in their canonical stable
+record order. The order determines only deterministic traversal. The pinned
+equivalence and conflict contracts determine grouping, and every optimized
+implementation must produce the same partition, support bindings, authority
+ceilings, qualifications, and final canonical order.
+
 To prevent repeated paraphrases or duplicated imports from creating artificial
-confidence, memory support records are grouped by provenance root. For a
-request-supported proposition, a pinned request-support derivation produces:
+confidence, memory support records are grouped by provenance root. Request
+sources retain their exact source identities and locators, but repeated
+request support is not summed. For a request-supported proposition, define:
 
 \[
 q_{\phi}=
-\operatorname{cal}_{request}
-\left(
-\operatorname{supportFit}(Q,\phi);K
-\right)
-\in[0,1]
+\max
+\{q_k\mid r_k^Q\in\operatorname{support}_{\phi}^{Q}\}.
 \]
 
-It exists only when `support_phi^Q` is nonempty and retains the exact request
-source binding. The proposition's activation score is conservatively:
+It exists only when `support_phi^Q` is nonempty. The set inside this `max` is
+therefore nonempty, and every \(q_k\) retains its exact request-source binding
+and derivation identity. The proposition's activation score is
+conservatively:
 
 \[
 \operatorname{score}_{\phi}
@@ -720,15 +922,23 @@ features. They do not silently increase the activation score. A later accepted
 decision may replace this conservative aggregation only after source-dependence
 and calibration evidence exists.
 
+Every consolidated proposition receives one content-derived identity over its
+canonical meaning, complete tagged support identities, exact bindings,
+qualifiers, authority and allowed-use ceilings, and derivation/configuration
+identity. A request-only proposition does not borrow a persistent provenance
+root or memory identity. A mixed proposition preserves request attribution and
+memory provenance separately.
+
 Consolidation creates request-local computational state only. Persistent
 episodic-to-semantic consolidation, reconsolidation, deletion, correction, and
 learning belong to a separately authorized memory-management path.
 
 ### Focus-candidate construction
 
-The focus branch receives the shared eligible activated memory set before
-renderer-budget pruning. It consolidates compatible support into propositions,
-then partitions the applicable propositions into:
+The focus branch receives `Q` and the shared eligible activated-memory set
+before renderer-budget pruning. It first constructs \(\mathcal R_Q\) under the
+validated boundary above, consolidates compatible request and memory support
+into propositions, then partitions the applicable propositions into:
 
 - inclusion candidates;
 - mandatory inclusion candidates; and
@@ -754,6 +964,8 @@ FocusCandidateSet
 │   ├── numerical_meaning
 │   ├── activation
 │   ├── support[]
+│   │   ├── RequestPropositionSource
+│   │   └── ActivatedMemorySource
 │   ├── provenance_roots[]
 │   ├── qualifications[]
 │   ├── exact_bindings[]
@@ -771,6 +983,18 @@ reconstruct lineage from ambient state. A mismatch with the shared set or a
 receipt assembled from more than one set is a structural error. The receipt is
 lineage metadata only: it contains no raw evidence, diagnostic prose, or
 independent semantic truth.
+
+The `RequestPropositionSet` receipt must equal its five-field projection from
+this same \(\Lambda_A\). Request-only focus therefore retains the same memory,
+policy, authorization, retrieval, activation, and configuration lineage as the
+empty activated-memory set used by the call. It does not replace
+\(\Lambda_A\) with a shorter receipt.
+
+`provenance_roots` and dependency groups contain only persistent-memory
+provenance. They are empty for a request-only candidate; request attribution
+remains complete through its tagged `RequestPropositionSource` bindings.
+Neither an empty provenance-root list nor a request-source identity is
+reinterpreted as independent memory evidence.
 
 The schema's versioned total focus-role order sorts every candidate's
 nonempty, duplicate-free `focus_roles` list. The first role is the primary
@@ -847,6 +1071,9 @@ request-local proposition consolidation, and focus-candidate construction. Let:
   fixed iteration count;
 - \(c_e,c_j\) be the activation evidence and inhibition channel counts;
 - \(n_a\) be the activated records admitted to consolidation;
+- \(n_Q\) be the bounded count of validated entries in
+  \(\mathcal R_Q\), and \(c_Q\) the declared worst-case validation,
+  derivation, and scoring cost per entry;
 - \(d_{\mathrm{eq}}\) be the declared worst-case cost of one proposition
   compatibility/equivalence comparison, including exact-slot checks; and
 - \(n_\phi,s_\phi\) be the resulting proposition count and total retained
@@ -881,14 +1108,22 @@ time and \(O(n_g+e_g)\) workspace. Activation evaluation and full ordering use
 the exact bounds owned by the
 [situation-conditioned activation specification](situation-conditioned-activation.md#computational-complexity).
 
-The conservative consolidation oracle compares each activated record with
-each existing compatible proposition representative and therefore costs at
-most
+Request-proposition construction costs \(O(n_Qc_Q+n_Q\log n_Q)\) time and
+\(O(n_Q)\) request-local state, including canonical ordering. The conservative
+consolidation oracle then compares every request source and activated record
+with each existing compatible proposition representative and therefore costs
+at most
 \[
-O(n_a^2d_{\mathrm{eq}}+s_\phi+n_\phi\log n_\phi)
+O\!\left(
+(n_a+n_Q)^2d_{\mathrm{eq}}
++n_Qc_Q
++n_Q\log n_Q
++s_\phi
++n_\phi\log n_\phi
+\right)
 \]
-time and \(O(n_a+s_\phi+n_\phi)\) request-local state. An optimized grouping
-index may reduce comparisons only if it produces the same proposition
+time and \(O(n_a+n_Q+s_\phi+n_\phi)\) request-local state. An optimized
+grouping index may reduce comparisons only if it produces the same proposition
 partition, conflicts, support bindings, authority ceilings, and canonical
 order as the oracle. Focus-candidate construction is linear in the proposition
 and source state after that canonical sort.
@@ -919,6 +1154,9 @@ A conforming experiment requires:
 - a channel schema with versioned parameters and no implicit default weights;
 - a positive effective evidence denominator for every activation call;
 - stable provenance roots and record-version identities;
+- a finite authenticated request-proposition schema with total source-kind,
+  locator, authority, allowed-use, derivation, scoring, and canonical-order
+  contracts;
 - declared focus-candidate limits; and
 - no network access or persistent write capability on the compile path.
 
@@ -938,6 +1176,9 @@ A conforming experiment requires:
 - Missing, unknown, and zero are distinct states.
 - Every vector comparison uses compatible typed spaces and pinned transforms.
 - Every evidence and inhibition value has a traceable derivation and source.
+- Every request-derived focus source is bound to exact validated prompt,
+  situation, or metadata evidence and to the matching \(\Lambda_A\)
+  projection.
 - Association and graph reachability do not establish truth, causation,
   authority, or confidence.
 - Hard policy and integrity failures are never represented as soft inhibition.
@@ -949,6 +1190,9 @@ A conforming experiment requires:
   through repeated counting.
 - Every selected focus proposition has source bindings and an authority ceiling
   permitted by its essential support.
+- A situation or metadata source remains a qualified caller assertion and
+  cannot become a user instruction, observed fact, persistent memory, or
+  expectation transition through focus construction.
 - Required exact values flow through explicit sidecar bindings.
 - Focus-candidate construction respects its finite candidate bound without
   truncating required meaning.
@@ -965,7 +1209,11 @@ A conforming experiment requires:
 
 ## Edge cases
 
-- An empty authorized memory revision may still produce request-supported focus.
+- An empty authorized memory revision may still produce request-supported
+  focus from a validated \(\mathcal R_Q\) bound to the empty shared set's
+  complete lineage.
+- Empty memory plus no supported request proposition produces an empty
+  focus-candidate set rather than a generic invented focus.
 - No justified additional focus produces a valid empty focus-candidate set.
 - A perfect vector match in an unauthorized record has no effect.
 - A recent irrelevant record may rank below an old but strongly matching
@@ -1023,6 +1271,8 @@ A complete corpus and evaluation-harness record should retain at least:
 - one stable scenario-family identifier;
 - the original prompt and declared situation;
 - typed numerical query facets and exact request sidecars;
+- the canonical `RequestPropositionSet`, validated source locators, source
+  kinds, authority and use ceilings, scores, order keys, and receipt;
 - eligible and excluded memory-version identifiers;
 - candidate signals, gates, parameters, activations, and derivation receipts;
 - relation paths used by bounded spreading activation;
@@ -1047,6 +1297,50 @@ context.
 All generated variants from one semantic scenario family belong to the same
 train, validation, or test partition.
 
+### Normative empty-memory situation-only fixture
+
+The conformance corpus includes one frozen fixture whose semantic content is:
+
+```text
+original prompt:
+What matters in this situation?
+
+situation statement 0:
+The build failure first appeared after the dependency update.
+
+authorized memory revision:
+empty
+```
+
+The fixture's pinned request-proposition derivation yields exactly one
+`SituationStatement` source for the explicit caller report that the failure
+first appeared after the dependency update. It binds statement ordinal `0`,
+the exact supporting byte ranges, one registered numerical meaning, the
+`CallerReported` qualifier, a descriptive-data authority ceiling,
+`FocusUse`, its derivation identity, and a finite \(q_k\). The generic prompt
+does not yield an additional focus proposition under this fixture's registered
+derivation.
+
+The shared `EligibleActivatedMemorySet` contains zero activated records but a
+complete \(\Lambda_A\). The resulting `FocusCandidateSet` contains exactly one
+request-only candidate with:
+
+- the roles `CurrentSituation` and `RelevantBackground` in canonical role
+  order;
+- activation equal to that source's \(q_k\);
+- one tagged request source and no activated-memory source;
+- no persistent provenance root or dependency group;
+- the `CallerReported` qualification and descriptive-data authority ceiling;
+- the exact complete \(\Lambda_A\) as its source receipt; and
+- a `FocusCandidateOrderKey` derived normally from role, activation, and
+  proposition identity.
+
+The fixture creates no transition, expectation, memory record, access-history
+event, or persistent write. It does not authorize the stronger statements
+that the dependency update caused the failure or that the downstream agent
+must change dependencies. A permutation of request-source construction inputs
+must produce the identical `RequestPropositionSet` and `FocusCandidateSet`.
+
 ### Required scenario families
 
 Training and evaluation should include:
@@ -1061,7 +1355,8 @@ Training and evaluation should include:
 - redundant imports and paraphrases with one provenance root;
 - additional dependency-group support without hidden source duplication;
 - unresolved contradiction and supersession;
-- empty memory and request-only focus;
+- the normative empty-memory situation-only fixture above, plus other empty
+  memory and request-only focus cases;
 - no justified attention;
 - exact names, identifiers, paths, quantities, locations, and deadlines;
 - absent versus unknown versus explicit zero values;
@@ -1092,6 +1387,8 @@ Primary evaluation measures are:
 - exclusion of unauthorized, invalid, and irrelevant records;
 - pairwise ranking preferences and calibrated channel sensitivity;
 - required-proposition coverage;
+- request-source attribution, authority-ceiling preservation, and false
+  proposition derivation rates by source kind;
 - unsupported-claim and lost-qualification rates;
 - exact-value preservation;
 - conflict, attribution, and social-perspective preservation;
@@ -1119,6 +1416,8 @@ Verification must establish:
 - bounded spreading mass for every configured iteration;
 - graph authorization closure;
 - deterministic canonical ordering;
+- request-proposition source-locator validity, receipt equality, authority
+  ceilings, order-key correctness, and permutation invariance;
 - equivalence between derived activation inputs and the existing kernel's
   public contract;
 - proposition support completeness and authority non-amplification;
@@ -1136,6 +1435,13 @@ A curated, disjoint evaluation corpus must test:
 - no-inhibition and no-consolidation ablations;
 - simple top-k against complete bounded `FocusCandidateSet` construction;
 - source duplication and correlated-evidence attacks;
+- the normative empty-memory situation-only fixture, including exact request
+  attribution, request-only scoring, empty persistent provenance, unchanged
+  \(\Lambda_A\), and absence of memory or expectation creation;
+- prompt-, situation-, and metadata-source authority tests proving that
+  caller-reported data cannot become an instruction or observed fact;
+- request/source-receipt mismatch, invalid UTF-8 range, duplicate source key,
+  unknown derivation, non-finite \(q_k\), and unsupported exact-slot cases;
 - parameter sensitivity and monotonicity where the mathematics requires it;
 - perturbation of time, location, participant, goal, risk, and procedure
   facets independently;
