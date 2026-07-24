@@ -58,6 +58,9 @@ and claims must use registered or visibly qualified symbols.
 | \(P\) | bytes | Retained original prompt | [Product contract](v1-product-contract.md) |
 | \(S\) | zero to three statements | Caller-supplied situation statements | [Product contract](v1-product-contract.md) |
 | \(\Xi\) | typed request evidence | Caller-supplied contextual time, optional declared location, and explicit metadata | [Reference architecture](v1-reference-architecture.md) |
+| \(\Gamma_P\) | untrusted presentation | Prompt-origin presentation and bounded compile claims supplied at the public boundary | [Reference architecture](v1-reference-architecture.md) |
+| \(T_{\mathrm{boot}}\) | private trust inputs | Compiler-owned bootstrap trust, platform handles, and trusted clock | [Reference architecture](v1-reference-architecture.md) |
+| \(P_A\) | private authenticated prompt | Request-local binding of exact \(P\) and its complete configuration-independent presentation identity | [Reference architecture](v1-reference-architecture.md) |
 | \(I\) | authenticated context | Trusted invocation principal, caller, and authorization facts | [Reference architecture](v1-reference-architecture.md) |
 | \(t_{\mathrm{context}}\) | exact contextual instant | Caller-declared situational time | [Product contract](v1-product-contract.md) |
 | \(t_{\mathrm{auth}}\) | exact trusted instant | One pinned authorization time | [Reference architecture](v1-reference-architecture.md) |
@@ -71,6 +74,7 @@ and claims must use registered or visibly qualified symbols.
 | \(Q\) | numerical query state | Encoding of \(P,S,\Xi\) under pinned \(K\); no trusted authorization input | [Cognitive memory specification](cognitive-memory-activation-and-focus.md) |
 | \(\widehat B_{\mathrm{in}}\) | sealed ingress binding | Compiler-owned typed request, situation, identity-schema, and authenticated configuration identities derived once from exact canonical request content | [Cognitive memory specification](cognitive-memory-activation-and-focus.md) |
 | \(B_Q\) | exact query binding | \((request\_id,situation\_id,configuration\_id)\), independently projected from \(\widehat B_{\mathrm{in}}\) into \(Q\); the request and situation fields are complete typed content identities, not caller labels or bare digests | [Cognitive memory specification](cognitive-memory-activation-and-focus.md) |
+| \(B_A\) | exact shared-set binding | Independent request, situation, and configuration projection of \(\widehat B_{\mathrm{in}}\) supplied to shared-set construction | [Cognitive memory specification](cognitive-memory-activation-and-focus.md) |
 | \(C^r\) | finite retrieved set | Authorized bounded retrieval result | [Reference architecture](v1-reference-architecture.md) |
 | \(N\) | finite numerical candidates | Derived activation candidates and signals | [Cognitive memory specification](cognitive-memory-activation-and-focus.md) |
 | \(\mathbb U\) | \([0,1]\) | Predictive derivation's closed finite unit interval | [Predictive-attention specification](predictive-attention-and-expectation.md) |
@@ -119,6 +123,8 @@ and claims must use registered or visibly qualified symbols.
 | \(\widehat c_K,cost_K\) | checked integer functions | Conservative bound and measured attention cost | [Planning specification](focus-and-expectation-planning.md) |
 | \(B\) | checked nonnegative integer | Resolved post-substitution attention budget | [Planning specification](focus-and-expectation-planning.md) |
 | \(\ell\) | supported language identity | Resolved declared output language | [Reference architecture](v1-reference-architecture.md) |
+| \(\mathcal V_{\mathrm{plan}}\) | finite exact-surface inventory | Exact values already bound and permitted by the focus and expectation branches | [Planning specification](focus-and-expectation-planning.md) |
+| \(\mathcal I_{\mathrm{plan}}\) | permissionless planning input | Output language, budget, planning configuration, and permitted exact-surface inventory; no raw request or \(Q\) | [Planning specification](focus-and-expectation-planning.md) |
 | \(L\) | canonical plan | Sole `FocusExpectationPlan` | [Planning specification](focus-and-expectation-planning.md) |
 | \(\zeta_i\) | renderer item | One canonical renderer projection item | [Renderer specification](vector-to-attention-renderer.md) |
 | \(\mathcal F_R\) | finite facet set | Versioned renderer-facet vocabulary | [Renderer specification](vector-to-attention-renderer.md) |
@@ -148,19 +154,46 @@ Let:
 - \(\Xi\) be validated caller-supplied request evidence containing declared
   contextual time `t_context`, optional declared location, and explicit
   metadata;
-- `I` be the authenticated invocation context outside the request payload,
-  including trusted authorization time `t_auth`;
+- \(\Gamma_P\) be the untrusted prompt-origin presentation and bounded compile
+  claims;
+- \(T_{\mathrm{boot}}\) be compiler-owned bootstrap trust, platform handles,
+  and trusted-clock inputs that no caller can construct;
+- \(P_A\), `I`, and `t_auth` be request-local private values produced together
+  only by successful prompt-origin authentication;
 - \(\ell\) be the resolved declared output language;
 - `B` be the attention budget resolved by configuration and policy;
 - `M^r` be immutable memory revision `r` with policy revision `p`; and
-- `K` be one pinned content-identified compiler configuration, immutable
+- `K` be one authenticated and pinned content-identified compiler
+  configuration, immutable
   artifact set, and supported execution envelope, including exactly one
   renderer configuration, runtime, precision policy, and target platform class
-  selected before the call;
+  resolved after prompt-origin authentication and before numerical request
+  processing;
 - \(K_R\) be the exact renderer configuration bound inside \(K\). A
   V1-deployable \(K\) permits no request-time random input.
 
 The proposed logical stages are:
+
+\[
+P_A,I,t_{\mathrm{auth}} =
+authenticateOrigin(P,\Gamma_P;T_{\mathrm{boot}})
+\]
+
+\[
+K =
+resolveAndPinConfiguration(P_A,I;T_{\mathrm{boot}})
+\]
+
+\[
+\widehat B_{\mathrm{in}} =
+constructIngress(P_A,S,\Xi;K)
+\]
+
+\[
+B_Q=\pi_Q(\widehat B_{\mathrm{in}}),
+\qquad
+B_A=\pi_A(\widehat B_{\mathrm{in}})
+\]
 
 \[
 M_A^{r,p,t_{\mathrm{auth}},I} =
@@ -168,7 +201,7 @@ authorize(M^r,I,t_{\mathrm{auth}};K)
 \]
 
 \[
-Q = encode(P,S,\Xi;K)
+Q = encode(P_A,S,\Xi,B_Q;K)
 \]
 
 \[
@@ -190,7 +223,11 @@ N = derive(Q,C^{r};K)
 \]
 
 \[
-\mathcal A = activate(N;K)
+\mathcal A =
+sealActivatedSet(activate(N;K),B_A;K),
+\qquad
+\pi_{request,situation,configuration}
+\left(\Lambda_A(\mathcal A)\right)=B_A
 \]
 
 \[
@@ -202,12 +239,17 @@ E = expectations(Q,\mathcal A;K)
 \]
 
 \[
-L = plan(Q,F,E,\ell,B;K)
+\mathcal I_{\mathrm{plan}} =
+planningInput(\ell,B,\mathcal V_{\mathrm{plan}};K)
+\]
+
+\[
+L = plan(\mathcal I_{\mathrm{plan}},F,E;K)
 \]
 
 \[
 V_{\mathrm{ctx}}=
-buildValidationContext(P,Q,I;K)
+buildValidationContext(P_A,Q,I;K)
 \]
 
 \[
@@ -227,13 +269,26 @@ validate(Z_{\mathrm{exact}},L,V_{\mathrm{ctx}},K_R)
 \]
 
 \[
-O=serialize_{\mathrm{product}}(T',P).
+O=serialize_{\mathrm{product}}(T',promptBytes(P_A)).
 \]
 
 `serialize_product` invokes the sole normative successful-output contract in
 the [product specification](v1-product-contract.md#successful-output). This
 proof program does not duplicate its headers, separators, or byte-concatenation
-formula.
+formula. No prompt-dependent encoding, retrieval, candidate derivation,
+planning, rendering, or validation may run before `authenticateOrigin`
+succeeds. After authentication, exact prompt bytes are available only through
+\(P_A\), including for final byte-identical serialization.
+\(\mathcal I_{\mathrm{plan}}\) contains no raw request, \(Q\), principal,
+authorization view, policy handle, or ambient data source. All
+request-derived meaning in `F` and every member of
+\(\mathcal V_{\mathrm{plan}}\) must already be source-bound and permitted by
+its owning upstream branch.
+`sealActivatedSet` is the shared-set envelope construction owned by the
+cognitive-memory and predictive-attention contracts. It preserves the
+activation result and attaches the independently supplied \(B_A\) plus the
+already established memory, policy, authorization-view, retrieval, and
+configuration lineage; it neither reranks nor repeats authorization.
 
 Each stage is partial: it returns either its complete value or an explicit
 error. It does not return a plausible substitute after a failed precondition.
@@ -1141,17 +1196,21 @@ Because the task-level outcomes are binary, both paired effects have estimand
 domain \([-1,1]\), while both harm rates have estimand domain \([0,1]\) when
 defined. Every frozen threshold is finite and must satisfy
 \(0<\delta_{min,b}<1\),
-\(0<\delta_{NI,b}\leq1\),
-\(0<h_{population\_max,b}\leq1\), and
-\(0<h_{reversal\_max,b}\leq1\). A manifest containing a non-finite or
+\(0<\delta_{NI,b}<1\),
+\(0<h_{population\_max,b}<1\), and
+\(0<h_{reversal\_max,b}<1\). A manifest containing a non-finite or
 out-of-domain threshold is invalid before sealed data become accessible and
 cannot support a release claim.
 
 Every claim-bearing subgroup must additionally pass its frozen
 non-inferiority and harm bounds for every required baseline. The positive
 values of the margins and bounds are not selected by this specification. They
-require a later decision before the sealed set is opened. Report effects and
-intervals, not only p-values.
+require a later decision before the sealed set is opened. Domain validity
+alone is insufficient: the manifest must justify each value against the
+operational consequence, target population, minimum useful effect, exposure,
+and planned precision. A threshold selected merely to make failure impossible
+or a harm ceiling selected near one is invalid even when it lies inside the
+formal domain. Report effects and intervals, not only p-values.
 
 Zero observed critical failures is a release requirement but not proof of zero
 risk. Each critical class must meet a predeclared minimum exposure count and a

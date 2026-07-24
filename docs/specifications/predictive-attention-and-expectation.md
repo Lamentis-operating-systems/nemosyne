@@ -38,7 +38,7 @@ inner speech, chain of thought, or biologically faithful prediction.
 | --- | --- | --- |
 | **World state** | The external and internal conditions that exist at a time, whether or not the compiler can observe them | A fully known database row |
 | **Trigger** | The new authenticated user prompt that requests one compiler response | The complete situation |
-| **Situation** | The request-local, typed numerical representation derived from the trigger, up to three caller-provided situation statements, trusted invocation context, contextual time, and optional metadata | A prose summary invented by the compiler |
+| **Situation** | The request-local, typed numerical representation \(Q=\operatorname{encode}(P,S,\Xi;K)\) derived from the trigger, up to three caller-provided situation statements, contextual time, optional metadata, and authenticated pinned numerical configuration | A prose summary invented by the compiler, or a container for principal, authorization time, policy, disclosure, or authorization-view state |
 | **Cognitive memory unit** | One immutable, versioned, provenance-bound memory record with authoritative exact data and rebuildable numerical facets | A raw text chunk or one opaque embedding |
 | **Transition memory** | A cognitive memory unit that binds an observed before-state, an explicit condition or absence, an observed/censored after-state, and a horizon | Proof that a condition caused the outcome |
 | **Activation** | A bounded relevance or accessibility score produced by the separately specified activation contract | Probability, truth, utility, safety, or importance in every context |
@@ -428,23 +428,25 @@ Compile never follows the management arrows.
 ### Situation and expectation query
 
 The caller provides one immutable prompt, zero to three situation statements,
-one contextual time, and explicit optional metadata. Trusted principal,
-authorization time, policy, and artifact identities come from the invocation
-context rather than caller-controlled fields.
+one contextual time, and explicit optional metadata. The compiler resolves and
+pins the authenticated numerical configuration \(K\) before encoding.
+Principal, trusted authorization time, policy, disclosure, and
+authorization-view state remain outside the numerical situation. They are
+used only by the separately owned pre-retrieval authorization path and later
+appear, where required, as opaque lineage identities in \(\Lambda_A\).
 
 ```text
-Situation
-├── trigger
-│   ├── retained original prompt bytes
+Situation / numerical query state Q
+├── ingress projection
+│   ├── request content identity
+│   ├── situation content identity
+│   └── authenticated configuration identity
+├── trigger projection
 │   └── typed prompt-derived numerical facets
 ├── caller context
 │   ├── 0..3 situation statements
 │   ├── contextual time
 │   └── explicit optional location/project/application metadata
-├── trusted invocation context
-│   ├── principal and caller identity
-│   ├── authorization time
-│   └── policy/configuration fingerprint
 └── presence and confidence
     ├── known
     ├── unknown
@@ -453,10 +455,15 @@ Situation
 ```
 
 Prompt-derived and caller-provided signals retain different provenance.
+The byte-identical original prompt buffer is retained separately by the
+compiler and is not a field of \(Q\).
 Caller-provided contextual time affects relevance and historical scope but not
 authorization expiry or current instruction authority. Location may be an
 exact sidecar plus typed numerical facets; absence never permits environment
-discovery.
+discovery. Changing principal, trusted authorization time, policy, disclosure,
+or authorization-view state without changing \(P,S,\Xi,K\) cannot change
+\(Q\) or an expectation query's numerical situation; it may change which
+memory records are eligible before the shared set is constructed.
 
 **EXP-QRY-001 — expectation-query tuple.**
 

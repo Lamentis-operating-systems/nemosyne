@@ -66,7 +66,8 @@ validation context containing the retained original prompt, prompt-derived
 intent labels, and trusted request policy facts. All plan controls come only
 from `L`; \(V_{\mathrm{ctx}}\) never duplicates them and is never
 renderer-model input. The compiler constructs it once through the validated
-`buildValidationContext(P, Q, I; K)` boundary before rendering. The result
+`buildValidationContext(P_A, Q, I; K)` boundary after prompt-origin
+authentication and before rendering. The result
 binds the exact prompt bytes, numerical-query identity, authenticated
 invocation identity, policy/configuration identity, language, and validation
 limits. It contains no ambient state, raw memory content, or model-writable
@@ -912,11 +913,30 @@ and unavailable labels are masked out of
 
 ### Mandatory coverage
 
+For each proposition `i`, define its attribution-bearing visible target
+positions as:
+
+\[
+\mathcal Y_i^{\mathrm{attr}}
+=
+\left\{
+t\in\{1,\ldots,T\}
+\;\middle|\;
+(t,i)\in\mathcal B_{\mathrm{attr}}
+\right\}.
+\]
+
+The terminal position \(T+1\), padding, and unavailable attribution labels
+are absent by construction. Every proposition in
+\(\mathcal I_{\mathrm{cov}}\) must have at least one positive support label
+and a nonempty \(\mathcal Y_i^{\mathrm{attr}}\); otherwise the training
+example is invalid rather than silently receiving a coverage value.
+
 Predicted soft coverage of proposition `i` is:
 
 \[
 \widehat c_i =
-\max_{t\in Y}\widehat a_{t,i}
+\max_{t\in\mathcal Y_i^{\mathrm{attr}}}\widehat a_{t,i}
 \]
 
 Let `I_cov` be the set of plan-item propositions required in the target and

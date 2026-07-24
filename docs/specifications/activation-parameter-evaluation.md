@@ -199,7 +199,8 @@ T_{\mathrm{eval}} =
 O\!\left(
 \sum_{s=1}^{N_{\mathrm{eval}}}
 \left(
-N_{\mathrm{param}}+n_sN_{\mathrm{param}}+n_s\log n_s+p_s\log n_s
+N_{\mathrm{param}}\log N_{\mathrm{param}}
++n_sN_{\mathrm{param}}+n_s\log n_s+p_s\log n_s
 \right)
 \right)
 \]
@@ -213,11 +214,15 @@ O\!\left(
 \right).
 \]
 
-The first expression covers profile construction, one kernel ranking,
-candidate-score indexing, and binary score lookup for every preference. The
-second includes the complete returned report; transient workspace for one
-scenario is bounded by the maximum term because scenarios are evaluated
-sequentially. It does not assume a constant channel or preference count.
+The first expression includes the current `ActivationProfile::new`
+canonicalization, which sorts the complete parameter-channel projection once
+per scenario, as well as one kernel ranking, candidate-score indexing, and
+binary score lookup for every preference. Replacing that per-scenario sort
+with a validated canonical fast path would require a separate contract and
+evidence; this specification does not assume one. The second expression
+includes the complete returned report; transient workspace for one scenario
+is bounded by the maximum term because scenarios are evaluated sequentially.
+It does not assume a constant channel or preference count.
 
 Validated construction is separate. `ActivationParameters::new` costs
 \(O(N_{\mathrm{param}}\log N_{\mathrm{param}})\). For one scenario, sorting

@@ -44,7 +44,6 @@ because later stages consume them.
 
 The planner joins:
 
-- one immutable request and numerical situation;
 - one `FocusCandidateSet` derived from the numerical situation plus the
   eligible activated-memory set, including validated ephemeral request
   proposition sources when present;
@@ -55,6 +54,14 @@ The planner joins:
 - one output language;
 - one finite post-substitution attention budget \(B\); and
 - one content-identified planning configuration.
+
+The immutable request and raw numerical situation are not combined-planner
+inputs. Any request-derived meaning that can affect selection must already be
+a validated, source-bound item in `FocusCandidateSet`; exact request values
+must already be bound through that branch's upstream exact-slot projection.
+The planner cannot reread prompt or situation buffers, reconstruct \(Q\),
+derive new request propositions, or recover omitted context from
+`PlanningInput`.
 
 The focus planner owns relevance and response-changing background. The
 expectation kernel owns hypotheses, horizons, support, counterevidence,
