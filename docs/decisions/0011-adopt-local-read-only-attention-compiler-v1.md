@@ -1,7 +1,8 @@
 # 0011: Adopt a local read-only attention compiler for V1
 
-Status: Accepted
+Status: Superseded
 Date: 2026-07-23
+Superseded by: 0014-adopt-memory-grounded-predictive-attention.md
 
 ## Context
 

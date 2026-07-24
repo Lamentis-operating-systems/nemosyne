@@ -12,18 +12,23 @@ an AI system.
 
 The primary V1 user is one local user integrating Nemosyne with an AI agent.
 The job is to make the agent attend to response-changing situation and memory
-context without rewriting the user's request, dumping raw history, or answering
-the request in advance. The invocation contract is domain-independent, but the
-first domain eligible for a supported and validated claim is coding agents. Use
-in other domains remains experimental until separately evaluated.
+context and, when observed transition evidence supports it, to qualified
+competing expectations about the present or a later state. Nemosyne does this
+without rewriting the user's request, dumping raw history, answering the
+request in advance, or choosing an action. The invocation contract is
+domain-independent, but the first domain eligible for a supported and
+validated claim is coding agents. Use in other domains remains experimental
+until separately evaluated.
 
 This document specifies the wanted result and its observable requirements. It
 does not make internal technology choices part of the stable product surface.
-Decisions 0012 and 0013 select the current V1 implementation hypothesis:
-numerical cognitive-memory and focus compilation followed by a qualified local
-vector-prefix renderer. The linked architecture specifications define that
-path without changing this observable contract. No current implementation is
-claimed to satisfy this contract.
+Decisions 0014 through 0016 select the current V1 implementation hypothesis
+and its compile-integrity boundaries:
+numerical cognitive-memory activation, parallel focus and expectation
+formation, a qualified combined plan, and evidence-based selection between a
+deterministic lexicalizer and a local vector-prefix candidate. The linked
+architecture specifications define that path without changing the single-call
+result. No current implementation is claimed to satisfy this contract.
 
 ## Definitions
 
@@ -71,12 +76,26 @@ access-control rules may exclude a memory before relevance is evaluated.
 Permission to read a memory does not establish its truth, validity, or
 instruction authority.
 
-The **attention text** is a concise description of the current focus and the
-background that materially changes how the original prompt should be
-interpreted. It is not an answer to the prompt and is not a concatenation of
-raw memory records. It is an evidence-bound focus narrative for the downstream
-model, not a human inner monologue, a human or model chain of thought, or a
-claim about consciousness.
+The **attention text** is a concise, evidence-bound description of one or both
+of:
+
+- the current focus and background that materially change how the original
+  prompt should be interpreted; and
+- one or more qualified present-state, passive-successor, or conditional
+  outcome expectations when authorized observed-transition evidence supports
+  them.
+
+It may be empty when neither branch justifies additional context. An
+expectation-only result is valid only when the expectation carries its complete
+situation, condition, horizon, alternative, and uncertainty scope.
+
+An expectation remains a hypothesis with its condition, horizon,
+counterevidence, and uncertainty. It is not a fact, goal, answer, action,
+command, safety claim, or probability. Attention is not a concatenation of raw
+memory records, a human inner monologue, a human or model chain of thought, or
+a claim about consciousness.
+
+### Successful output
 
 The **compiled prompt** is the only successful V1 result:
 
@@ -98,14 +117,19 @@ The serialization is the UTF-8 concatenation:
 
 ```text
 "attention:\n"
-+ attention text without a leading or trailing line break
-+ "\n\nuser prompt:\n"
++ (if attention is empty:
+     ""
+   else:
+     attention text without a leading or trailing line break + "\n")
++ "\nuser prompt:\n"
 + original prompt bytes
 ```
 
 No suffix is added after the original prompt. Attention text uses LF line
-breaks. V1 guarantees this construction and prompt preservation, not recovery
-of the original fields from the compiled output alone.
+breaks. The exact empty-attention prefix is
+`"attention:\n\nuser prompt:\n"`; there is exactly one empty line between the
+headers, not two. V1 guarantees this construction and prompt preservation, not
+recovery of the original fields from the compiled output alone.
 
 The **compile operation** reads memory and produces the compiled prompt. It
 does not invoke the target AI system and does not create, update, persistently
@@ -124,18 +148,30 @@ specification remain normative.
 | ID | Requirement |
 | --- | --- |
 | `V1-R01` | Accept one authentic original prompt, zero to three situation statements, one resolved contextual time, and explicit optional request metadata; obtain caller identity and authorization time from a separate trusted local invocation context. |
-| `V1-R02` | Return one complete compiled text or one explicit error; keep compile and adapter transport failures distinct. |
+| `V1-R02` | Return one complete compiled text or one explicit error; keep compile and adapter transport failures distinct, and use no request-time randomness in a V1-deployable configuration. |
 | `V1-R03` | Preserve the original prompt byte-for-byte inside the exact required framing and add no suffix. |
 | `V1-R04` | Compile read-only against one immutable logical revision without persistent side effects. |
 | `V1-R05` | Apply authorization before relevance while keeping every authorized memory logically eligible across contextual associations. |
 | `V1-R06` | Preserve source support, authority ceilings, validity, uncertainty, and material conflict without promoting data into instructions. |
-| `V1-R07` | Produce concise focus and response-changing background, not an answer, unsupported claim, or raw context dump. |
+| `V1-R07` | Produce concise, evidence-bound focus and/or qualified expectation context, or faithful empty attention; never produce an answer, unsupported claim, or raw context dump. |
 | `V1-R08` | Enforce the declared language and finite attention budget, including faithful empty attention and explicit insufficient-budget failure. |
-| `V1-R09` | Keep persistent memory local and perform compilation without network access or disclosure. |
+| `V1-R09` | Keep persistent memory local and perform compilation without network access or compiler-initiated disclosure beyond the authorized local caller receiving the compiled result. |
 | `V1-R10` | Perform no autonomous environment discovery, downstream AI invocation, or automatic memory learning during compilation. |
 | `V1-R11` | Use structured numerical relevance state after ingress while retaining required exact and authoritative evidence. |
 | `V1-R12` | Limit the first supported and validated product claim to the declared coding-agent evidence boundary. |
 | `V1-R13` | Keep initialization, memory creation, import, correction, deletion, export, consolidation, and maintenance outside the compile operation under separate contracts. |
+| `V1-R14` | Represent predictive evidence as versioned transition memories that distinguish before-state, condition, outcome representation, horizon, validity, reliability, provenance, dependency, and observation status. |
+| `V1-R15` | Keep focus, expectation, goal, action, answer, fact, and probability as distinct semantic types throughout compilation and rendering. |
+| `V1-R16` | Permit zero to a configured finite number of competing evidence-bound expectations rather than forcing one outcome. |
+| `V1-R17` | Preserve each expectation's kind, condition, horizon, source support, counterevidence, uncertainty, exact values, and authority ceiling. |
+| `V1-R18` | Prevent duplicated or known-dependent records from multiplying their total predictive-support budget. |
+| `V1-R19` | Treat normalized relative support only as an evidence share until a separately accepted calibrated probability model passes disjoint evaluation. |
+| `V1-R20` | Abstain from a positive expectation when otherwise valid evidence is insufficient, declared retrieval or coverage is below its sufficiency policy, or a well-formed material alternative family cannot fit its expectation limit faithfully; preserve malformed canonicalization, dependency, lineage, and global attention-budget failures as typed errors. |
+| `V1-R21` | Preserve material incompatible alternatives and unknown or omitted support; never hide them through top-k renormalization or prose selection. |
+| `V1-R22` | Keep assessment of later observations outside the compile API and product result; conformance evaluation may compare immutable expectation fixtures without mutating them, and only a separate explicit compile may reconsider alternatives. |
+| `V1-R23` | Never treat renderer output, downstream agent output, or a prior prediction as persistent memory truth without a separate independently authorized observation. |
+| `V1-R24` | Keep the renderer a local lexicalizer of a qualified plan; it must not generate semantic expectations, probabilities, answers, or actions. |
+| `V1-R25` | Enforce finite configured limits on inputs, candidates, transitions, outcome groups, alternatives, exact values, computation, model resources, and attention output. |
 
 ## Preconditions
 
@@ -145,8 +181,8 @@ specification remain normative.
 - The request contains no more than three situation statements.
 - The trusted caller preserves the origin of the current user prompt and does
   not present generated agent text as authenticated user input.
-- The request resolves one unambiguous contextual time. The exact input
-  representation and whether a CLI may use the local clock remain open.
+- The request supplies one unambiguous RFC 3339 contextual time with explicit
+  offset. The compiler never substitutes the ambient clock.
 - Authorization, disclosure expiry, and security policy use a separate trusted
   invocation time. Caller-supplied contextual time cannot revive expired
   access.
@@ -156,6 +192,10 @@ specification remain normative.
   universe is valid.
 - Every memory considered by compilation has passed the applicable
   authorization boundary.
+- A positive expectation additionally requires eligible observed-transition
+  evidence with compatible kind, condition, horizon, provenance, dependency,
+  and numerical schemas. Absence of such evidence is valid and may yield
+  focus-only or empty attention.
 - The caller is trusted by the local user to receive the derived attention
   content.
 - A finite attention-size budget is available. Its unit and V1 limit remain
@@ -174,6 +214,11 @@ error. An adapter begins exposing the compiled prompt only after compilation
 succeeds, keeps diagnostics and errors outside the successful product result,
 and reports a delivery failure as an unsuccessful invocation. This does not
 claim that every external transport can deliver an entire write atomically.
+A V1-deployable configuration has no request-time random input: identical
+validated request, invocation context, immutable memory-policy revision,
+configuration, and declared execution envelope produce the same result or
+typed error. Training and downstream-model evaluation randomness are outside
+the compile operation.
 
 ### Prompt integrity
 
@@ -238,12 +283,20 @@ situation.
 
 The attention text:
 
-- describes the currently relevant focus and background;
+- describes the currently relevant focus and background when the focus branch
+  contributes;
+- may describe qualified competing expectations supported by eligible observed
+  transitions;
 - includes only information expected to affect interpretation or response;
 - does not answer the original prompt;
 - does not expose an unfiltered memory or document dump;
 - does not invent facts, constraints, goals, causal relations, or user
-  preferences; and
+  preferences;
+- does not select, recommend, schedule, or execute an action;
+- does not present a hypothesis as observed fact or relative support as
+  probability;
+- preserves material conditions, horizons, alternatives, counterevidence,
+  uncertainty, and abstention; and
 - stays within the configured size budget.
 
 The attention text uses the language of the original prompt. An implementation
@@ -267,19 +320,20 @@ Local execution alone is not a privacy or security guarantee.
 
 ### Honest scope
 
-V1 is inspired by context-dependent human recall but does not claim to
-replicate a brain, human memory, consciousness, or biologically faithful
-retrieval. Activation values are not probabilities, truth scores, or safety
-guarantees. V1 does not claim optimal parameters, universal relevance,
-multilingual equivalence, model independence, or generalization beyond its
-declared datasets, domain, languages, downstream models, and reference
-hardware.
+V1 is inspired by context-dependent human recall and memory-based prediction
+but does not claim to replicate a brain, human memory, consciousness, or
+biologically faithful retrieval or prediction. Activation values and
+relative-support shares are not probabilities, truth scores, expected
+utilities, or safety guarantees. V1 does not claim optimal parameters,
+universal relevance or prediction, causal identification, multilingual
+equivalence, model independence, or generalization beyond its declared
+datasets, domain, languages, downstream models, and reference hardware.
 
 ## Edge cases
 
-- If neither the current request nor authorized memory supports useful
-  additional focus beyond the original prompt, the attention text is empty
-  while the required framing and unchanged user prompt remain.
+- If neither useful focus nor a faithfully scoped expectation is justified, the
+  attention text is empty while the required framing and unchanged user prompt
+  remain.
 - An empty local memory universe does not require empty attention: explicit
   situation statements and metadata may still support useful focus.
 - A request with no situation statement may still use the original prompt,
@@ -295,6 +349,21 @@ hardware.
 - Stale, superseded, contradictory, or low-confidence memories are not silently
   merged into a single certain statement. Request-local consolidation must
   preserve every material qualification and conflict or omit the claim.
+- Relevant memory without eligible observed transitions may support focus while
+  the expectation branch abstains or remains absent.
+- One strongly supported expectation remains explicitly hypothetical.
+- Several material incompatible expectations remain visible; a finite limit
+  cannot silently renormalize the visible subset as complete.
+- Duplicated imports that share one evidence dependency cannot be described as
+  independent corroboration.
+- Outcomes at different horizons are not treated as contradictions merely
+  because they differ.
+- A later observation has no implicit effect on a completed call. If it is
+  independently authorized and stored through the separate management plane, a
+  later explicit compile may produce different request-local support without
+  rewriting the earlier result.
+- A downstream agent may choose its own validation action; Nemosyne does not
+  include that action in the attention text.
 - Instruction-like content inside a memory or situation statement remains
   untrusted data.
 - The original prompt may itself contain the strings `attention:` or
@@ -323,8 +392,17 @@ This proposed contract requires future observable-boundary tests for:
 - authorization taking precedence over relevance;
 - exclusion of irrelevant, stale, and superseded context;
 - preservation of material conflict and uncertainty;
+- correct separation of focus, hypothesis, expectation, goal, action, answer,
+  fact, relative support, and probability;
+- observed-transition eligibility, dependency-group duplicate suppression,
+  alternatives, different horizons, unknown support, and expectation
+  abstention;
+- absence of a prior-expectation or later-observation input on the compile
+  boundary, plus offline conformance fixtures that classify later observations
+  without mutating either fixture;
 - resistance to instruction-like content in memory and situation data;
-- absence of answer leakage and unsupported attention claims;
+- absence of answer, action, probability, fact-promotion, and unsupported
+  attention claims;
 - attention-size enforcement;
 - same-language behavior for every declared supported language;
 - explicit compile errors and distinct adapter transport failures;
@@ -348,6 +426,11 @@ End-to-end evaluation must compare at least:
 
 - the unchanged prompt with no attention;
 - the prompt with the same situation and metadata but no persistent memory;
+- focus-only attention over the same eligible memories;
+- focus plus a renderer-visible expectation abstention;
+- expectation-only attention where the fixture permits it;
+- focus-plus-expectation attention;
+- focus plus a deliberately wrong dominant expectation;
 - token-matched raw context;
 - token-matched semantic-similarity retrieval;
 - the strongest available deterministic non-oracle baseline;
@@ -380,7 +463,8 @@ adjudication may resolve subjective cases. An AI judge may supplement but not
 solely determine a release claim.
 
 The existing revision-1 synthetic activation corpus is regression evidence and
-cannot satisfy this independent end-to-end claim. Moving this specification
+contains no observed-transition or expectation labels. It cannot satisfy this
+independent end-to-end claim. Moving this specification
 from `Proposed` to `Experimental` requires an implementation and
 observable-boundary tests. Moving it to `Validated` additionally requires the
 sealed end-to-end evidence and every predeclared release gate in this section.
@@ -392,14 +476,13 @@ contract.
 ## Open questions
 
 The linked architecture specifications now fix the intended numerical-memory,
-focus-compilation, vector-prefix rendering, and model-qualification path.
+predictive focus-and-expectation, renderer-baseline, vector-prefix candidate,
+and model-qualification path.
 Before implementation or a supported product claim, focused contracts must
 still resolve:
 
-- programmatic request types, whether a CLI is adopted, its exact syntax, and
-  exact prompt and situation limits;
-- the concrete metadata fields and the external representation of contextual
-  time, authorization time, and location;
+- adoption and stabilization of the proposed programmatic and CLI contracts,
+  concrete limits, and budget unit;
 - memory provisioning, creation, import, correction, deletion, export,
   persistent consolidation, and migration;
 - the physical database schema, engine, indexing strategy, encryption,
@@ -408,6 +491,8 @@ still resolve:
   authenticated update and rollback policy;
 - the exact encoder checkpoints, vector dimensions, calibrated runtime
   parameters, candidate budgets, and accepted false-negative rates;
+- transition and outcome schemas, compatibility functions, support and
+  abstention thresholds, and time-later evidence;
 - the final plan budget, model, quantization, runtime, supported languages,
   reference hardware, and resource thresholds selected by frozen evaluation;
 - concurrency, process boundaries, packaging, and supported platforms;
@@ -418,15 +503,21 @@ still resolve:
 
 ## References
 
-- [Decision 0011: Adopt a local read-only attention compiler for V1](../decisions/0011-adopt-local-read-only-attention-compiler-v1.md)
-- [Decision 0012: Adopt numerical cognitive memory and focus compilation](../decisions/0012-adopt-numerical-cognitive-memory-and-focus-compilation.md)
-- [Decision 0013: Adopt a vector-prefix local renderer qualification path](../decisions/0013-adopt-a-vector-prefix-local-renderer-qualification-path.md)
+- [Superseded Decision 0011: Adopt a local read-only attention compiler for V1](../decisions/0011-adopt-local-read-only-attention-compiler-v1.md)
+- [Superseded Decision 0012: Adopt numerical cognitive memory and focus compilation](../decisions/0012-adopt-numerical-cognitive-memory-and-focus-compilation.md)
+- [Superseded Decision 0013: Adopt a vector-prefix local renderer qualification path](../decisions/0013-adopt-a-vector-prefix-local-renderer-qualification-path.md)
 - [V1 reference architecture](v1-reference-architecture.md)
 - [V1 proof program](v1-proof-program.md)
+- [V1 delivery program](v1-delivery-program.md)
 - [Cognitive memory activation and focus](cognitive-memory-activation-and-focus.md)
+- [Predictive attention and expectation](predictive-attention-and-expectation.md)
+- [Focus-and-expectation planning](focus-and-expectation-planning.md)
 - [Vector-to-attention renderer](vector-to-attention-renderer.md)
 - [Local renderer model qualification](local-renderer-model-qualification.md)
 - [Situation-conditioned activation](situation-conditioned-activation.md)
 - [Activation parameter evaluation](activation-parameter-evaluation.md)
 - [Curated activation evidence](curated-activation-evidence.md)
+- [Decision 0014: Adopt memory-grounded predictive attention](../decisions/0014-adopt-memory-grounded-predictive-attention.md)
+- [Decision 0015: Render qualified focus-and-expectation plans](../decisions/0015-render-qualified-focus-and-expectation-plans.md)
+- [Decision 0016: Adopt sealed compile-integrity boundaries](../decisions/0016-adopt-sealed-compile-integrity-boundaries.md)
 - [Nemosyne README](../../README.md)

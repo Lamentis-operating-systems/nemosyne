@@ -10,8 +10,9 @@ candidate slate, comparison boundary, evidence categories, promotion rule, and
 reproducibility requirements before model-specific results are observed.
 
 Qualification applies only to rendering an already selected structured
-attention plan. It does not evaluate memory storage, retrieval, activation,
-planning, authorization, or the downstream AI system as a whole.
+`FocusExpectationPlan`. It does not evaluate memory storage, retrieval,
+activation, expectation generation, planning, authorization, or the downstream
+AI system as a whole.
 
 No current model is designated the V1 winner. Published parameter counts,
 language coverage, context lengths, and general benchmarks establish candidate
@@ -27,22 +28,48 @@ it is not evidence that Qwen3 will win qualification.
 
 ## Definitions
 
+### Local notation
+
+The symbols in this specification are local to renderer qualification unless a
+linked owner states otherwise.
+
+| Symbol | Domain | Meaning |
+| --- | --- | --- |
+| \(c_{s,q}\) | immutable artifact tuples | One complete candidate configuration for training seed \(s\) and precision contract \(q\) |
+| \(C_{\mathrm{qual}}\) | finite configuration cohorts | All paired reference- and deployment-precision configurations for one candidate under the frozen seed set |
+| \(\mathcal S_{\mathrm{qual}}\) | finite nonempty seed sets | Frozen unique training-seed identities used by every qualification cohort |
+| \(m_{\mathrm{qual}},r_{m_{\mathrm{qual}}},h_{m_{\mathrm{qual}}}\) | model identity, revision identity, and positive hidden dimension | One renderer-qualification candidate model and its fixed properties |
+| \(N_{\mathrm{qual}}^{\mathrm{virtual}}\) | positive bounded integer | Registered virtual-embedding count used by one qualification condition |
+| \(\Pi_{m_{\mathrm{qual}}}(L)\) | \(\mathbb R^{N_{\mathrm{qual}}^{\mathrm{virtual}}\times h_{m_{\mathrm{qual}}}}\) | Candidate bridge projection of plan \(L\) for model \(m_{\mathrm{qual}}\) |
+| \(d_{\mathrm{qual}},\nu_{\mathrm{qual}}\) | immutable configuration identities | Complete decoding-and-stop configuration and plan/slot/structural-validation configuration |
+| \(G_{\mathrm{qual}}\) | cohort predicates | Every frozen technical and empirical gate passes |
+| \(D_{\mathrm{qual}}\) | cohort predicates | The selected deployment artifact is compatible with the declared installation and redistribution profile |
+| \(\mathcal C_{\mathrm{qual,pass}}\) | finite cohort sets | Cohorts satisfying both qualification and deployment-compatibility predicates |
+
 ### Qualification subject
 
-A **candidate artifact configuration** for training seed `s` and precision
-contract `q` is the complete content-identified tuple:
+The qualification manifest defines one finite nonempty set
+\(\mathcal S_{\mathrm{qual}}\) of unique training-seed identities before any
+cohort is constructed. An empty set, duplicate seed identity, or seed outside
+that frozen set is a manifest error.
+
+A **candidate artifact configuration** for training seed
+\(s\in\mathcal S_{\mathrm{qual}}\) and precision contract `q` is the complete
+content-identified tuple:
 
 \[
 c_{s,q} =
 (
-m,r_m,t,r_t,e_s,r_{e_s},\phi_s,r_{\phi_s},
-\Delta_s,r_{\Delta_s},s,q,\rho,d,\nu,v,r_v,\tau_v
+m_{\mathrm{qual}},r_{m_{\mathrm{qual}}},t,r_t,e_s,r_{e_s},\phi_s,r_{\phi_s},
+\Delta_s,r_{\Delta_s},s,q,\rho,d_{\mathrm{qual}},\nu_{\mathrm{qual}},
+v,r_v,\tau_v
 )
 \]
 
 where:
 
-- `m` and `r_m` identify the base model and immutable model revision;
+- \(m_{\mathrm{qual}}\) and \(r_{m_{\mathrm{qual}}}\) identify the base model
+  and immutable model revision;
 - `t` and `r_t` identify a derived tokenizer or processor artifact created
   from an immutable official revision by the deterministic, content-identified
   exact-slot augmentation;
@@ -57,9 +84,11 @@ where:
 - `s` identifies one seed from the frozen training-seed set;
 - `q` identifies numerical precision and quantization;
 - `rho` identifies the runtime, kernels, and backend;
-- `d` identifies the complete decoding and stop configuration;
-- `nu` identifies the attention-plan schema, exact-slot vocabulary,
-  deterministic formatter, substitution logic, and structural validator;
+- \(d_{\mathrm{qual}}\) identifies the complete decoding and stop
+  configuration;
+- \(\nu_{\mathrm{qual}}\) identifies the attention-plan schema, exact-slot
+  vocabulary, deterministic formatter, substitution logic, and structural
+  validator;
 - `v` and `r_v` identify the independently trained semantic-verifier artifact
   and immutable revision; and
 - `tau_v` identifies its calibrated threshold vector and calibration receipt.
@@ -72,34 +101,51 @@ pass the architecture, split, calibration, false-acceptance, and
 false-rejection contract in the vector-to-attention renderer specification.
 If it does not pass, no generative renderer configuration is eligible.
 
-A **qualification cohort** `K` contains the paired reference-precision and
-deployment-precision configurations for every frozen training seed while all
-non-seed training choices remain identical. The manifest selects one
-deployment artifact `deploy(K)` by a development-only rule before the sealed
-suite is opened. The sealed quality and repeatability gates apply to the
-entire cohort, not only to `deploy(K)`.
+A **qualification cohort** \(C_{\mathrm{qual}}\) contains exactly one paired
+reference-precision and deployment-precision configuration for every
+\(s\in\mathcal S_{\mathrm{qual}}\), and no configuration for another seed,
+while all non-seed training choices remain identical. A missing or duplicate
+pair member is a cohort-construction error. Because
+\(\mathcal S_{\mathrm{qual}}\) is nonempty, every valid cohort contains at
+least one deployment configuration. The manifest's development-only
+\(deploy(C_{\mathrm{qual}})\) rule is total over a valid cohort and selects
+exactly one of those deployment configurations before the sealed suite is
+opened. The sealed quality and repeatability gates apply to the entire cohort,
+not only to \(deploy(C_{\mathrm{qual}})\).
 
-Qualification selects `deploy(K)` from a passing cohort, not an unversioned
+Qualification selects \(deploy(C_{\mathrm{qual}})\) from a passing cohort, not an unversioned
 model name or a favorable seed. Changing any tuple member, seed set, pairing,
 or development-selection rule creates a new cohort that does not inherit prior
 evidence.
 
 ### Common numerical input
 
-Every candidate receives the same immutable structured attention plan `L`
-defined by the vector-to-attention renderer specification. Plan-item facets,
-scalars, roles, ranks, masks, proposition identities, exact-slot identities,
-binding roles, output language, and budget are byte-identical before
-candidate-specific projection.
-Control-only exclusion records are also byte-identical but remain verifier
-inputs; they are not projected into any candidate's generative prefix.
+Every candidate receives the same immutable structured `FocusExpectationPlan`
+`L` defined by the focus-and-expectation-planning specification and projected
+according to the vector-to-attention renderer specification. Plan-item facets,
+scalars, focus and expectation roles, ranks, masks, proposition identities,
+conditions, horizons, support semantics, alternatives, counterevidence,
+coverage, abstention state, exact-slot identities, binding roles, output
+language, and budget are byte-identical before candidate-specific projection.
+The complete validator-control collection is also byte-identical across
+candidates, including exclusions, dependency groups, authority ceilings,
+required qualifiers, omitted support, abstention, and no-answer/no-action
+controls. It remains verifier input and is not projected into any candidate's
+generative prefix.
 
 The benchmark never serializes the numerical plan as decimal text. For model
-`m` with hidden dimension \(h_m\), the candidate bridge maps the same plan to
-`k` virtual input embeddings:
+\(m_{\mathrm{qual}}\) with hidden dimension \(h_{m_{\mathrm{qual}}}\), the
+candidate bridge maps the same plan to
+\(N_{\mathrm{qual}}^{\mathrm{virtual}}\) virtual input embeddings:
 
 \[
-P_m(L)\in\mathbb{R}^{k\times h_m}
+\Pi_{m_{\mathrm{qual}}}(L)
+\in
+\mathbb{R}^{
+N_{\mathrm{qual}}^{\mathrm{virtual}}
+\times
+h_{m_{\mathrm{qual}}}
+}
 \]
 
 The frozen benchmark uses the same registered set of prefix lengths, bridge
@@ -125,7 +171,7 @@ The mandatory initial slate is:
 | `Qwen/Qwen3-0.6B` | 0.6B parameters, 0.44B non-embedding parameters, 28 layers, hidden size 1024, 32,768-token advertised context, Apache-2.0, Qwen3 coverage of 119 languages and dialects | Minimum-capacity and resource-floor baseline |
 | `Qwen/Qwen3-1.7B` | 1.7B parameters, 1.4B non-embedding parameters, 28 layers, hidden size 2048, 32,768-token advertised context, Apache-2.0, Qwen3 coverage of 119 languages and dialects | Initial capacity and integration reference |
 | `Qwen/Qwen3.5-0.8B` | 0.8B language model, hidden size 1024, 24-layer hybrid linear/full-attention layout, 262,144-token advertised context, vision encoder in the published artifact, Apache-2.0, stated coverage of 201 languages and dialects | Newer multilingual and hybrid-architecture challenger |
-| `google/gemma-3-1b-it` | 1B instruction-tuned model, 32K input context, stated support for more than 140 languages, Gemma terms rather than Apache-2.0 | Independently licensed and independently designed control |
+| `google/gemma-3-1b-it` | 1B text-only instruction-tuned model, 32K input context, a family-level claim of multilingual tokenization and support for more than 140 languages, and Gemma terms rather than Apache-2.0 | Independently licensed and independently designed control; no language is qualified by the family-level claim alone |
 
 `Qwen/Qwen3.5-2B` is the first optional capacity fallback. Its official model
 card describes a 2B language model with hidden size 2048, the same 24-layer
@@ -146,6 +192,13 @@ no qualification advantage. General instruction-following scores are not used
 because they do not measure numerical-prefix fidelity, exclusions, answer
 leakage, exact-slot use, downstream utility, or Apple-Silicon resource behavior
 under this contract.
+
+The Gemma publisher material states family-level multilingual coverage and a
+multilingual tokenizer, but those statements are not per-language
+qualification evidence for this task or checkpoint. The manifest therefore
+grants `gemma-3-1b-it` no supported language merely from publisher prose. Each
+declared language must pass the same frozen Nemosyne-specific strata before
+the configuration can enter a release cohort.
 
 ### Integration order
 
@@ -172,11 +225,15 @@ evaluation:
   confidence procedure, thresholds, and per-stratum gates;
 - numerical plan schema and exact-value sidecar schema;
 - mandatory and excluded propositions and span-level support labels;
+- expectation-kind, condition, horizon, alternative, counterevidence,
+  coverage, abstention, and `EvidenceShareNotProbability` labels;
 - supported language and script strata;
 - prefix lengths and bridge architecture variants;
 - bridge-only and optional bridge-plus-LoRA training contracts;
 - trainable parameter sets and equal hyperparameter-search budgets;
-- training seeds, optimizer, schedules, early stopping, and maximum work;
+- the finite nonempty training-seed set
+  \(\mathcal S_{\mathrm{qual}}\), optimizer, schedules, early stopping, and
+  maximum work;
 - BF16 reference and local deployment quantization contracts;
 - control text, slot vocabulary, generation marker, and output budget;
 - decoding, stop, repetition, and malformed-output policy;
@@ -185,7 +242,8 @@ evaluation:
   candidate's compatibility with it;
 - minimum-supported and reference Apple-Silicon hardware profiles;
 - measurement warm-up, repetition, isolation, estimators, comparison
-  resolution, rounding, random tapes, and confidence procedures;
+  resolution, rounding, downstream-evaluation random tapes, and confidence
+  procedures; renderer inference itself accepts no request-time randomness;
 - every metric definition and hard threshold;
 - downstream target-model configurations and evaluation rubric; and
 - the deterministic final selection ordering.
@@ -244,6 +302,9 @@ conversions. Quantized artifact size alone is not a quality result.
   is evaluated on it.
 - Every mandatory candidate has the same eligible training, development, and
   held-out semantic scenarios.
+- The authenticated manifest defines a finite nonempty
+  \(\mathcal S_{\mathrm{qual}}\), and every candidate cohort contains exactly
+  one reference/deployment pair for every seed in that set.
 - Candidate-specific tokenization uses the same canonical control bytes and
   conveys no additional semantic information.
 - The prefix-length set and all model-independent bridge parameters are the
@@ -311,8 +372,9 @@ bindings required by the renderer contract. A `<think>` block, separate
 reasoning field, hidden-reasoning transcript, simulated human chain of thought,
 tool call, or answer to the original request is a qualification failure.
 
-The intended target is a concise source-bound focus narrative. Fluent prose
-does not compensate for unsupported meaning.
+The intended target is concise source-bound focus-and-expectation text. Fluent
+prose does not compensate for unsupported meaning, lost qualifications,
+hypothesis-to-fact promotion, probability inflation, or action selection.
 
 ### Artifact isolation
 
@@ -335,8 +397,9 @@ candidate results are known. A later protocol revision must preserve the
 original report and rerun every candidate.
 
 An overall average cannot hide a failed mandatory language, script,
-proposition role, exact-value type, conflict class, or resource gate. Missing
-measurements and validator errors fail the applicable gate.
+proposition role, expectation kind, horizon class, abstention class,
+exact-value type, conflict class, or resource gate. Missing measurements and
+validator errors fail the applicable gate.
 
 ### Local qualification
 
@@ -347,6 +410,12 @@ and passed user-facing threshold.
 
 ## Metrics and gates
 
+The vector-to-attention renderer specification owns metric semantics,
+instrument inputs, and violation classes. This qualification specification
+owns the mandatory cohort strata, aggregation, threshold-freezing procedure,
+promotion rule, and deployment artifact. The list below names required views;
+it does not create a parallel metric definition.
+
 ### Semantic fidelity
 
 The report measures at least:
@@ -354,6 +423,11 @@ The report measures at least:
 - mandatory-proposition precision and recall;
 - preservation of negation, uncertainty, temporal qualification, conflict,
   source authority, and dominant-versus-secondary relationships;
+- preservation of expectation kind, condition, horizon, competing
+  alternatives, counterevidence, coverage qualification, and abstention;
+- hypothesis-to-fact promotion rate;
+- probability- or confidence-inflation rate for relative support;
+- unsupported-action rate;
 - unsupported-claim rate;
 - prohibited causal or normative strengthening;
 - must-exclude violation rate;
@@ -362,7 +436,8 @@ The report measures at least:
 - malformed, repeated, empty-for-nonempty, and over-budget output rates.
 
 Metrics are reported overall and by semantic scenario, plan size, proposition
-role, qualification type, and worst mandatory stratum.
+role, expectation kind, horizon class, abstention state, qualification type,
+and worst mandatory stratum.
 
 The report separates raw renderer quality from post-validation system
 behavior. It includes validator false acceptance, false rejection, abstention,
@@ -409,6 +484,9 @@ The report measures:
 - injection-like content changing the control behavior;
 - output that strengthens data into an instruction, goal, preference, or
   certainty without plan support;
+- output that turns an expectation into an observed fact or evidence share into
+  probability;
+- output that selects a downstream action or validation tool;
 - reasoning-trace or tool-call emission; and
 - cross-case state or cache leakage.
 
@@ -474,10 +552,13 @@ measurement.
 
 ### Repeatability
 
-Every stochastic training condition uses all frozen seeds. Generation uses the
-frozen decoding policy and random tapes. Every seed has one paired reference
-and deployment artifact, and the development-only `deploy(K)` rule is fixed
-before held-out evaluation. The report includes:
+Every stochastic training condition uses all frozen seeds. Renderer generation
+uses the frozen deterministic decoding policy and no request-time random tape.
+Downstream target-model experiments may use frozen random tapes that belong to
+the evaluation manifest, not the renderer contract. Every seed has one paired
+reference and deployment artifact, and the development-only
+\(deploy(C_{\mathrm{qual}})\) rule
+is fixed before held-out evaluation. The report includes:
 
 - variation across training seeds;
 - output and metric variation across repeated inference runs;
@@ -491,21 +572,37 @@ gate must pass.
 
 ## Selection rule
 
-Let `G(K)` mean that every seed's deployment configuration in qualification
-cohort `K` passes every frozen semantic, exact-value, language, leakage,
+Let \(G_{\mathrm{qual}}(C_{\mathrm{qual}})\) mean that every seed's deployment
+configuration in qualification cohort \(C_{\mathrm{qual}}\) passes every
+frozen semantic, exact-value, language, leakage,
 downstream, quantization, paired-reference-regression, repeatability, and
-local-resource gate. Let `D(K)` mean that `deploy(K)` is compatible with the
-manifest's intended installation and redistribution profile. Let `K_pass`
-denote:
+local-resource gate. Let \(D_{\mathrm{qual}}(C_{\mathrm{qual}})\) mean that
+\(deploy(C_{\mathrm{qual}})\) is compatible with the manifest's intended
+installation and redistribution profile. Let
+\(\mathcal C_{\mathrm{qual,pass}}\) denote:
 
 \[
-\mathcal{K}_{pass}=\{K\mid G(K)\land D(K)\}
+\mathcal C_{\mathrm{qual,pass}}=
+\left\{
+C_{\mathrm{qual}}
+\mid
+G_{\mathrm{qual}}(C_{\mathrm{qual}})
+\land
+D_{\mathrm{qual}}(C_{\mathrm{qual}})
+\right\}.
 \]
 
-Reference-precision configurations and legally incompatible controls are never
-members of `K_pass`, even when their technical measurements pass.
+The universal gate in \(G_{\mathrm{qual}}\) ranges over the nonempty
+\(\mathcal S_{\mathrm{qual}}\); it cannot pass vacuously. The total
+development rule above makes \(deploy(C_{\mathrm{qual}})\) defined for every
+valid cohort before \(D_{\mathrm{qual}}\) is evaluated.
 
-If `K_pass` is empty after all mandatory candidates are complete, run the
+Reference-precision configurations and legally incompatible controls are never
+members of \(\mathcal C_{\mathrm{qual,pass}}\), even when their technical
+measurements pass.
+
+If \(\mathcal C_{\mathrm{qual,pass}}\) is empty after all mandatory candidates
+are complete, run the
 Qwen3.5-2B fallback under the identical sealed protocol. If the fallback also
 fails, no model is selected. The project retains deterministic rendering,
 narrows the output contract, revises the renderer hypothesis, or gathers new
@@ -516,7 +613,8 @@ artifacts are frozen before the held-out suite is opened. Mandatory sealed
 results may trigger the already frozen fallback evaluation; they cannot be
 used to tune it.
 
-Within `K_pass`, select `deploy(K)` lexicographically by:
+Within \(\mathcal C_{\mathrm{qual,pass}}\), select
+\(deploy(C_{\mathrm{qual}})\) lexicographically by:
 
 1. lowest candidate-exclusive installed artifact bytes;
 2. lowest frozen comparison key for p95 cold end-to-end latency on the
@@ -548,6 +646,17 @@ prefix length, plans with no exact values, and plans at exact-slot and output
 budget limits. Exceeding a structural limit is an explicit pre-render failure,
 not a model-quality sample.
 
+### Focus and expectation dispositions
+
+The suite separately covers focus-only, focus-plus-renderable-abstention,
+valid expectation-only, combined, single-hypothesis, and
+competing-hypothesis plans. Focus-only fixtures contain no renderer-visible
+expectation role; validator-only abstention controls may remain.
+Deliberately corrupted targets promote hypotheses to facts, remove conditions
+or horizons, hide counterevidence, collapse alternatives, claim probability,
+and prescribe unsupported actions. A model cannot pass by learning one fixed
+attention-text shape.
+
 ### Non-Latin and mixed-language evidence
 
 The suite includes mandatory non-Latin scripts, right-to-left text, combining
@@ -577,7 +686,8 @@ non-thinking configuration.
 An unavailable mandatory artifact leaves the comparison incomplete. A
 technically measurable candidate whose terms are incompatible with the
 declared installation or redistribution profile remains in the report as a
-non-selectable control and cannot enter `K_pass`. In particular, Gemma access
+non-selectable control and cannot enter
+\(\mathcal C_{\mathrm{qual,pass}}\). In particular, Gemma access
 requires acceptance of Google usage terms; any packaging or redistribution
 plan must satisfy those terms independently of technical results.
 
@@ -614,16 +724,25 @@ The development evaluation compares on identical plans:
 3. the registered latent-resampler bridge with frozen base model; and
 4. latent resampler plus LoRA only where bridge-only missed a gate.
 
+Every condition is evaluated on the same focus-only,
+focus-plus-renderable-abstention, valid expectation-only, combined, and
+deliberately corrupted semantic scenario roots.
+
 The registered prefix-length set is `8`, `16`, and `32` virtual tokens. The
 vector-to-attention renderer specification may evaluate additional ablations,
 but final model comparison uses the same frozen set for every candidate.
 
 Development data selects bridge dimensions, one training condition per model
-family, and `deploy(K)` under the frozen rule. Every seed artifact in the
+family, and \(deploy(C_{\mathrm{qual}})\) under the frozen rule. Every seed artifact in the
 resulting cohort remains in sealed evaluation. The sealed held-out suite is
 evaluated once after all mandatory and fallback choices, cohorts, artifacts,
 and thresholds are frozen. Test results never feed further training or
 candidate-specific prompt changes.
+
+Manifest and cohort-construction tests reject an empty seed set, duplicate
+seed identities, a seed outside \(\mathcal S_{\mathrm{qual}}\), a missing or
+duplicate reference/deployment pair, and a development-selection rule that
+does not return exactly one deployment configuration from the valid cohort.
 
 ### Report
 
@@ -670,8 +789,12 @@ unless separately demonstrated.
 - [V1 product contract](v1-product-contract.md).
 - [V1 reference architecture](v1-reference-architecture.md).
 - [V1 proof program](v1-proof-program.md).
+- [V1 delivery program](v1-delivery-program.md).
+- [Predictive attention and expectation](predictive-attention-and-expectation.md).
+- [Focus and expectation planning](focus-and-expectation-planning.md).
 - [Vector-to-attention renderer](vector-to-attention-renderer.md).
-- [Decision 0013](../decisions/0013-adopt-a-vector-prefix-local-renderer-qualification-path.md).
+- [Decision 0013 (superseded)](../decisions/0013-adopt-a-vector-prefix-local-renderer-qualification-path.md).
+- [Decision 0015](../decisions/0015-render-qualified-focus-and-expectation-plans.md).
 - Qwen Team, [Qwen3 Technical
   Report](https://arxiv.org/abs/2505.09388), 2025.
 - Qwen, [`Qwen3-0.6B` model

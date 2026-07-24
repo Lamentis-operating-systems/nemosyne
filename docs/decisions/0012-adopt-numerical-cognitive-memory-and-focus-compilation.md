@@ -1,7 +1,8 @@
 # 0012: Adopt numerical cognitive memory and focus compilation
 
-Status: Accepted
+Status: Superseded
 Date: 2026-07-23
+Superseded by: 0014-adopt-memory-grounded-predictive-attention.md
 
 ## Context
 

@@ -1,7 +1,8 @@
 # 0013: Adopt a vector-prefix local renderer qualification path
 
-Status: Accepted
+Status: Superseded
 Date: 2026-07-23
+Superseded by: 0015-render-qualified-focus-and-expectation-plans.md
 
 ## Context
 
