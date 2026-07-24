@@ -2254,8 +2254,11 @@ The first executable implementation requires:
 - nontransitive similarity counterexamples;
 - unknown, censored, unresolved, and omitted-support cases;
 - horizon and condition incompatibility cases;
-- receipt reconstruction that binds each admitted reliability value to its
-  schema, derivation, calibration domain, source state, and migration lineage;
+- receipt reconstruction that binds every admitted reliability value to its
+  target schema, target state, derivation, and calibration domain, and binds
+  source-state metadata plus migration lineage exactly when
+  `migration.is_some()`; separate native and migrated fixtures must reject
+  both invented native lineage and missing migrated lineage;
 - retrieval `Complete`, `Bounded`, `Degraded`, and `Failed` cases;
 - structural and evidence abstention reason tests;
 - all-zero, unit, subnormal, and maximum-cardinality numerical cases;

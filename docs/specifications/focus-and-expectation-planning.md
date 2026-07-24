@@ -51,8 +51,7 @@ The planner joins:
 - one `ExpectationBundle` containing zero or more canonical per-frame
   `ExpectationSet` values derived independently from the same eligible
   activated-memory set;
-- one authority and disclosure view;
-- one exact-value sidecar view;
+- one immutable exact-surface inventory containing bytes but no permissions;
 - one output language;
 - one finite post-substitution attention budget \(B\); and
 - one content-identified planning configuration.
@@ -72,9 +71,68 @@ flowchart TD
     E --> ES["ExpectationBundle of per-frame sets"]
     FC --> J["Combined plan validator and selector"]
     ES --> J
-    C["Authority, language, budget, and exact sidecars"] --> J
+    C["Language, budget, configuration, and exact surfaces"] --> J
     J --> P["Canonical FocusExpectationPlan"]
 ```
+
+### Immutable authority and disclosure projections
+
+Planning has no separate authority or disclosure view and introduces no
+`PlanAuthorityProjection` capability. The focus branch is the sole producer of
+the authority-bearing focus projection in `FocusCandidateSet`; the expectation
+kernel is the sole producer of the corresponding expectation projection in
+`ExpectationBundle`. Both inputs are immutable and carry the exact same
+\(\Lambda_A\).
+
+For every candidate or control that planning may consume, its owning branch
+must already carry this finite projection:
+
+```text
+PlanningSourceProjection
+├── source_receipt: exact copy of Lambda_A
+├── item and essential-source identities
+├── authority_ceiling
+├── allowed_use_ceiling
+├── surface_authority_ceiling
+├── mandatory qualifiers and relations
+└── exact_slot_bindings[]
+    ├── slot identity
+    ├── exact-surface content identity
+    └── permitted item bindings
+```
+
+This is a logical common field projection over the two existing branch-owned
+types, not a third object, producer, service, or crate dependency. Its
+cardinality cannot exceed the candidate, source, qualifier, relation, and
+exact-binding limits already declared by those inputs and the pinned planning
+configuration.
+
+The separate exact-surface inventory supplies only the byte-preserving surface,
+its content identity, and language/display metadata for a referenced slot. It
+contains no authority, disclosure decision, allowed-use grant, item
+permission, principal, or policy handle. A surface becomes usable only when an
+upstream `exact_slot_binding` names the same slot and content identity and
+permits the selected item binding. The inventory is minimized to the canonical
+union of slots referenced by the two branch projections; an unreferenced
+surface is rejected rather than carried through planning.
+
+The planner may only:
+
+- compare both complete source receipts field-for-field;
+- copy or lower an upstream authority, allowed-use, or surface-authority
+  ceiling;
+- take the meet of essential-source ceilings under the pinned closed ceiling
+  schema;
+- select `Render`, `ValidateOnly`, or omission within those ceilings;
+- join an upstream exact-slot binding to the matching immutable surface; and
+- reject an inconsistent projection.
+
+It may not open an authorization view, consult a principal, call an
+authorization or disclosure service, query policy, retrieve memory, repeat
+authorization, widen a ceiling, grant a new use, authorize a slot, or treat a
+missing value as permissive. `policy_revision_id` and
+`authorization_view_id` are opaque fields inside \(\Lambda_A\) used only for
+exact lineage equality.
 
 ### Plan roles
 
@@ -157,7 +215,7 @@ Every renderable item binds one canonical proposition meaning to:
 - essential request or authorized-memory sources;
 - request-source identities or authorized-memory provenance roots and
   dependency groups, as applicable;
-- authority and disclosure ceiling;
+- authority, allowed-use, and surface-authority ceilings;
 - validity, observation status, and uncertainty;
 - exact-value slot references;
 - mandatory qualifiers and relations;
@@ -190,6 +248,7 @@ pub struct PlannedExpectation {
     uncertainty: UncertaintyDiagnostics,
     exact_slots: Vec<ExactSlotRef>,
     authority: AuthorityCeiling,
+    allowed_use: AllowedUseCeiling,
     surface_authority: SurfaceAuthorityCeiling,
     surface_disposition: SurfaceDisposition,
     order_key: ExpectationBundleOrderKey,
@@ -220,6 +279,7 @@ pub struct PlannedExpectationAbstention {
     reasons: NonEmptyCanonicalSet<AbstentionReasonCode>,
     supporting_controls: NonEmptyCanonicalSet<ControlRef>,
     authority: AuthorityCeiling,
+    allowed_use: AllowedUseCeiling,
     surface_authority: SurfaceAuthorityCeiling,
     surface_disposition: SurfaceDisposition,
     order_key: ExpectationBundleOrderKey,
@@ -262,7 +322,7 @@ FocusExpectationPlan
 │   ├── contradicted_by
 │   └── supported_by
 ├── exact_sidecar
-│   ├── authorized slot identity
+│   ├── upstream-bound slot identity
 │   ├── byte-preserving surface
 │   ├── language and display policy
 │   └── permitted item bindings
@@ -308,8 +368,8 @@ where:
   `surface_disposition` is `Render`;
 - \(R_{\mathrm{render}}(X)\) contains exactly the relations and qualifiers
   required to lexicalize those items without changing their meaning; and
-- \(V_{\mathrm{slot}}(X)\) contains exactly the authorized exact-slot bindings
-  required by those items.
+- \(V_{\mathrm{slot}}(X)\) contains exactly the upstream-bound exact-slot
+  bindings required by those items.
 
 The tagged disjoint union keeps item, relation, and slot namespaces distinct
 even when their underlying numeric identities coincide. Define the companion
@@ -516,12 +576,38 @@ as one scale.
 ### Authority and semantic ceilings
 
 For every planned proposition \(p\), the plan retains all essential premises
-\(support(p)\). Its authority must satisfy:
+\(support(p)\). Let \(A_s\), \(U_s\), and \(R_s\) be the upstream authority,
+allowed-use, and surface-authority ceilings carried by essential source \(s\).
+Under the closed, pinned ceiling orders, planning derives only:
 
 \[
-authority(p)\preceq authority(s)
-\quad\text{for every }s\in support(p).
+A_p=\bigwedge_{s\in support(p)}A_s,\qquad
+U_p=\bigwedge_{s\in support(p)}U_s,\qquad
+R_p=\bigwedge_{s\in support(p)}R_s.
 \]
+
+Every selected or validator-only projection satisfies
+\(authority(p)\preceq A_p\), \(allowedUse(p)\preceq U_p\), and
+\(surfaceAuthority(p)\preceq R_p\). Its `surface_disposition` must additionally
+be permitted by that resulting surface-authority ceiling. A meet that is
+undefined in the pinned
+closed schema is a structural projection failure, not a request to consult
+policy.
+
+For exact slot \(x\) and planned item \(p\):
+
+\[
+slotUsable(x,p)
+\iff
+binding(x,p)\in exactBindings(p)
+\land
+contentId(x)=contentId(binding(x,p)).
+\]
+
+The exact-surface inventory can satisfy the content-identity equality but
+cannot make the first predicate true. Missing bindings, mismatched content
+identities, and disallowed item bindings are errors; planning never asks a
+live disclosure view to repair them.
 
 An expectation remains hypothetical even if every source is an authenticated
 user statement. An observed transition may support association but not a
@@ -908,7 +994,7 @@ focus context, it is infeasible.
 | Selected focus meanings | Yes | Yes | Lexicalized |
 | Selected expectation meanings | Yes | Yes | Lexicalized |
 | Required condition/horizon/uncertainty | Yes | Yes | Lexicalized when item is emitted |
-| Authorized exact-slot placeholders | Yes | Yes | Substituted surface |
+| Upstream-bound exact-slot placeholders | Yes | Yes | Substituted surface |
 | Source and proposition IDs | Binding only | Yes | No |
 | Raw source bytes | No | Only through isolated literal checks | No |
 | Excluded propositions and exact surfaces | No | Yes | No |
@@ -923,7 +1009,7 @@ focus context, it is infeasible.
 flowchart LR
     P["FocusExpectationPlan"] --> R["Renderable typed items"]
     P --> V["Validator-only controls"]
-    P --> S["Authorized exact sidecar"]
+    P --> S["Upstream-bound exact sidecar"]
     R --> X["Per-facet projectors and latent resampler"]
     X --> L["Local lexicalizer"]
     L --> T["Slot-bearing text + bindings"]
@@ -939,6 +1025,19 @@ flowchart LR
 
 The future internal boundary is conceptually:
 
+```text
+PlanningInput
+├── output_language
+├── post_substitution_budget
+├── planning_configuration_id
+├── planning_configuration_fingerprint
+└── exact_surface_inventory[]
+    ├── slot_identity
+    ├── content_identity
+    ├── byte_preserving_surface
+    └── language_and_display_metadata
+```
+
 ```rust
 pub fn plan_attention(
     input: &PlanningInput,
@@ -950,15 +1049,22 @@ pub fn plan_attention(
 This signature is illustrative until a focused implementation ADR accepts a
 crate boundary. Inputs are borrowed immutable views. The result owns canonical
 request-local data. Public fields are private; constructors validate all
-cross-object identities and getters cannot mutate state.
+cross-object identities and getters cannot mutate state. `PlanningInput`
+contains no principal, authority or disclosure view, policy handle,
+authorization service, source ceiling, allowed-use grant, or slot permission.
+Its configuration identity must equal `configuration_id` in the exact common
+\(\Lambda_A\) carried by `focus` and `expectations`. The plan envelope copies
+that \(\Lambda_A\) from the branch inputs rather than accepting another lineage
+input.
 
 Representative errors are:
 
 - `SchemaMismatch`;
 - `LineageMismatch`;
 - `UnknownSource`;
-- `UnauthorizedSource`;
+- `SourceProjectionViolation`;
 - `AuthorityEscalation`;
+- `AllowedUseEscalation`;
 - `InvalidRole`;
 - `MissingQualifier`;
 - `MissingRelation`;
@@ -980,9 +1086,14 @@ well-formed input outside that artifact's declared domain.
 `UnsupportedRequestedLanguage` means the request selected a language outside
 declared support. A renderer artifact that falsely claims that language but
 lacks its required table or cost function is `InvalidCostContract`, not an
-unsupported request. `UnknownSource`, `UnauthorizedSource`, and
-`AuthorityEscalation` are defensive invariant failures: authorization and
-lineage validation must prevent such a value from reaching planning.
+unsupported request. `UnknownSource`, `SourceProjectionViolation`,
+`AuthorityEscalation`, and `AllowedUseEscalation` are defensive invariant
+failures against the immutable branch projections. They do not trigger
+authorization or policy evaluation. `SourceProjectionViolation` means a
+source, ceiling, qualifier, relation, or exact binding is absent from or
+inconsistent with its canonical upstream projection. No planning error means
+that a live authority service was unavailable because planning has no such
+dependency.
 
 The public `CompileError` mapping is owned by the
 [reference architecture](v1-reference-architecture.md#failure-taxonomy).
@@ -1223,11 +1334,15 @@ using its own tools, authority, and current environment.
   provenance root or dependency group.
 - Both inputs are canonically ordered, finite, source-bound, and valid under
   their owning specifications.
+- Every consumable item carries the closed immutable
+  `PlanningSourceProjection` fields defined above. Planning receives no
+  separate authority/disclosure input and no live policy capability.
 - The output language and post-substitution attention budget are resolved
   before selection.
 - Every renderable language has a qualified conservative cost-bound function.
-- Every exact slot has an authorized byte-preserving surface and permitted item
-  bindings.
+- Every exact slot has a content-identical byte-preserving surface in the
+  immutable inventory and permitted item bindings in its upstream source
+  projection.
 - Every mandatory qualifier, relation, alternative, and authority ceiling is
   represented explicitly.
 - Candidate cardinalities and exhaustive reference limits are finite.
@@ -1238,6 +1353,10 @@ using its own tools, authority, and current environment.
 - The combined planner consumes upstream semantics and does not retrieve,
   rerank activation, regroup outcomes, or invent propositions.
 - Every selected item retains complete essential support and authority ceiling.
+- The planner can only copy, meet, or lower upstream authority, allowed-use,
+  and surface-authority ceilings. It cannot authorize, reauthorize, query
+  policy, expand disclosure, grant an allowed use, or create an exact-slot
+  permission.
 - Request-derived items remain ephemeral and preserve their source-kind
   authority ceiling; planning cannot promote caller-reported situation or
   metadata into an instruction, observed fact, expectation, or memory truth.
@@ -1276,6 +1395,9 @@ using its own tools, authority, and current environment.
   frames.
 - Conflicting focus and expectation authority labels cause an error or
   explicit qualified separation, never silent promotion.
+- A source, exact surface, or ceiling supplied only through `PlanningInput`
+  and absent from the corresponding branch projection produces
+  `SourceProjectionViolation`; the planner cannot ask a live view to admit it.
 - An optional whole frame may be omitted without being relabeled as abstention.
   A selected positive family retains every material alternative and its
   required omitted-support qualification.
@@ -1291,6 +1413,19 @@ using its own tools, authority, and current environment.
 Required evidence includes:
 
 - constructor and cross-object identity tests;
+- static dependency and API-shape tests proving that planning accepts no
+  principal, authority/disclosure view, policy handle, or authorization
+  service and performs no live authorization or policy lookup;
+- projection tests for exact \(\Lambda_A\) equality, closed authority/
+  allowed-use/surface-ceiling meets, lowering-only behavior, and rejection of
+  missing or expanded ceilings;
+- exact-surface tests proving that inventory presence alone grants no use,
+  content-identity mismatch fails, and only upstream-permitted item bindings
+  enter \(V_{\mathrm{slot}}\);
+- noninterference tests proving that changing ambient principal, policy store,
+  authorization service, or disclosure state without changing the immutable
+  branch inputs, exact-surface inventory, or planning configuration cannot
+  change the plan;
 - arbitrary permutation tests over focus items, expectations, sources,
   relations, slots, and controls;
 - exhaustive reference selection on small candidate sets;
@@ -1311,7 +1446,7 @@ Required evidence includes:
   persistent provenance, source-kind authority preservation, and no
   expectation creation;
 - dependency and authority non-amplification cases;
-- exact-slot authorization and byte-preservation cases;
+- exact-slot projection, item-binding, and byte-preservation cases;
 - no-answer and no-action adversarial cases;
 - renderer/validator fixtures for every plan role and relation;
 - multilingual cost and lexicalization cases;

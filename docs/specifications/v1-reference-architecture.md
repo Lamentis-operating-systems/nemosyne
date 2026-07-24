@@ -81,13 +81,18 @@ stage, or a synchronous implementation.
 sequenceDiagram
     participant Caller as Local caller
     participant Compiler as Compiler
+    participant Auth as LocalPlatformAuthenticator
     participant Store as Local memory
     participant Focus as Focus branch
     participant Expect as Expectation branch
     participant Renderer as Renderer and validator
-    Caller->>Compiler: compile(claims, request, cancellation)
-    Compiler->>Compiler: Authenticate claims and derive private invocation context
+    Caller->>Compiler: open(InstallationLocator)
+    Caller->>Compiler: compile(CompileCallClaims, CompileRequest, CancellationToken)
     Compiler->>Compiler: Validate and retain original prompt bytes
+    Compiler->>Auth: Claims + request-presentation identity + prompt content identity
+    Auth->>Auth: Authenticate with compiler-owned handles, registries, and clock
+    Auth-->>Compiler: Private InvocationContext + AuthenticatedPrompt
+    Compiler->>Compiler: Resolve and pin K; construct sealed ingress binding
     Compiler->>Store: Open authorized immutable revision
     Store-->>Compiler: Revision, policy, exact data, and numerical views
     Compiler->>Compiler: Encode situation, retrieve, derive signals, activate
@@ -295,10 +300,28 @@ target schema declares and verifies backward compatibility.
 
 ### Situation encoding
 
-Situation encoding converts `P`, `S`, \(\Xi\), and the pinned configuration
-identity into a versioned numerical query state `Q`. Its exact lineage binding
-is
-\(B_Q=(request\_id,situation\_id,configuration\_id)\). `Q` contains only
+After prompt-origin authentication and configuration resolution, compiler
+ingress constructs one sealed \(\widehat B_{\mathrm{in}}\) under the
+authenticated pinned configuration `K`. Its `request_id` and `situation_id`
+are distinct domain-separated typed content identities over the canonical
+complete request and canonical ordered situation-evidence envelopes;
+`configuration_id` is the authenticated content identity of `K`. The public
+request accepts none of these fields. The canonical encoding, inner content
+digests, configuration-bound digests, collision-resistance assumption, and
+fail-closed collision-witness behavior are owned by the
+[cognitive-memory specification](cognitive-memory-activation-and-focus.md#numerical-query-state).
+
+Ingress independently projects
+\(B_Q=(request\_id,situation\_id,configuration\_id)\) into situation encoding
+and the same three fields into shared-set construction. Neither branch may
+copy the binding from the other, derive it from a lossy vector, or accept it
+from the caller. The later equality check therefore detects branch corruption,
+reuse, and cross-request swaps; retained canonical bytes permit recomputation
+and observed-collision rejection. Cryptographic collision resistance remains
+an explicit assumption rather than an absolute uniqueness claim.
+
+Situation encoding converts `P`, `S`, \(\Xi\), and `K` into a versioned
+numerical query state `Q`. `Q` contains only
 request-local prompt, situation, declared contextual-time, location, metadata,
 language, and configuration facts represented as typed vectors, scalars,
 identifiers, presence masks, and numerical relations. It retains validated
@@ -430,6 +453,19 @@ input:
   counterevidence, and may abstain; and
 - neither component retrieves ambient memory, repeats authorization, or
   mutates persistent state.
+
+The two branch outputs carry immutable `PlanningSourceProjection` fields for
+every consumable item: the exact common \(\Lambda_A\), essential-source
+identities, authority, allowed-use and surface-authority ceilings, mandatory
+qualifiers and relations, and exact-slot bindings. The combined planner
+receives no authority or disclosure view, principal, policy handle, or
+authorization service. It may only compare lineage, take a defined meet, copy
+or lower those upstream ceilings, and join an upstream slot binding to the
+same content identity in a minimized permissionless exact-surface inventory.
+Inventory presence never grants slot use. Missing, inconsistent, or expanded
+projections fail; planning never reauthorizes or widens disclosure. The
+[planning specification](focus-and-expectation-planning.md#immutable-authority-and-disclosure-projections)
+owns the complete projection contract.
 
 The expectation derivation, support semantics, uncertainty vector, medoids,
 coverage, and abstention are owned only by
@@ -596,6 +632,21 @@ impl PromptOriginPresentation {
     ) -> Result<Self, PromptOriginPresentationError>;
 }
 
+pub struct CancellationSource { /* private shared monotonic state */ }
+
+#[derive(Clone)]
+pub struct CancellationToken { /* private read-only shared state */ }
+
+impl CancellationSource {
+    pub fn new() -> Self;
+    pub fn token(&self) -> CancellationToken;
+    pub fn cancel(&self);
+}
+
+impl CancellationToken {
+    pub fn is_cancelled(&self) -> bool;
+}
+
 pub struct Compiler { /* private immutable configuration and handles */ }
 
 impl Compiler {
@@ -641,14 +692,39 @@ typed `OpenError` and creates no compiler.
 
 After successful resolution, `Compiler::open` constructs the selected
 compiler-owned `LocalPlatformAuthenticator` from the verified installation
-registries and compiler-owned platform handles. `compile` accepts only bounded
-untrusted call claims. It authenticates the current call, derives one
-crate-private `InvocationContext`, and obtains one immutable memory, policy,
+registries, compiler-owned platform handles, and compiler-owned trusted clock.
+`compile` accepts only bounded untrusted call claims, one intrinsically valid
+but untrusted request, and one read-only cancellation token. It authenticates
+the current call, derives one crate-private `InvocationContext` and one
+crate-private `AuthenticatedPrompt`, and obtains one immutable memory, policy,
 configuration, and artifact revision for that call. The private context-taking
-compile core is not exported. An invocation context is never supplied by the
-caller, retained by `Compiler`, or reused across requests.
+compile core is not exported. An invocation context or authenticated-prompt
+value is never supplied by the caller, retained by `Compiler`, or reused
+across requests.
 The compiler can serve sequential or concurrent read-only requests only when
 its adopted storage and model runtime prove safe sharing.
+
+`CancellationSource` and `CancellationToken` form the complete public logical
+cancellation boundary. An external crate can create a source, derive any
+number of clonable tokens, retain the source, and pass one token by shared
+reference to each call it may cancel. Both types and every token clone are
+`Send + Sync`. All tokens from one source observe one shared state. Calling
+`cancel` is thread-safe, monotonic, and idempotent: the state changes at most
+once from active to cancelled, can never be reset, and every check that occurs
+after `cancel` returns observes cancellation. Dropping the source does not
+cancel implicitly. The shared state lives until the last source or token clone
+is dropped, so a token remains valid after the source is dropped.
+
+The compiler checks the token before authentication and at every bounded
+stage boundary defined below. A stage already executing may finish work before
+its next check, but no later stage begins after that check reports
+cancellation. A cancellation that linearizes before the final pre-return check
+returns `ResourceFailure` and no `CompiledPrompt`; cancellation after a
+successful return cannot retract the returned value. Cancellation does not
+roll back immutable reads and never authorizes a retry. The source, token,
+cancellation state, timing of cancellation, and token identity convey no
+principal, origin, disclosure, configuration, policy, memory, or other
+authority and cannot increase any limit.
 
 The public claims are logically:
 
@@ -675,6 +751,44 @@ a platform resource handle. The exact bytes remain untrusted until
 `LocalPlatformAuthenticator` combines them with compiler-owned operating-system
 or peer handles, channel or executable identity, trusted clock, and
 authenticated installed registries.
+
+Before producing any `AuthenticatedPrompt`, the authenticator must prove that
+the presentation is valid for this exact compile invocation and is bound to
+both:
+
+- the content identity of the retained `original_prompt`, computed over its
+  exact length and UTF-8 bytes without normalization, trimming, newline
+  conversion, transcoding, or reserialization; and
+- a compiler-derived `request_presentation_identity` whose equality covers the
+  request schema and the complete, ordered, intrinsically validated
+  `CompileRequest`, including the prompt content identity, situation order,
+  contextual time, location, metadata, output language, and attention-budget
+  ceiling.
+
+Neither identity is accepted from the caller as an authority claim. Changing
+any covered prompt byte or request field creates a different identity and
+invalidates the presentation binding. A presentation issued for one
+prompt/request pair cannot authenticate another pair, and a stale presentation
+cannot authenticate a later invocation. `SEC-00` must select the concrete
+authenticated encoding, domain separation, freshness or one-time-use
+mechanism, and platform proof source; this specification fixes the semantic
+binding and fail-closed behavior rather than a cryptographic format.
+`AuthenticatedPrompt` is a crate-private request-local proof that this exact
+binding succeeded. It grants only the prompt-origin precondition and cannot
+carry or raise principal, disclosure, configuration, policy, memory, or
+capability authority. The private core cannot be entered with a raw prompt
+alone: it requires the `AuthenticatedPrompt` paired with the retained request,
+and validates that pair before any prompt-dependent retrieval or rendering.
+
+`request_presentation_identity` is configuration-independent and exists only
+to authenticate this public request before configuration authority is
+resolved. It is not the later `request_id` in
+\(\widehat B_{\mathrm{in}}\). After authentication, the compiler resolves and
+pins `K`; `SIT-01` then derives the configuration-bound `request_id` and
+`situation_id` from the same retained canonical request content. Both identity
+layers use registered domain-separated canonical encodings. Equality and
+changed-content separation are conditional on the named collision-resistance
+assumption; any observed same-identity/different-content witness fails closed.
 
 The optional installed-configuration and disclosure identities are requests
 for an installed configuration and an equal-or-narrower disclosure ceiling;
@@ -708,15 +822,25 @@ the appropriate typed `OpenError` or `CompileError`, respectively.
 For each public call, `Compiler::compile` performs this fixed sequence:
 
 1. check cancellation before trust or persistence work;
-2. give the claims and the compiler-owned platform handles to
+2. retain the request and its byte-identical prompt, then derive the
+   compiler-internal prompt content identity and
+   `request_presentation_identity`;
+3. give the claims, both derived identities, and only compiler-owned platform
+   handles, authenticated registries, and trusted clock to
    `LocalPlatformAuthenticator`;
-3. derive and validate a fresh private `InvocationContext`;
-4. resolve the requested configuration and any narrower disclosure request
+4. authenticate freshness and the exact presentation-to-prompt/request
+   binding, then derive a fresh private `InvocationContext` and
+   `AuthenticatedPrompt`;
+5. resolve the requested configuration and any narrower disclosure request
    through authenticated installed registries;
-5. pin authorization time, policy, configuration, memory, and artifact
-   revisions; and
-6. invoke the private context-taking compile core with the same cancellation
-   token.
+6. pin authorization time, policy, configuration, memory, and artifact
+   revisions;
+7. construct one sealed \(\widehat B_{\mathrm{in}}\) from the retained
+   canonical request content and authenticated pinned configuration, then
+   independently project it into situation encoding and shared-set
+   construction; and
+8. invoke the private context-taking compile core with the authenticated prompt
+   and the same cancellation token.
 
 The authenticator may trust only sources selected by `SEC-00` and supported by
 the frozen runtime topology: operating-system effective-user or peer
@@ -748,9 +872,10 @@ evidence:
 
 - a separate external test crate imports only documented public items,
   constructs `InstallationLocator`, `PromptOriginPresentation`,
-  `CompileCallClaims`, `CompileRequest`, and `CancellationToken`, opens a
-  compiler, calls `compile`, cancels before authentication and during the
-  private core, and observes only `CompiledPrompt` or one typed public error;
+  `CompileCallClaims`, `CompileRequest`, `CancellationSource`, and
+  `CancellationToken`, opens a compiler, calls `compile`, cancels before
+  authentication and during the private core, and observes only
+  `CompiledPrompt` or one typed public error;
 - compile-fail privacy tests prove downstream code cannot import, name,
   construct, destructure, or retain `InvocationContext`, call the private
   context-taking core, mutate public values after construction, or supply a
@@ -764,7 +889,17 @@ evidence:
   prove that none can increase the authority derived from compiler-owned
   trusted sources; malformed representations fail construction, while
   syntactically valid but unauthenticated locators or presentations fail at
-  their typed open or compile boundary; and
+  their typed open or compile boundary;
+- substitution, replay, and cross-pair tests change each exact prompt byte and
+  each request-identity field independently, swap presentations between
+  requests with equal and unequal prompts, reuse a presentation in a later
+  invocation, and prove that no mismatched or stale pair can construct
+  `AuthenticatedPrompt`;
+- cancellation tests cover source drop without implicit cancellation, token
+  cloning across threads, idempotent concurrent cancellation, monotonic
+  visibility, every pre-stage and during-stage check, the final success race,
+  and the invariant that cancellation can never increase authority or a
+  resource ceiling;
 - no-fallback tests vary process environment, current directory, and
   caller-visible paths and prove that installation or trust resolution is
   unchanged; and
@@ -857,14 +992,17 @@ silently falls back. Explicit selection affects generated attention only and
 never translates or rewrites the retained prompt.
 
 `InvocationContext` is a crate-private value constructed only by the
-platform-authenticated invocation adapter owned by `nemosyne-compiler` and
+compiler-owned `LocalPlatformAuthenticator` in `nemosyne-compiler` and
 `API-01`. The type, constructors, and private context-taking compile core are
-not publicly nameable. The adapter resolves the principal and caller from the
-selected platform trust mechanism, verifies prompt-origin evidence, reads the
-trusted authorization clock, and resolves the disclosure policy, installed
+not publicly nameable. Only the authenticator receives compiler-owned
+operating-system or peer handles, authenticated installation and policy
+registries, and the trusted authorization clock. It resolves the principal and
+caller from the selected platform trust mechanism, authenticates the exact
+prompt/request binding, and resolves the disclosure policy, installed
 configuration identity, and capability limits through the installation's
 authenticated registries. It returns either one validated request-local
-context or a typed trust/configuration error.
+`InvocationContext` together with its request-local `AuthenticatedPrompt`, or
+a typed trust/configuration error.
 
 The selected identity resolves only through the installation's authenticated
 manifest; caller input can transport an identifier but cannot name an
@@ -929,15 +1067,22 @@ would require an `OD-03` compatibility decision. No CLI option accepts an
 installation path, manifest, registry, trust root, credential, or platform
 handle.
 
-The CLI constructs `PromptOriginPresentation` from the registered versioned CLI
-origin-route tag and the bounded opaque presentation bytes available from its
-selected launch or authenticated local channel. It then constructs
-`CompileCallClaims` with that presentation, the transported
-`--configuration` identity, and no wider disclosure request. It does not
-authenticate the presentation and cannot pass the underlying launch, peer, or
-operating-system handle through the public API. No CLI option can set
-principal, caller verdict, authorization time, policy, authorization-view
-identity, or capability.
+After constructing the immutable `CompileRequest`, the CLI constructs
+`PromptOriginPresentation` from the registered versioned CLI origin-route tag
+and the bounded opaque presentation bytes produced by its selected launch or
+authenticated local-channel protocol for that exact request and prompt. It
+then constructs `CompileCallClaims` with that presentation, the transported
+`--configuration` identity, and no wider disclosure request. The CLI does not
+declare either internal identity, authenticate the presentation, or pass the
+underlying launch, peer, or operating-system handle through the public API.
+`LocalPlatformAuthenticator` independently derives the exact prompt-content
+identity and configuration-independent `request_presentation_identity` from
+the received request, then verifies the presentation binding against the
+compiler-owned side of the selected channel. Only after that succeeds does
+`SIT-01` derive the configuration-bound `request_id` and `situation_id` from
+the same retained request under authenticated pinned \(K\). No CLI option can
+set principal, caller verdict, any of those internal identities,
+authorization time, policy, authorization-view identity, or capability.
 Configuration supplies limits when
 `--attention-budget` or `--configuration` is absent; it never guesses
 contextual time or location. `--configuration` selects an installed,
@@ -1056,8 +1201,8 @@ flowchart TD
 | `nemosyne-core` | Dependency-light validated domain types and deterministic activation, expectation, and plan algorithms | Filesystem, database, network, model runtime, CLI, or telemetry |
 | `nemosyne-memory` | Local storage, immutable revisions, authorization views, migrations, indexes, backup, recovery, and provisioning | Rendering, downstream model calls, or semantic planning |
 | `nemosyne-renderer` | Plan adapter, local lexicalizer runtime, exact slots, and independent faithfulness validation | Memory retrieval, hypothesis generation, authority policy, or action selection |
-| `nemosyne-compiler` | `InstallationLocator`, `PromptOriginPresentation`, `CompileCallClaims`, the public callable API, compiler-owned installation resolution and bootstrap trust, the sole `LocalPlatformAuthenticator`, the crate-private `InvocationContext` and context-taking core, ingress, artifact preflight, authenticated installed-configuration resolution, situation encoding, retrieval orchestration, signal derivation, stage errors, and exact serialization | Caller-supplied paths, trust roots, registries, credentials, or platform handles; persistent writes during compile; public trusted-context construction; or adapter-specific terminal behavior |
-| `nemosyne-cli` | Argument and byte-stream transport; construction of the public untrusted installation locator, origin presentation, bounded call claims, request, and requested installed identity; public API invocation, exit mapping, and one buffered stdout delivery attempt | Installation or trust resolution, platform-handle transport, presentation authentication, `InvocationContext` construction, private-core access, duplicate compile logic, or claims of transport atomicity |
+| `nemosyne-compiler` | `InstallationLocator`, `PromptOriginPresentation`, `CompileCallClaims`, `CancellationSource`, `CancellationToken`, the public callable API, compiler-owned installation resolution and bootstrap trust, the sole `LocalPlatformAuthenticator`, the crate-private `InvocationContext`, `AuthenticatedPrompt`, and context-taking core, ingress, artifact preflight, authenticated installed-configuration resolution, situation encoding, retrieval orchestration, signal derivation, stage errors, and exact serialization | Caller-supplied paths, trust roots, registries, credentials, or platform handles; persistent writes during compile; public trusted-context construction; or adapter-specific terminal behavior |
+| `nemosyne-cli` | Argument and byte-stream transport; construction of the public untrusted installation locator, origin presentation, bounded call claims, request, cancellation source and token, and requested installed identity; public API invocation, exit mapping, and one buffered stdout delivery attempt | Installation or trust resolution, platform-handle transport, presentation authentication, `InvocationContext` or `AuthenticatedPrompt` construction, private-core access, duplicate compile logic, or claims of transport atomicity |
 | `nemosyne-admin` | Privileged initialization, revision publication, backup, restore, migration, export, deletion, and later correction command transport under explicit management capabilities | Compile transport, implicit writes, or a shared unprivileged invocation context |
 | Evaluation crates | Offline corpora, reports, baselines, calibration, and receipts | Runtime compile dependencies |
 
@@ -1293,22 +1438,60 @@ policies, or renderers after a call begins.
 
 ```mermaid
 flowchart LR
-    U["Authenticated local user/caller"] -->|request + invocation context| C["Trusted compiler boundary"]
-    DB[("Local private memory store")] -->|authorized immutable view| C
-    ART["Authenticated local artifacts"] -->|pinned read-only handles| C
-    C -->|compiled text only| CALLER["Trusted caller"]
-    CALLER -->|independent disclosure decision| EXT["External target AI trust domain"]
-    NET["Network"] -. "forbidden during compile" .-> C
-    MEM["Untrusted memory and situation content"] -->|data, never instructions| C
+    subgraph CALLER["Untrusted caller boundary"]
+        LOC["InstallationLocator"]
+        CLAIMS["CompileCallClaims"]
+        REQ["CompileRequest"]
+        CT["CancellationToken"]
+        CS["CancellationSource"]
+        CS -->|creates and cancels| CT
+    end
+
+    subgraph COMPILER["Trusted compiler boundary"]
+        OPEN["Compiler::open"]
+        API["Compiler::compile"]
+        AUTH["LocalPlatformAuthenticator"]
+        IC["crate-private InvocationContext"]
+        AP["crate-private AuthenticatedPrompt"]
+        CORE["private compile core"]
+        OPEN --> API
+        API -->|claims + derived request-presentation and prompt identities| AUTH
+        AUTH --> IC
+        AUTH --> AP
+        IC --> CORE
+        AP --> CORE
+        API --> CORE
+    end
+
+    LOC --> OPEN
+    CLAIMS --> API
+    REQ --> API
+    CT --> API
+
+    OS["Compiler-owned OS or peer handles"] --> AUTH
+    REG["Authenticated installation and policy registries"] --> AUTH
+    CLOCK["Compiler-owned trusted clock"] --> AUTH
+    DB[("Local private memory store")] -->|authorized immutable view| CORE
+    ART["Authenticated local artifacts"] -->|pinned read-only handles| CORE
+    CORE -->|compiled text only| RESULT["Caller result boundary"]
+    RESULT -->|independent disclosure decision| EXT["External target AI trust domain"]
+    NET["Network"] -. "forbidden during compile" .-> COMPILER
+    MEM["Untrusted memory and situation content"] -->|data, never instructions| CORE
 ```
 
-The compiler trusts authenticated identities and pinned policy/artifact roots;
-it does not trust semantic content merely because it is local. Threats and
-required controls include:
+The four values crossing from the caller are exactly `InstallationLocator`,
+`CompileCallClaims`, `CompileRequest`, and `CancellationToken`; all remain
+untrusted at entry. `CancellationSource` remains caller-side. No caller-owned
+handle, root, registry, clock, principal, context, or authenticated-prompt
+value crosses the boundary. The compiler trusts only identities derived by
+`LocalPlatformAuthenticator` and pinned policy/artifact roots; it does not
+trust semantic content merely because it is local. Threats and required
+controls include:
 
 | Threat | Required control |
 | --- | --- |
 | Unauthorized or cross-user memory | Principal isolation and authorization before retrieval competition |
+| Prompt substitution, origin replay, or cross-request presentation reuse | Exact prompt-byte and complete request-identity binding, authenticated freshness or one-time use, and request-local `AuthenticatedPrompt` construction |
 | Prompt injection stored in memory | Treat content as data; authority labels, exclusions, no raw prompt execution |
 | Poisoned transition | Provenance, allowed-use status, dependency grouping, counterevidence, and abstention |
 | Duplicate imports | One dependency support budget; duplicate diagnostics |
@@ -1491,6 +1674,27 @@ class and an inspectable underlying stage or cause.
 | `PolicyViolation` | A compile component attempts prohibited network or persistent write access | `9` |
 | `InternalInvariantViolation` | Internal state violates a validated constructor or unreachable-state invariant | `70` |
 
+`PromptOrigin` has closed typed source reasons
+`OriginBindingMismatch`, `OriginPresentationExpired`,
+`OriginReplayRejected`, and `OriginUnverifiable`. Each maps to exit `3`,
+returns no `AuthenticatedPrompt`, and is not automatically retried. A mismatch
+between the presentation and either the exact prompt content identity or
+`request_presentation_identity` is `OriginBindingMismatch`; it is not
+reclassified as request syntax, authorization-view availability, or a
+renderer failure.
+
+Pre-focus `IngressBindingError` is likewise closed and total.
+`InvalidIngressBinding` covers malformed, noncanonical,
+recomputation-inconsistent, reused, swapped, or configuration-inconsistent
+branch projections. `ContentIdentityCollision` covers an observed
+same-complete-identity/different-canonical-content witness. Both map to
+`InternalInvariantViolation`, exit `70`, and are not retryable for the same
+binary, identity schema, digest algorithm, configuration, and retained input.
+The compiler quarantines the affected identity/configuration path; it never
+regenerates an ID, accepts a caller replacement, or continues with lossy
+facets. An unauthenticated, missing, or digest-invalid configuration manifest
+remains `ArtifactUnavailable`; it is not an ingress-identity collision.
+
 Invalid UTF-8 exists only at a byte-oriented adapter boundary because the
 library accepts a valid Rust `String`; it is a CLI input failure mapped to exit
 `2`, not a `CompileError`. `InstallationLocatorError` and
@@ -1548,7 +1752,7 @@ Planning-stage causes map as follows:
 | Requested language is absent, undetermined, or outside the installed declared language set | `UnsupportedLanguage` | Reject before selection |
 | Pinned priority table, classifier, schema, cost function, tokenizer identity, slot policy, or other required planning artifact is missing, malformed, digest-invalid, internally inconsistent, or falsely claims the selected language/domain | `ArtifactUnavailable` | Reject and invalidate that installed artifact identity |
 | Validated input has a schema or lineage mismatch, invalid role or disposition, missing qualifier or relation, conflicting controls, invalid exact-slot shape, or no structurally feasible plan | `PlanningFailure` | Return the typed planning source; no partial plan |
-| A source unknown to or excluded from the authorized shared set reaches planning, or planning would raise an authority ceiling | `InternalInvariantViolation` | Stop; authorization-before-relevance was violated |
+| A source absent from its immutable `PlanningSourceProjection` reaches planning; a projection, exact-slot binding, or exact-surface content identity is missing or inconsistent; or planning would raise an authority, allowed-use, or surface-authority ceiling | `InternalInvariantViolation` | Stop; authorization-before-relevance or lowering-only projection integrity was violated; never query a live authority view |
 | Checked planning-cost arithmetic overflows or exits the domain of a preflight-validated artifact | `InternalInvariantViolation` | Stop; do not saturate or reinterpret as budget pressure |
 | Canonical planning candidates exceed the pinned closure or tagged-member ceiling | `ResourceFailure` | Reject before subset enumeration |
 | A structurally faithful mandatory or otherwise justified nonempty attention projection cannot fit the resolved budget | `InsufficientAttentionBudget` | Return no product result; do not emit budget-driven empty attention |

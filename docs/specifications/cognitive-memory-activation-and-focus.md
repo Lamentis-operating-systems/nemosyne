@@ -64,7 +64,7 @@ This table owns symbols reused only inside this specification:
 | \(f=(\tau_f,v_f,\kappa_f,\nu_f)\) | One typed numerical facet and its type, payload, transform identity, and presence state |
 | \(F_i,X_i,H_i\) | Memory-unit facets, exact sidecars, and history/transition references |
 | \(F_Q,X_Q,G_Q,Z_Q\) | Query facets, exact values, active goals, and typed absence/quality state |
-| \(B_Q,J_{QA}\) | Query-owned request/situation/configuration binding and its validated join with shared-set lineage |
+| \(\widehat B_{\mathrm{in}},B_Q,J_{QA}\) | Compiler-owned ingress content binding, its query projection, and its validated join with shared-set lineage |
 | \(c_{i,f},C_i\) | One calibrated direct cue and the complete direct-cue vector |
 | \(k_{\mathrm{hist}},n_i^{\mathrm{hist}},t_{i,k_{\mathrm{hist}}},\delta_{i,k_{\mathrm{hist}}}^{\mathrm{hist}},\beta_{\mathrm{decay}},b_i^{\mathrm{raw}},b_i\) | History-event index and count, event time, dimensionless age, decay exponent, raw base availability, and calibrated availability |
 | \(t_i,x_i,g_i,u_i,s_i\) | Temporal, spatial, goal, procedural, and social relevance channels |
@@ -176,6 +176,170 @@ source of truth.
 
 ### Numerical query state
 
+Compiler ingress first validates the complete public compile request against
+the authenticated, pinned configuration `K` and retains immutable exact input
+buffers. The request schema does not accept `request_id`, `situation_id`,
+`configuration_id`, an identity digest, or an identity-algorithm override.
+Unknown fields attempting to supply any of those values are rejected rather
+than ignored. The compiler-owned `SIT-01` boundary then constructs exactly one
+sealed `IngressRequestBinding`:
+
+\[
+\widehat B_{\mathrm{in}}=
+(
+identity\_schema\_id,
+request\_id,
+situation\_id,
+configuration\_id
+).
+\]
+
+`configuration_id` is the authenticated content identity of the canonical
+compiler-configuration manifest selected before request identity derivation;
+that manifest enumerates the complete artifact set. The installation trust
+root authenticates the manifest, and the compile call pins it for its full
+lifetime. A caller may request one installed configuration through the public
+untrusted claims contract, but cannot supply, substitute, or override the
+resolved authoritative `configuration_id`; the compiler authenticates,
+authorizes, and resolves that request before ingress derives the identity.
+Missing authentication, a manifest digest mismatch, an unauthorized or absent
+requested configuration, or a configuration change after pinning fails before
+`Q`, retrieval, or authorization-view construction.
+`identity_schema_id` and `digest_algorithm_id` are authenticated members of
+that pinned manifest; an unknown algorithm, caller-selected override, or
+downgrade is the same pre-ingress failure class.
+
+`request_id` and `situation_id` are distinct typed content identities, not
+caller labels and not bare interchangeable hash strings. Each contains:
+
+```text
+TypedContentIdentity
+├── identity_schema_id
+├── digest_algorithm_id
+├── content_digest
+└── bound_digest
+```
+
+The two identities use different closed type tags and different
+domain-separation tags. Let `CE_v1` be the versioned canonical identity
+encoding selected by the authenticated `identity_schema_id`. It is an
+injective, length-delimited type-length-value encoding: field tags are
+registered, lengths and unsigned integers use the one schema-defined
+big-endian representation, optional fields carry an explicit absent or present
+tag, maps are sorted by registered field identity, and sequences retain their
+semantic order. Unknown or duplicate fields are errors. A serialized envelope
+or binding that is not in the unique canonical field order is rejected on
+validation. Exact prompt and situation UTF-8 bytes are copied without Unicode
+normalization, whitespace rewriting, newline conversion, or case folding.
+
+Define the canonical situation-evidence envelope:
+
+\[
+C_S =
+CE_{v1}(
+  situation\_statements_{\mathrm{ordered}},
+  t_{\mathrm{context}},
+  declared\_location,
+  host\_application,
+  workspace,
+  project,
+  remaining\_registered\_situation\_metadata
+).
+\]
+
+Every situation statement is encoded with its zero-based ordinal and exact
+validated bytes. Contextual time uses the schema's exact parsed instant and
+offset representation; declared location and every other registered metadata
+value retain their typed presence state and exact canonical value. Input map
+iteration order is not semantic.
+
+Define the canonical complete-request envelope:
+
+\[
+C_R =
+CE_{v1}(
+  original\_prompt\_bytes,
+  C_S,
+  declared\_output\_language,
+  attention\_budget,
+  remaining\_registered\_compile\_controls
+).
+\]
+
+`C_R` therefore commits to every validated public compile-request field, while
+`C_S` commits specifically to the ordered situation and contextual evidence.
+Neither envelope contains principal, `t_auth`, policy, authorization-view
+state, ambient clock data, or any derived identifier.
+
+For the pinned collision-resistant digest `H`, ingress derives the following;
+every displayed concatenation operand is itself `CE_v1` length framed, so no
+two operand sequences have the same byte encoding:
+
+\[
+d_R=H(\texttt{"nemosyne/v1/request-content"}\parallel C_R),
+\qquad
+d_S=H(\texttt{"nemosyne/v1/situation-content"}\parallel C_S),
+\]
+
+\[
+b_R=H(
+\texttt{"nemosyne/v1/request-id"}
+\parallel identity\_schema\_id
+\parallel digest\_algorithm\_id
+\parallel configuration\_id
+\parallel d_R
+),
+\]
+
+\[
+b_S=H(
+\texttt{"nemosyne/v1/situation-id"}
+\parallel identity\_schema\_id
+\parallel digest\_algorithm\_id
+\parallel configuration\_id
+\parallel d_S
+).
+\]
+
+`request_id` is the typed tuple
+`(identity_schema_id, digest_algorithm_id, d_R, b_R)` and `situation_id` is the
+distinct typed tuple
+`(identity_schema_id, digest_algorithm_id, d_S, b_S)`. Consequently, identical
+validated request content under the same authenticated schema and
+configuration produces identical identities. A prompt, situation ordering,
+context value, metadata presence/value, language, budget, schema, or
+configuration change changes the corresponding bound identity subject to the
+stated digest-collision assumption. Situation changes change both
+`situation_id` and `request_id`; non-situational request-control changes need
+change only `request_id`.
+
+The construction validates every embedded field by recomputing it from the
+retained canonical envelopes. A supplied, constant, cross-request, or
+otherwise non-derived identity, including reuse of a prior request's identity
+with nonidentical canonical content, is `InvalidIngressBinding`. If the
+compiler or verification harness observes the same complete typed identity
+associated with different canonical bytes, it reports
+`ContentIdentityCollision` and fails closed. A true collision of `H` that is
+not exposed by retained-byte comparison cannot be ruled out mathematically;
+changed-content separation is therefore conditional on canonical-encoding
+injectivity and the collision-resistance assumption for `H`, not an absolute
+uniqueness claim.
+
+The sealed binding is forked from compiler ingress to two independent
+consumers. Situation encoding copies its three-field projection
+
+\[
+B_Q=(request\_id,situation\_id,configuration\_id)
+\]
+
+into `X_Q`. Shared-set construction independently copies the same three fields
+from \(\widehat B_{\mathrm{in}}\) into the corresponding projection of
+\(\Lambda_A\). It must not copy them from `Q`, derive them from lossy query
+facets, reconstruct them from ambient state, or accept them from the caller.
+This common compiler-owned source makes the later join meaningful: the two
+branches can detect corruption, reuse, or cross-request mixing without giving
+the focus branch an authorization dependency.
+
 Situation encoding produces:
 
 \[
@@ -193,7 +357,7 @@ where:
 - `F_Q` contains typed prompt, situation, temporal, spatial, task, social,
   procedural, and risk-related facets;
 - `X_Q` contains exact request-local values, typed prompt, situation, and
-  metadata source bindings, and exactly one canonical query binding
+  metadata source bindings, and exactly one validated canonical query binding
   \(B_Q=(request\_id,situation\_id,configuration\_id)\);
 - `G_Q` contains explicitly active goal states and their declared priorities;
   and
@@ -699,13 +863,33 @@ J_{QA}=
 B_Q=\pi_Q(\Lambda_A).
 \]
 
-The comparison is exact and follows the displayed field order. A missing,
-duplicate, malformed, or non-canonical field in \(B_Q\) is
-`InvalidQueryBinding`; an equality failure is `LineageMismatch`. On success,
-\(J_{QA}\) retains \(B_Q\) and the source-receipt projection from the same
-\(\Lambda_A\). `policy_revision_id` and `authorization_view_id` come
+The comparison is exact and follows the displayed field order. Equality of
+`request_id` and `situation_id` compares their complete typed identity values,
+including identity schema, digest algorithm, content digest, and
+configuration-bound digest; comparing only an outer digest or display form is
+invalid. Before equality, both branch projections must validate against the
+one sealed \(\widehat B_{\mathrm{in}}\) retained by the compiler call. The
+`Q` projection and the \(\Lambda_A\) projection were copied independently
+from that ingress value; neither validates the other merely by echoing its
+fields.
+
+A missing, duplicate, malformed, non-canonical, recomputation-inconsistent, or
+configuration-inconsistent field in \(B_Q\) is `InvalidQueryBinding`.
+Malformed or recomputation-inconsistent shared-set lineage is a shared-set
+structural error. An otherwise valid equality failure, cross-request swap, or
+source-content mismatch is `LineageMismatch`. Detected reuse of one complete
+typed identity for different retained canonical content is
+`ContentIdentityCollision`. Every failure is terminal for that compile call;
+there is no ID regeneration, caller fallback, lossy-facet comparison, or
+best-effort join.
+
+On success, \(J_{QA}\) retains \(B_Q\) and the source-receipt projection from
+the same \(\Lambda_A\). `policy_revision_id` and `authorization_view_id` come
 exclusively from \(\Lambda_A\); they are never read from, compared against, or
-reconstructed from `Q` or ambient process state.
+reconstructed from `Q`, \(\widehat B_{\mathrm{in}}\), or ambient process
+state. Conversely, the request, situation, and configuration identities in
+\(\Lambda_A\) originate only from compiler ingress, not from `Q` or the
+authorization view.
 
 \(\mathcal R_Q\) is a finite canonical `RequestPropositionSet`:
 
@@ -741,7 +925,9 @@ RequestPropositionSet
 
 `query_binding` is the exact ordered copy of \(B_Q\). Its field order is
 `request_id`, `situation_id`, then `configuration_id`; it contains no policy
-or authorization-view identity.
+or authorization-view identity. Each content-identity field retains its typed
+inner schema, algorithm, content-digest, and bound-digest components; a
+serialization that drops those components is not the same binding.
 
 The five-field `source_receipt` is created only after the canonical join and
 is the exact ordered projection of \(\Lambda_A\), not a second lineage
@@ -1233,6 +1419,14 @@ A conforming experiment requires:
 - Missing, unknown, and zero are distinct states.
 - Every vector comparison uses compatible typed spaces and pinned transforms.
 - Every evidence and inhibition value has a traceable derivation and source.
+- `request_id`, `situation_id`, and `configuration_id` are compiler-owned
+  typed identities derived under one authenticated pinned configuration;
+  callers cannot supply them, and neither `Q` nor an authorization view is
+  allowed to mint or overwrite them.
+- The query and shared-set branches receive independent projections of the
+  same sealed ingress binding. Exact typed-identity equality, configuration
+  equality, canonical-envelope recomputation, and any observed collision
+  evidence are checked before request-derived focus can be constructed.
 - Every request-derived focus source is bound to exact validated prompt,
   situation, or metadata evidence, the exact three-field \(B_Q\), and a
   successful canonical join with \(\Lambda_A\). Policy and
@@ -1474,6 +1668,18 @@ Verification must establish:
   ordered zero-to-three situation statements, contextual-time, location, and
   metadata presence states, and pinned encoder/configuration inputs produce
   identical facets, \(B_Q\), locators, and source-buffer content identities;
+- deterministic ingress identity: repeated canonical encoding of the exact
+  same validated compile request under the same authenticated identity schema
+  and configuration produces byte-identical typed `request_id` and
+  `situation_id`; metadata map insertion-order permutations do not change
+  them;
+- mutation separation under the digest assumption: a one-byte prompt mutation
+  changes `request_id` while preserving `situation_id`, and a statement byte,
+  statement-order, contextual-time, declared-location, or registered
+  situation-metadata mutation changes both `situation_id` and `request_id`;
+- configuration binding: the same request under another authenticated
+  configuration produces different bound identities, while an unauthenticated,
+  caller-selected, stale, or post-pin configuration identity is rejected;
 - changing only `t_auth`, principal, policy, or authorization-view state cannot
   change `Q`, while attempting to place any such field in request evidence is
   rejected before encoding;
@@ -1487,7 +1693,8 @@ Verification must establish:
 - deterministic canonical ordering;
 - request-proposition source-locator validity, receipt equality, authority
   ceilings, order-key correctness, and permutation invariance;
-- exact \(B_Q=\pi_Q(\Lambda_A)\) joining, absence of policy and
+- exact \(B_Q=\pi_Q(\Lambda_A)\) joining over independently copied ingress
+  projections, full typed-content-identity comparison, absence of policy and
   authorization-view fields from `Q`, and absence of a direct authorization
   dependency or repeated authorization call in focus construction;
 - equivalence between derived activation inputs and the existing kernel's
@@ -1515,6 +1722,19 @@ A curated, disjoint evaluation corpus must test:
 - request/source-receipt mismatch, invalid UTF-8 range, duplicate source key,
   invalid query binding, query/shared-set lineage mismatch, unknown
   derivation, non-finite \(q_k\), and unsupported exact-slot cases;
+- prompt, situation, context, metadata-presence, language, budget,
+  identity-schema, and configuration mutation fixtures with their exact
+  expected `request_id`/`situation_id` preservation or separation behavior;
+- a cross-request swap that pairs `Q` from request A with \(\Lambda_A\) from
+  request B, including requests with identical prompts but different
+  situation evidence;
+- constant-ID, prior-request-ID reuse, caller-supplied-ID, outer-digest
+  collision, and full collision-witness injection fixtures; every detected
+  recomputation mismatch or same-identity/different-canonical-bytes witness
+  must fail closed, while the true-digest-collision case remains an explicit
+  cryptographic assumption rather than a tested uniqueness proof;
+- authenticated configuration pinning, manifest mismatch, post-pin
+  substitution, and branch-configuration mismatch fixtures;
 - parameter sensitivity and monotonicity where the mathematics requires it;
 - perturbation of time, location, participant, goal, risk, and procedure
   facets independently;

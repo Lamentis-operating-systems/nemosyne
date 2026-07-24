@@ -69,7 +69,8 @@ and claims must use registered or visibly qualified symbols.
 | \(\mathcal G_i\) | finite relation set | Typed numerical memory relations for \(m_i\) | [Cognitive memory specification](cognitive-memory-activation-and-focus.md) |
 | \(\Pi_i\) | typed metadata | Provenance, authority, validity, uncertainty, and policy of \(m_i\) | [Cognitive memory specification](cognitive-memory-activation-and-focus.md) |
 | \(Q\) | numerical query state | Encoding of \(P,S,\Xi\) under pinned \(K\); no trusted authorization input | [Cognitive memory specification](cognitive-memory-activation-and-focus.md) |
-| \(B_Q\) | exact query binding | \((request\_id,situation\_id,configuration\_id)\) derived with \(Q\) | [Cognitive memory specification](cognitive-memory-activation-and-focus.md) |
+| \(\widehat B_{\mathrm{in}}\) | sealed ingress binding | Compiler-owned typed request, situation, identity-schema, and authenticated configuration identities derived once from exact canonical request content | [Cognitive memory specification](cognitive-memory-activation-and-focus.md) |
+| \(B_Q\) | exact query binding | \((request\_id,situation\_id,configuration\_id)\), independently projected from \(\widehat B_{\mathrm{in}}\) into \(Q\); the request and situation fields are complete typed content identities, not caller labels or bare digests | [Cognitive memory specification](cognitive-memory-activation-and-focus.md) |
 | \(C^r\) | finite retrieved set | Authorized bounded retrieval result | [Reference architecture](v1-reference-architecture.md) |
 | \(N\) | finite numerical candidates | Derived activation candidates and signals | [Cognitive memory specification](cognitive-memory-activation-and-focus.md) |
 | \(\mathbb U\) | \([0,1]\) | Predictive derivation's closed finite unit interval | [Predictive-attention specification](predictive-attention-and-expectation.md) |
@@ -269,7 +270,7 @@ normative and move only with a same-change registry update.
 | ID | Sole owner | Domain, codomain, totality, and numeric contract | Required property and counterexample class | Executable evidence owner | Obligation and gate |
 | --- | --- | --- | --- | --- | --- |
 | `ALG-SER-01` | [Product output](v1-product-contract.md#successful-output) | Validated attention bytes plus retained prompt bytes to one compiled byte string; exact byte serialization; total after validation | Prompt is the final byte-identical suffix; test normalization, line endings, nested headers, and trailing bytes | `API-01`, `CLI-01`, `SYS-01` | F1, F9; G7 |
-| `ALG-MEM-01` | [Numerical query state](cognitive-memory-activation-and-focus.md#numerical-query-state) | \(P,S,\Xi,K\) to \(Q\) and \(B_Q=(request,situation,configuration)\); typed failure; presence differs from numeric zero; exact prompt remains outside \(Q\); no principal, trusted time, policy, or authorization-view input | Deterministic situation encoding without authority inference; test prompt and zero-to-three situation ordering, contextual-time/location/metadata presence, pinned encoder identity, ambient/trusted-time noninterference, absent-as-zero, prompt mutation, locators, and content identities | `SIT-01`, `ENC-01` | F2, F3, F10; G3 |
+| `ALG-MEM-01` | [Numerical query state](cognitive-memory-activation-and-focus.md#numerical-query-state) | Authenticated pinned \(K\) plus the exact validated compile request produce one sealed \(\widehat B_{\mathrm{in}}\), independently projected \(B_Q=(request,situation,configuration)\), and \(Q\); request/situation IDs are domain-separated typed content identities over injective canonical envelopes; typed failure; presence differs from numeric zero; exact prompt remains outside \(Q\); no caller-owned ID, principal, trusted time, policy, or authorization-view input | Same content/configuration is deterministic; changed content/configuration separates subject to the digest-collision assumption; recomputation mismatch and observed collision evidence fail closed; test prompt/situation/context/control mutations, map permutation, cross-request branch swaps, constant/reused/caller IDs, collision witnesses, configuration substitution, locators, content identities, and ambient/trusted-time noninterference | `SIT-01`, `ENC-01` | F2, F3, F10, F12; G3 |
 | `ALG-MEM-02` | [Eligible memory view](cognitive-memory-activation-and-focus.md#eligible-memory-view) | Authorized snapshot to \(\mathcal M_E\), then \(Q,\mathcal M_E\) to \(\mathcal M_Q\); total for valid policy artifacts; hard gates precede scores | Excluded records cannot crowd candidates; mutate only unauthorized, deleted, invalid, and usage-incompatible records | `MEM-03`, `RET-01`, `SEC-01` | F2, F3, F12; G2-G3 |
 | `ALG-MEM-03` | [Direct cue activation](cognitive-memory-activation-and-focus.md#direct-cue-activation) | Compatible query-memory facets to finite calibrated cues; metric, calibration, missingness, and canonical accumulation are pinned | Inspectable bounded cue lineage; test incompatible spaces, nonfinite values, and duplicated evidence | `SIG-01`, `ACT-00` | F8, F10; G4 |
 | `ALG-MEM-04` | [Base availability](cognitive-memory-activation-and-focus.md#base-availability-from-frequency-and-recency) | Valid history statistics to bounded availability; checked finite arithmetic in canonical event order | Recency and frequency affect accessibility, not truth or authority; test future and duplicate events | `SIG-01`, `EVAL-01` | F4, F8; G4 |
@@ -280,7 +281,7 @@ normative and move only with a same-change registry update.
 | `ALG-ACT-01` | [Activation mathematics](situation-conditioned-activation.md#mathematics) | Valid profile and candidates to complete ranking; implemented `f64`, canonical channels, exact score tie then `CandidateId` | \(E_i,R_i,A_i\in[0,1]\), monotonicity, deterministic reconstruction | Existing `nemosyne-core` tests, `ACT-00` | F8; G4 |
 | `ALG-EXP-01` | [Expectation hard eligibility](predictive-attention-and-expectation.md#expectation-projection-hard-eligibility) | \(\psi,\tau_i,K\) to \(\chi_{i,\psi}\); closed use, observation, frame, condition, missing-facet, and typed-reliability policy | Ineligible evidence cannot regain support through scores; test predicted evidence, unknown passive conditions, unavailable reliability, and incompatible reliability contracts | `EXP-01`, `EXP-02` | F2, F12, F15; G4 |
 | `ALG-EXP-02` | [Facet compatibility](predictive-attention-and-expectation.md#facet-compatibility-and-missing-values) | Comparable facets, condition, and horizon to compatibility plus diagnostics; real semantics and a frozen executable numerical policy | Preserve coverage versus mismatch; test missing values, unit mismatch, and each boundary | `EXP-02`, `EVAL-01` | F10, F15; G4 |
-| `ALG-EXP-03` | [Qualified support](predictive-attention-and-expectation.md#qualified-transition-support) | Eligible activation, compatibility, and compatible typed reliability to \(\alpha_i\); finite factors, explicit unavailable states, state-typed source/target migration lineage, and named feature interactions | Bounded inspectable support, never probability; test derived zero versus unavailable reliability, incompatible schemas and calibration domains, every cross-state migration class, exact rollback, unregistered migration, and duplicated raw-feature influence | `EXP-02`, `EVAL-01` | F8, F13; G4 |
+| `ALG-EXP-03` | [Qualified support](predictive-attention-and-expectation.md#qualified-transition-support) | Eligible activation, compatibility, and compatible typed reliability to \(\alpha_i\); finite factors, explicit unavailable states, target-state derivation/calibration identity, optional authenticated source/target migration lineage only for migrated values, and named feature interactions | Bounded inspectable support, never probability; test native values without invented migration, migrated values with complete lineage, derived zero versus unavailable reliability, incompatible schemas and calibration domains, every cross-state migration class, exact rollback, unregistered migration, and duplicated raw-feature influence | `EXP-02`, `EVAL-01` | F8, F13; G4 |
 | `ALG-EXP-04` | [Dependency-budgeted support](predictive-attention-and-expectation.md#dependency-budgeted-support) | Grouped support to \(s_{a,h},Z_a,r^{\mathrm{share}}_{h\mid a}\); one canonical budget per dependency group and family | Duplicates cannot multiply family budget; test cloned and split provenance roots | `EXP-02`, `EVAL-01`, `DATA-01` | F13, F14; G4 |
 | `ALG-EXP-05` | [Effective support count](predictive-attention-and-expectation.md#effective-support-group-count) | Positive group budgets to participation-ratio diagnostics; explicit zero case, canonical finite sums | Count is bounded by positive groups; test concentration and duplication | `EXP-02`, `EVAL-01` | F13-F15; G4 |
 | `ALG-EXP-06` | [Representative medoid](predictive-attention-and-expectation.md#representative-medoid) | Canonical outcome group and registered dissimilarity to one representative; finite limits and total fallback key | Deterministic representative without truth or metric claims; test unavailable and nontransitive distances | `EXP-02`, `PERF-01` | F10, F15; G4 |
@@ -288,7 +289,7 @@ normative and move only with a same-change registry update.
 | `ALG-EXP-08` | [Observation assessment](predictive-attention-and-expectation.md#observation-and-prediction-error-contract) | Immutable prior and independent sealed observation to typed assessment or error; validation precedes classification | Assessment cannot rewrite prior or memory; test predicted evidence, prior abstention, and compatible co-outcomes | `OBS-01`, `EVAL-02` | F4, F16; G9 |
 | `ALG-EXP-09` | [Learned-predictor research boundary](predictive-attention-and-expectation.md#learned-predictor-research-boundary) | Frozen supported envelope and detector artifacts to a pre-invocation disposition, then bounded in-domain slots to typed research candidates, abstention, or null; total through structural errors and independent OOD outcomes | Learned research cannot invent open-world outcomes, bypass eligibility, expose logits as probability, or become a silent V1 fallback | `ML-01`-`ML-03`, `EVAL-02` | P2 research only; F10, F12, F17 |
 | `ALG-EXP-10` | [Predictive-stage complexity](predictive-attention-and-expectation.md#computational-complexity) | Finite configured cardinalities and authenticated distance-cost bounds to explicit time and peak-additional-memory bounds | No hidden cross-frame all-pairs work; reject inputs or artifacts outside every declared finite ceiling | `EXP-02`, `PERF-01` | F8, F10; G4, G6 |
-| `ALG-PLAN-01` | [Structural projection](focus-and-expectation-planning.md#structural-plan-and-renderable-projection) | Closure selection to tagged \(G(X)\) and \(V(X)\); disjoint namespaces and canonical union | Renderer and validator truths cannot cross; test exact-payload and exclusion leakage | `PLAN-02`, `VAL-01` | F5-F7, F17; G4 |
+| `ALG-PLAN-01` | [Structural projection](focus-and-expectation-planning.md#structural-plan-and-renderable-projection) | Immutable branch-owned `PlanningSourceProjection` values and a minimized permissionless exact-surface inventory to closure selection, lowering-only ceiling meets, exact-slot joins, tagged \(G(X)\), and \(V(X)\); no principal, policy, authorization/disclosure view, or live grant | Renderer and validator truths cannot cross; planning cannot raise authority, allowed-use, or surface ceilings or turn inventory presence into permission; test projection mismatch, ambient-authority noninterference, exact-slot/content identity, inventory minimization, exact-payload, and exclusion leakage | `PLAN-02`, `VAL-01` | F5-F7, F12, F17; G4 |
 | `ALG-PLAN-02` | [Mandatory closure](focus-and-expectation-planning.md#mandatory-closure) | Candidates to atomic semantic closures; registered relations; overlapping tagged members counted once | Preserve qualifiers, conflicts, and complete material families; test dropped horizons and alternatives | `PLAN-02`, `EVAL-01` | F5, F6, F15; G4 |
 | `ALG-PLAN-03` | [Cost contract](focus-and-expectation-planning.md#cost-contract) | Renderable projection and rendered bytes to checked integer bound and measured cost; one unit, canonical accumulation, no saturation | Accepted bound is conservative and zero iff \(G=\varnothing\); test slot expansion, overflow, and tokenizer mismatch | `PLAN-02`, `REN-04`, `PERF-01` | F7; G4, G6 |
 | `ALG-PLAN-04` | [Feasible subsets](focus-and-expectation-planning.md#feasible-subsets) | Finite closures to structural and budget-feasible sets; explicit \(\mathcal J\) and cardinality ceilings | Budget cannot create false empty success; test control-only and all-nonempty-over-budget cases | `PLAN-02`, `EVAL-01` | F7, F9; G4 |
@@ -384,6 +385,29 @@ V1-deployable. Therefore, for fixed `P`, `S`, \(\Xi\), `I`, `ell`, and `B`, a
 successful call is a function of one logical memory-policy revision, both
 pinned time values, and one compiler-artifact and execution set even when a
 writer or updater publishes a later revision concurrently.
+
+Compiler ingress authenticates and pins `K` before constructing
+\(\widehat B_{\mathrm{in}}\). Under the injectivity of the registered
+canonical encoding and collision resistance of its authenticated digest
+algorithm:
+
+\[
+C_R=C_R' \land K=K'
+\Rightarrow request\_id=request\_id',
+\]
+
+\[
+C_S=C_S' \land K=K'
+\Rightarrow situation\_id=situation\_id',
+\]
+
+and unequal canonical content or configuration yields a different applicable
+typed identity except with digest-collision probability. This is a
+computational assumption, not an injective-hash proof. The retained canonical
+buffers permit recomputation checks and make any observed
+same-identity/different-content witness a fail-closed collision error.
+Principal, `t_auth`, policy, and authorization-view changes cannot affect
+either content identity because they are absent from both canonical envelopes.
 
 #### F4: Read-only compilation
 
@@ -507,13 +531,55 @@ Here, every lineage value is exactly the complete `source_receipt` tuple
 \(\Lambda_A\) owned by the predictive-attention specification. The focus set,
 expectation bundle, every contained expectation set, plan envelope, and
 \(\mathcal A\) expose the same typed fields, and equality is checked field by
-field rather than inferred from a derived digest or reconstructed ambient
-state.
+field rather than inferred from a newly derived aggregate digest or
+reconstructed ambient state. `request_id` and `situation_id` are themselves
+complete typed content identities; their schema, algorithm, content-digest,
+and configuration-bound-digest components are compared rather than only an
+outer display value.
 
-If any identity differs, planning fails. Neither branch may retrieve ambient
-memory, repeat authorization with a different policy, or mutate the shared
-set. This establishes one evidence boundary while preserving distinct focus
-and expectation semantics.
+Before that downstream equality, compiler ingress forks one sealed
+\(\widehat B_{\mathrm{in}}\) to situation encoding and shared-set
+construction. `Q` receives \(B_Q\) from the first projection, while
+\(\Lambda_A\)'s request, situation, and configuration projection receives the
+same binding directly from ingress. It is forbidden to initialize
+\(\Lambda_A\) from `Q` or to initialize `Q` from authorization state. The
+focus boundary validates:
+
+\[
+B_Q=\pi_Q(\Lambda_A)=
+\pi_{request,situation,configuration}(\widehat B_{\mathrm{in}})
+\]
+
+using the independently retained branch projections. A cross-request swap,
+constant or reused identifier, recomputation mismatch, configuration mismatch,
+or observed collision witness fails before request-proposition construction.
+
+If any identity differs, focus construction or planning fails. Neither branch
+may retrieve ambient memory, repeat authorization with a different policy, or
+mutate the shared set. This establishes one evidence boundary while preserving
+distinct focus and expectation semantics.
+
+Planning receives authority information only through the immutable
+branch-owned `PlanningSourceProjection` fields that already accompany each
+consumable item. For essential support \(s\), let \(A_s\), \(U_s\), and \(R_s\)
+be its authority, allowed-use, and surface-authority ceilings. A planned
+proposition may derive only the closed-schema meets
+
+\[
+A_p=\bigwedge_s A_s,\qquad
+U_p=\bigwedge_s U_s,\qquad
+R_p=\bigwedge_s R_s
+\]
+
+and may copy or lower those results; it cannot authorize, reauthorize, widen
+disclosure, or consult ambient principal, policy, authorization, or disclosure
+state. The separate exact-surface inventory is the canonical minimum union of
+upstream-referenced slots and carries only bytes, content identity, and display
+metadata. Inventory presence grants no use: the matching upstream slot/item
+binding and identical content identity are both mandatory. Projection,
+ceiling, slot, or surface mismatch fails closed. Therefore ambient authority
+changes that do not change the immutable branch inputs and pinned planning
+configuration cannot change the plan.
 
 #### F13: Dependency-budget and duplicate non-amplification
 
@@ -610,16 +676,16 @@ the contract to test rather than proving a model can satisfy it.
 
 | ID | Product requirement | Owning boundary | Required evidence |
 | --- | --- | --- | --- |
-| `V1-R01` | Authentic prompt, zero to three situations, caller-supplied contextual time, optional declared location, explicit request metadata, and separate private trusted caller and authorization time that do not enter \(Q\) | Invocation context, ingress, and situation encoding | Origin, count, contextual-time/location/metadata presence, deterministic \(Q\), \(B_Q\), locator/content-identity, invalid-input, trusted-time noninterference, and forged-time authorization-isolation tests |
-| `V1-R02` | One deterministic complete result or explicit error with separate transport failure | Orchestrator and adapters | F3, F9, repeatability, prohibited-random-input, failure-injection, and adapter-delivery tests |
+| `V1-R01` | Exact prompt/request origin authentication, zero to three situations, caller-supplied contextual time, optional declared location, explicit request metadata, compiler-owned content identities, and separate private trusted caller and authorization time that do not enter \(Q\) | Invocation context, authenticated prompt, compiler ingress, and situation encoding | Exact prompt/request presentation freshness, substitution, cross-pair, and replay; origin, count, canonical-envelope, contextual-time/location/metadata presence, deterministic \(Q\), independently projected \(B_Q\), same-content identity, content/control/configuration mutation, map-permutation, cross-request swap, constant/reused/caller-ID, recomputation/collision-witness, locator/content-identity, invalid-input, trusted-time noninterference, and forged-time authorization-isolation tests |
+| `V1-R02` | One deterministic complete result or explicit error with separate transport failure and monotonic authority-free cancellation | Orchestrator and adapters | F3, F9, repeatability, prohibited-random-input, cancellation source-drop/token-clone/concurrent-idempotence/monotonic-visibility/every-stage/final-return-race, failure-injection, and adapter-delivery tests |
 | `V1-R03` | Byte-identical original prompt and exact framing | Ingress and serializer | F1, golden tests, and arbitrary UTF-8 property tests |
 | `V1-R04` | Read-only one-revision compilation | Snapshot and compile capability graph | F3, F4, concurrency, configuration-pinning, and write-detection tests |
 | `V1-R05` | Authorization before unified cross-context relevance | Policy gate and candidate generation | F2, canary exclusions, cross-context recall, and revocation policy tests |
-| `V1-R06` | Source support, qualification, and no authority promotion | Plan and validation | F5, F6, adversarial provenance, and semantic-fidelity cases |
+| `V1-R06` | Source support, qualification, immutable branch-owned planning projections, lowering-only authority/allowed-use/surface ceilings, and no authority promotion | Plan and validation | F5, F6, F12, adversarial provenance, projection/ceiling/slot/content-identity/inventory-minimization failures, ambient-authority noninterference, and semantic-fidelity cases |
 | `V1-R07` | Evidence-bound focus and/or qualified expectation context, or faithful empty attention | Planner, renderer, and validation | Plan-shape, proposition-label, leakage, support, and raw-copy metrics |
 | `V1-R08` | Declared language, finite budget, faithful empty attention, and budget error | Planner, renderer, and validation | Per-language evaluation and exact budget-boundary tests |
 | `V1-R09` | Local memory and no compile network access or compiler-initiated disclosure beyond the authorized local result channel | Runtime and packaging | F11, network-denied integration, capability audit, result-channel authorization, artifact-authenticity, and storage-location tests |
-| `V1-R10` | No discovery, downstream AI invocation, or automatic learning | Compile dependency boundary | Capability tests and prohibited-call detection |
+| `V1-R10` | No caller-supplied trust or internal identity, no focus/planning authorization capability, no discovery, downstream AI invocation, or automatic learning | Compile dependency boundary | Private trusted-type and ingress construction, all-field forgery, cancellation authority-noninterference, static no-authority-edge, capability, and prohibited-call tests |
 | `V1-R11` | Numerical relevance after ingress with retained exact evidence | Encoding through planning | Schema, reconstruction-limit, provenance, and perturbation tests |
 | `V1-R12` | Coding agents are the first supported domain and claims remain bounded | End-to-end harness and release process | Sealed coding-task outcomes and frozen evidence receipts |
 | `V1-R13` | Memory management remains separate from compile | Compile capability boundary | Absence of management dependencies, persistent-write detection, and explicit rejection of management requests |
@@ -642,6 +708,17 @@ Implementation evidence must include:
 
 - boundary tests for every public constructor and error class;
 - property tests over arbitrary valid UTF-8 prompts and line endings;
+- canonical ingress-identity properties covering same-content determinism,
+  prompt versus situation/control mutation separation, explicit presence
+  states, metadata-map permutation, authenticated configuration pinning, and
+  absence of public caller control over identity fields;
+- adversarial identity fixtures for cross-request `Q`/shared-set swaps,
+  constant IDs, reuse of a prior request's valid ID with nonidentical content,
+  recomputation mismatch, outer-digest collision with distinct content
+  digests, and an observed
+  same-complete-identity/different-canonical-bytes collision witness; all must
+  fail before proposition construction, while true unobserved digest
+  collisions remain covered only by the declared cryptographic assumption;
 - fuzzing of framing, metadata, state decoding, and persistent input;
 - model-based storage tests for snapshot publication and concurrent writers;
 - metamorphic tests for input permutations, absent optional metadata, and
@@ -853,7 +930,7 @@ For every explicit alternative family, measure:
 - eligible-transition recall at the frozen transition budget;
 - condition-, horizon-, outcome-kind-, authority-, and usage compatibility;
 - typed-reliability admission by schema, derivation, calibration domain,
-  missingness state, and migration lineage;
+  missingness state, and, only for migrated values, complete migration lineage;
 - exact-duplicate and dependency-group amplification under metamorphic
   additions;
 - known, unknown, omitted, censored, and counterevidence mass preservation;
