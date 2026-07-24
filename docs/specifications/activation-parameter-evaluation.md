@@ -96,18 +96,18 @@ For scenario `s`, let `N_s = |P_s|` and let `S_s` be its satisfied-preference co
 Q_s=\frac{S_s}{N_s}
 \]
 
-For `K` scenarios, the report metrics are:
+For \(N_{\mathrm{eval}}\) scenarios, the report metrics are:
 
 \[
 Q_{micro}=\frac{\sum_s S_s}{\sum_s N_s}
 \]
 
 \[
-Q_{macro}=\frac{1}{K}\sum_s Q_s
+Q_{macro}=\frac{1}{N_{\mathrm{eval}}}\sum_s Q_s
 \]
 
 \[
-Q_{pass}=\frac{|\{s\mid S_s=N_s\}|}{K}
+Q_{pass}=\frac{|\{s\mid S_s=N_s\}|}{N_{\mathrm{eval}}}
 \]
 
 A tie is not satisfied. A scenario passes only when all its preferences are satisfied.
@@ -186,6 +186,55 @@ It provides no parameter selection, optimization, learning, grid search, random 
 The suite is an in-memory measurement input. Its results establish only strict agreement between one exact parameter tuple and that finite suite. A preference satisfied by one representable `f64` step counts the same as a preference with a large score separation. Strict accuracy is therefore not a robustness, margin, numerical-stability, generalization, or safety result. The report retains both candidate scores for every preference so that separate tooling can examine score separation without changing the evaluator's strict outcome contract.
 
 Any downstream claim that selects or compares parameters must bind expected preferences to semantic provenance, compare against explicit baselines, and keep calibration scenarios disjoint from a held-out evaluation suite. These are evidence requirements on the caller and its artifacts; this evaluator neither stores provenance nor creates, persists, or enforces dataset splits.
+
+## Computational complexity
+
+Let \(N_{\mathrm{param}}\) be the parameter-channel count. For scenario \(s\),
+let \(n_s\) be its candidate count and \(p_s\) its declared preference count.
+For the \(N_{\mathrm{eval}}\) scenarios defined above, the implemented
+evaluator has the following worst-case bounds after validated construction:
+
+\[
+T_{\mathrm{eval}} =
+O\!\left(
+\sum_{s=1}^{N_{\mathrm{eval}}}
+\left(
+N_{\mathrm{param}}+n_sN_{\mathrm{param}}+n_s\log n_s+p_s\log n_s
+\right)
+\right)
+\]
+
+\[
+S_{\mathrm{eval}} =
+O\!\left(
+\sum_{s=1}^{N_{\mathrm{eval}}}(n_s+p_s)
++
+\max_s(N_{\mathrm{param}}+n_s)
+\right).
+\]
+
+The first expression covers profile construction, one kernel ranking,
+candidate-score indexing, and binary score lookup for every preference. The
+second includes the complete returned report; transient workspace for one
+scenario is bounded by the maximum term because scenarios are evaluated
+sequentially. It does not assume a constant channel or preference count.
+
+Validated construction is separate. `ActivationParameters::new` costs
+\(O(N_{\mathrm{param}}\log N_{\mathrm{param}})\). For one scenario, sorting
+gates, candidates, and preferences costs
+\(O(N_{\mathrm{param}}\log N_{\mathrm{param}}+
+n_s\log n_s+p_s\log p_s)\). The current exact
+transitive-reduction validation checks one alternate reachability path per
+edge and therefore costs \(O(p_s(n_s+p_s))\) time and \(O(n_s+p_s)\)
+workspace in the worst case. `EvaluationSuite::new` sorts the
+\(N_{\mathrm{eval}}\) scenarios in
+\(O(N_{\mathrm{eval}}\log N_{\mathrm{eval}})\).
+
+These are algorithmic bounds, not latency or scale claims. A replacement
+preference-graph algorithm or parallel evaluator must preserve accepted
+inputs, error classification, exact score comparisons, canonical report
+ordering, and aggregate reconstruction before it can replace the reference
+implementation.
 
 ## Verification
 

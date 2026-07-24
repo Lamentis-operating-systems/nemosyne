@@ -30,88 +30,220 @@ already-normalized numeric boundary. The evaluator and revision-1 corpus add
 deterministic regression evidence. None of them supplies observations for the
 end-to-end V1 product-success estimate.
 
+### Canonical notation and derivation ownership
+
+This table is the sole cross-specification notation registry. A focused
+specification owns the formula named in the final column; other documents may
+state consequences or link to that derivation but must not copy the normative
+formula. A symbol not registered here must remain local to one focused
+specification and cannot carry meaning across documents. That specification
+maintains a local notation table for every symbol reused across more than one
+of its derivations or sections. Symbol identity is the complete rendered symbol,
+including namespace-defining subscripts and superscripts; reuse of a bare base
+letter is allowed only when the qualified forms are visually distinct and
+their owning tables make the distinction explicit. The same complete symbol
+cannot acquire a second meaning.
+
+Bound dummy indices and local asymptotic-cardinality metavariables are not
+cross-stage semantic identities. A focused specification may reuse them only
+inside an explicitly quantified finite scope that defines their domain and
+does not reference them as named state outside that scope. This exception does
+not permit a local variable to reuse any complete symbol registered below, nor
+does it permit two focused specifications to exchange an unregistered
+semantic value under the same notation. Cross-stage inputs, outputs, artifacts,
+and claims must use registered or visibly qualified symbols.
+
+| Symbol | Type or domain | Canonical meaning | Formula or contract owner |
+| --- | --- | --- | --- |
+| \(P\) | bytes | Retained original prompt | [Product contract](v1-product-contract.md) |
+| \(S\) | zero to three statements | Caller-supplied situation statements | [Product contract](v1-product-contract.md) |
+| \(\Xi\) | typed metadata | Explicit request metadata, including contextual time | [Reference architecture](v1-reference-architecture.md) |
+| \(I\) | authenticated context | Trusted invocation principal, caller, and authorization facts | [Reference architecture](v1-reference-architecture.md) |
+| \(t_{\mathrm{context}}\) | exact contextual instant | Caller-declared situational time | [Product contract](v1-product-contract.md) |
+| \(t_{\mathrm{auth}}\) | exact trusted instant | One pinned authorization time | [Reference architecture](v1-reference-architecture.md) |
+| \(M^r\) | immutable logical revision | Authoritative memory revision \(r\) | [Reference architecture](v1-reference-architecture.md) |
+| \(M_A^{r,p,t_{\mathrm{auth}},I}\) | authorized view | Policy- and invocation-scoped memory view | [Reference architecture](v1-reference-architecture.md) |
+| \(\mathcal M_E\) | finite eligible view | Authorized records passing hard integrity and eligibility gates | [Cognitive memory specification](cognitive-memory-activation-and-focus.md) |
+| \(\mathcal M_Q\) | finite usage-compatible view | Eligible records admitted for this request use | [Cognitive memory specification](cognitive-memory-activation-and-focus.md) |
+| \(m_i\) | cognitive memory unit | One immutable exact-plus-numerical record version | [Cognitive memory specification](cognitive-memory-activation-and-focus.md) |
+| \(\mathcal G_i\) | finite relation set | Typed numerical memory relations for \(m_i\) | [Cognitive memory specification](cognitive-memory-activation-and-focus.md) |
+| \(\Pi_i\) | typed metadata | Provenance, authority, validity, uncertainty, and policy of \(m_i\) | [Cognitive memory specification](cognitive-memory-activation-and-focus.md) |
+| \(Q\) | numerical query state | Encoding of \(P,S,\Xi,t_{\mathrm{auth}}\) under \(K\) | [Cognitive memory specification](cognitive-memory-activation-and-focus.md) |
+| \(C^r\) | finite retrieved set | Authorized bounded retrieval result | [Reference architecture](v1-reference-architecture.md) |
+| \(N\) | finite numerical candidates | Derived activation candidates and signals | [Cognitive memory specification](cognitive-memory-activation-and-focus.md) |
+| \(\mathbb U\) | \([0,1]\) | Predictive derivation's closed finite unit interval | [Predictive-attention specification](predictive-attention-and-expectation.md) |
+| \(U_{\mathrm{act}}\) | \([0,1]\) | Activation kernel's finite unit interval, called `U` in its implemented contract | [Activation specification](situation-conditioned-activation.md) |
+| \(C_{\mathrm{act}}\) | finite channel set | Activation evidence-channel set, called `C` in its implemented contract | [Activation specification](situation-conditioned-activation.md) |
+| \(J_{\mathrm{act}}\) | finite channel set | Activation inhibition-channel set, called `J` in its implemented contract | [Activation specification](situation-conditioned-activation.md) |
+| \(D_{\mathrm{act}}\) | positive finite scalar | Activation evidence denominator, called `D` in its implemented contract | [Activation specification](situation-conditioned-activation.md) |
+| \(E_i^{\mathrm{act}}\) | \(U_{\mathrm{act}}\) | Candidate evidence aggregate, called \(E_i\) in the implemented contract | [Activation specification](situation-conditioned-activation.md) |
+| \(R_i^{\mathrm{act}}\) | \(U_{\mathrm{act}}\) | Candidate retention, called \(R_i\) in the implemented contract | [Activation specification](situation-conditioned-activation.md) |
+| \(A_i\) | \(U_{\mathrm{act}}\) | Final activation for candidate \(i\) | [Activation specification](situation-conditioned-activation.md) |
+| \(q_{i,c}^{\mathrm{act}}\) | \(U_{\mathrm{act}}\) | Evidence-channel contribution, called \(q_{i,c}\) in the implemented contract | [Activation specification](situation-conditioned-activation.md) |
+| \(\mathcal A\) | canonical finite set | One shared `EligibleActivatedMemorySet` | [Predictive-attention specification](predictive-attention-and-expectation.md) |
+| \(\Lambda_A\) | immutable lineage receipt | Shared request, memory, policy, retrieval, activation, and configuration identity | [Predictive-attention specification](predictive-attention-and-expectation.md) |
+| \(\psi\) | expectation query | One validated prediction-frame query | [Predictive-attention specification](predictive-attention-and-expectation.md) |
+| \(\tau_i\) | observed transition | Eligible transition record \(i\) | [Predictive-attention specification](predictive-attention-and-expectation.md) |
+| \(\chi_{i,\psi}\) | \(\{0,1\}\) | Expectation-query eligibility indicator | [Predictive-attention specification](predictive-attention-and-expectation.md) |
+| \(C_i^x,C_i^c,C_i^h\) | finite unit interval | State-facet, condition, and horizon compatibility | [Predictive-attention specification](predictive-attention-and-expectation.md) |
+| \(\mathcal F_x\) | finite facet set | Registered comparable state facets for prediction | [Predictive-attention specification](predictive-attention-and-expectation.md) |
+| \(\omega_f\) | \((0,1]\) | Registered normalized comparable-facet weight | [Predictive-attention specification](predictive-attention-and-expectation.md) |
+| \(\delta_{i,f}^{\mathrm{cmp}}\) | \(\{0,1\}\) | Comparable-facet presence indicator | [Predictive-attention specification](predictive-attention-and-expectation.md) |
+| \(\gamma_i^{\mathrm{cov}},\eta_i^{\mathrm{match}}\) | finite unit interval | Comparable-facet coverage and conditional match | [Predictive-attention specification](predictive-attention-and-expectation.md) |
+| \(\varrho_i\) | finite unit interval | Contract-derived transition reliability | [Predictive-attention specification](predictive-attention-and-expectation.md) |
+| \(\alpha_i\) | finite unit interval | Qualified transition support weight | [Predictive-attention specification](predictive-attention-and-expectation.md) |
+| \(a,h,d\) | typed identifiers | Alternative family, outcome group, and dependency group | [Predictive-attention specification](predictive-attention-and-expectation.md) |
+| \(\mathcal K_a,\bot_a,\mathcal H_a\) | finite tagged sets | Known, unknown, and complete outcome groups for family \(a\) | [Predictive-attention specification](predictive-attention-and-expectation.md) |
+| \(u_{a,h,d},b_{a,d},\bar u_{a,h,d}\) | finite unit interval | Raw, total, and dependency-budgeted group support | [Predictive-attention specification](predictive-attention-and-expectation.md) |
+| \(s_{a,h}\) | bounded nonnegative scalar | Dependency-budgeted support for outcome \(h\) in family \(a\) | [Predictive-attention specification](predictive-attention-and-expectation.md) |
+| \(Z_a\) | bounded nonnegative scalar | Complete known-plus-unknown family support | [Predictive-attention specification](predictive-attention-and-expectation.md) |
+| \(r^{\mathrm{share}}_{h\mid a}\) | finite unit interval | Relative evidence share within one family | [Predictive-attention specification](predictive-attention-and-expectation.md) |
+| \(D_+\) | nonnegative integer | Count of dependency groups with positive budget | [Predictive-attention specification](predictive-attention-and-expectation.md) |
+| \(N_{\mathrm{support},a}\) | bounded nonnegative scalar | Effective dependency-group support size | [Predictive-attention specification](predictive-attention-and-expectation.md) |
+| \(N_{a,h}\) | bounded nonnegative scalar | Effective support-group count for one hypothesis | [Predictive-attention specification](predictive-attention-and-expectation.md) |
+| \(N_{\mathrm{frame}},N_{\mathrm{frame,max}}\) | bounded nonnegative integers | Actual and configured maximum expectation-frame counts | [Predictive-attention specification](predictive-attention-and-expectation.md) |
+| \(\Gamma,\nu\) | finite unit interval | Nearest compatible-case score and novelty \(1-\Gamma\) | [Predictive-attention specification](predictive-attention-and-expectation.md) |
+| \(\Delta_a^{\mathrm{disp}}\) | finite unit interval or absent | Report-only within-family support dispersion | [Predictive-attention specification](predictive-attention-and-expectation.md) |
+| \(\mathcal M_{f,a},\mathcal M_f,K_{\max}\) | finite sets and positive bound | Material family groups, complete material frame union, and per-frame limit | [Predictive-attention specification](predictive-attention-and-expectation.md) |
+| \(F\) | canonical finite set | Complete `FocusCandidateSet` | [Cognitive memory specification](cognitive-memory-activation-and-focus.md) |
+| \(E\) | canonical finite bundle | Per-frame `ExpectationBundle` | [Predictive-attention specification](predictive-attention-and-expectation.md) |
+| \(\mathcal C_{\mathrm{plan}}\) | finite closure set | Planning candidate closures, called \(\mathcal C\) in its focused contract | [Planning specification](focus-and-expectation-planning.md) |
+| \(X\) | subset of \(\mathcal C_{\mathrm{plan}}\) | One candidate plan selection | [Planning specification](focus-and-expectation-planning.md) |
+| \(X_{\min}\) | subset of \(\mathcal C_{\mathrm{plan}}\) | Direct mandatory closures plus mandatory frame dispositions | [Planning specification](focus-and-expectation-planning.md) |
+| \(X^*\) | subset of \(\mathcal C_{\mathrm{plan}}\) | Canonical selected closure subset | [Planning specification](focus-and-expectation-planning.md) |
+| \(G(X),V(X)\) | tagged finite projections | Renderer-visible and validator-only projections of a closure selection | [Planning specification](focus-and-expectation-planning.md) |
+| \(\mathcal J\) | finite plan set | Structurally feasible nonempty renderable plans before budget | [Planning specification](focus-and-expectation-planning.md) |
+| \(\Phi_{\mathrm{plan}}\) | finite bit vector | Unified optional-closure priority objective | [Planning specification](focus-and-expectation-planning.md) |
+| \(\widehat c_K,cost_K\) | checked integer functions | Conservative bound and measured attention cost | [Planning specification](focus-and-expectation-planning.md) |
+| \(B\) | checked nonnegative integer | Resolved post-substitution attention budget | [Planning specification](focus-and-expectation-planning.md) |
+| \(\ell\) | supported language identity | Resolved declared output language | [Reference architecture](v1-reference-architecture.md) |
+| \(L\) | canonical plan | Sole `FocusExpectationPlan` | [Planning specification](focus-and-expectation-planning.md) |
+| \(\zeta_i\) | renderer item | One canonical renderer projection item | [Renderer specification](vector-to-attention-renderer.md) |
+| \(\mathcal F_R\) | finite facet set | Versioned renderer-facet vocabulary | [Renderer specification](vector-to-attention-renderer.md) |
+| \(\mathbf n_i,\varphi_i,\kappa_i,\mathbf m_i,\iota_i,\delta_i\) | typed renderer fields | Scalar features, item role, canonical rank, presence mask, proposition identity, and disposition | [Renderer specification](vector-to-attention-renderer.md) |
+| \(\mathcal R_i,\mathcal U_i,\mathcal B_i^{\mathrm{src}},\mathcal X_i^{\mathrm{slot}}\) | typed finite renderer fields | Required relations, authority ceiling, source bindings, and exact-slot bindings | [Renderer specification](vector-to-attention-renderer.md) |
+| \(\mathcal V_{\mathrm{exact}},\mathcal V_{\mathrm{slotmeta}}\) | exact sidecar and safe projection | Authoritative exact values and model-visible metadata without payload bytes | [Renderer specification](vector-to-attention-renderer.md) |
+| \(\mathcal P_{\mathrm{soft}}\) | continuous prefix | Learned model-input projection of the canonical plan | [Renderer specification](vector-to-attention-renderer.md) |
+| \(\mathcal B_{\mathrm{attr}}\) | finite attribution-label set | Nonempty token-to-proposition training labels | [Renderer specification](vector-to-attention-renderer.md) |
+| \(V_{\mathrm{ctx}}\) | validation context | Prompt- and policy-bound validator-only context | [Renderer specification](vector-to-attention-renderer.md) |
+| \(Z_{\mathrm{slot}}\) | internal render value | Pre-substitution text, segments, bindings, and origins | [Renderer specification](vector-to-attention-renderer.md) |
+| \(Z_{\mathrm{exact}}\) | internal render value | Exact-slot-substituted render value | [Renderer specification](vector-to-attention-renderer.md) |
+| \(T'\) | attention bytes | Validated attention text | [Renderer specification](vector-to-attention-renderer.md) |
+| \(O\) | compiled bytes | Exact successful product output | [Product contract](v1-product-contract.md) |
+| \(K\) | immutable artifact identity | Pinned compiler configuration and execution envelope | [Reference architecture](v1-reference-architecture.md) |
+| \(K_R\) | immutable renderer identity | Exact renderer configuration bound inside \(K\) | [Renderer specification](vector-to-attention-renderer.md) |
+
+The derivation path below is the sole cross-stage composition. Focused
+specifications may refine one stage, but no document may bypass a stage, invent
+an alternate authoritative intermediate, or redefine another stage's formula.
+
 ### Formal compile model
 
 Let:
 
 - `P` be the retained original prompt bytes;
 - `S` be zero to three situation statements;
-- `X` be validated metadata containing declared contextual time `t_context`;
-- `U` be the authenticated invocation context outside the request payload,
+- \(\Xi\) be validated metadata containing declared contextual time
+  `t_context`;
+- `I` be the authenticated invocation context outside the request payload,
   including trusted authorization time `t_auth`;
-- `ell` be the resolved declared output language;
+- \(\ell\) be the resolved declared output language;
 - `B` be the attention budget resolved by configuration and policy;
 - `M^r` be immutable memory revision `r` with policy revision `p`; and
-- `K` be one pinned content-identified compiler configuration and immutable
-  artifact set, including exactly one renderer configuration selected before
-  the call.
+- `K` be one pinned content-identified compiler configuration, immutable
+  artifact set, and supported execution envelope, including exactly one
+  renderer configuration, runtime, precision policy, and target platform class
+  selected before the call;
+- \(K_R\) be the exact renderer configuration bound inside \(K\). A
+  V1-deployable \(K\) permits no request-time random input.
 
 The proposed logical stages are:
 
 \[
-M_A^{r,p,t_{auth},U} = authorize(M^r,U,t_{auth};K)
+M_A^{r,p,t_{\mathrm{auth}},I} =
+authorize(M^r,I,t_{\mathrm{auth}};K)
 \]
 
 \[
-Q = encode(P,S,X,t_{auth};K)
+Q = encode(P,S,\Xi,t_{\mathrm{auth}};K)
 \]
 
 \[
-M_Q = usageGate(Q,M_A^{r,p,t_{auth},U},t_{auth};K)
+\mathcal M_E =
+eligibilityGate(M_A^{r,p,t_{\mathrm{auth}},I};K)
 \]
 
 \[
-C = retrieve(Q,M_Q;K)
+\mathcal M_Q =
+usageGate(Q,\mathcal M_E,t_{\mathrm{auth}};K)
 \]
 
 \[
-N = derive(Q,C;K)
+C^{r} = retrieve(Q,\mathcal M_Q;K)
 \]
 
 \[
-R = rank(N;K)
+N = derive(Q,C^{r};K)
 \]
 
 \[
-\Phi = consolidate(Q,R,C;K)
+\mathcal A = activate(N;K)
 \]
 
 \[
-L = plan(Q,\Phi,\ell,B;K)
+F = focusCandidates(Q,\mathcal A;K)
+\]
+
+\[
+E = expectations(Q,\mathcal A;K)
+\]
+
+\[
+L = plan(Q,F,E,\ell,B;K)
+\]
+
+\[
+V_{\mathrm{ctx}}=
+buildValidationContext(P,Q,I;K)
 \]
 
 \[
 Z_{\mathrm{slot}}=
 (T_{\mathrm{slot}},segments_{\mathrm{slot}},bindings_{\mathrm{slot}},origins)
-=render(L;K)
+=render_{K_R}(L)
 \]
 
 \[
 Z_{\mathrm{exact}} =
-substitute(Z_{\mathrm{slot}},exactSlots(L);K)
+substitute(Z_{\mathrm{slot}},exactSlots(L),K_R)
 \]
 
 \[
-T' = validate(Z_{\mathrm{exact}},L,P,Q;K)
+T' =
+validate(Z_{\mathrm{exact}},L,V_{\mathrm{ctx}},K_R)
 \]
 
 \[
-O = H_a \Vert T' \Vert H_p \Vert P
+O=serialize_{\mathrm{product}}(T',P).
 \]
 
-where:
-
-- `H_a` is the fixed `attention:\n` prefix;
-- `H_p` is the fixed `\n\nuser prompt:\n` separator; and
-- `||` is byte concatenation.
+`serialize_product` invokes the sole normative successful-output contract in
+the [product specification](v1-product-contract.md#successful-output). This
+proof program does not duplicate its headers, separators, or byte-concatenation
+formula.
 
 Each stage is partial: it returns either its complete value or an explicit
 error. It does not return a plausible substitute after a failed precondition.
 In particular, renderer or validation failure ends the call; the orchestrator
 does not retry the same request with another renderer.
-`Phi` contains request-local propositions with preserved support, scope,
-qualification, and conflict. `L` is the canonical plan envelope and contains
-its resolved language, exact-slot table, and budget. `segments_slot` and
+`\mathcal A` is the one canonical `EligibleActivatedMemorySet` shared by both
+semantic branches. `F` is the complete bounded `FocusCandidateSet`; `E` is the
+qualified `ExpectationBundle` of canonical per-frame sets, including
+abstention and control state. Both bind
+the same query, memory, policy, authorization, retrieval, and configuration
+lineage. `L` is the canonical `FocusExpectationPlan` and contains its resolved
+language, exact-slot table, budget, focus items, expectation items, mandatory
+relations, and validator controls. `segments_slot` and
 `bindings_slot` are untrusted renderer claims. `origins` records whether each
 generated token came from ordinary vocabulary or one registered slot.
 Substitution validates slot identity and authorization, inserts approved exact
@@ -119,6 +251,72 @@ surface bytes, and deterministically recomputes byte offsets without semantic
 rewriting. Validation verifies the post-substitution structure and returns the
 exact substituted text component unchanged as `T'` or returns an error; it is
 not another rendering stage.
+
+### Formula and algorithm obligation registry
+
+This registry gives every cross-stage normative formula family or
+deterministic algorithm one stable `ALG-*` identity. It does not relocate a
+formula from its owner. `ALG-*` identifiers, predictive-local derivation IDs
+such as `EXP-SUP-004`, and delivery work-package IDs such as `EXP-02` are
+disjoint namespaces; a local derivation ID never becomes an executable
+work-package ID. Each `ALG-EXP-*` row aggregates one or more local
+`EXP-<family>-NNN` owners linked through that row's focused section.
+`Proposed` properties remain obligations, not current evidence. Anchors are
+normative and move only with a same-change registry update.
+
+| ID | Sole owner | Domain, codomain, totality, and numeric contract | Required property and counterexample class | Executable evidence owner | Obligation and gate |
+| --- | --- | --- | --- | --- | --- |
+| `ALG-SER-01` | [Product output](v1-product-contract.md#successful-output) | Validated attention bytes plus retained prompt bytes to one compiled byte string; exact byte serialization; total after validation | Prompt is the final byte-identical suffix; test normalization, line endings, nested headers, and trailing bytes | `API-01`, `CLI-01`, `SYS-01` | F1, F9; G7 |
+| `ALG-MEM-01` | [Numerical query state](cognitive-memory-activation-and-focus.md#numerical-query-state) | \(P,S,\Xi,t_{\mathrm{auth}},K\) to \(Q\); typed failure; presence differs from numeric zero; exact prompt remains outside \(Q\) | Deterministic situation encoding without authority inference; test ambient time, absent-as-zero, and prompt mutation | `SIT-01`, `ENC-01` | F2, F3, F10; G3 |
+| `ALG-MEM-02` | [Eligible memory view](cognitive-memory-activation-and-focus.md#eligible-memory-view) | Authorized snapshot to \(\mathcal M_E\), then \(Q,\mathcal M_E\) to \(\mathcal M_Q\); total for valid policy artifacts; hard gates precede scores | Excluded records cannot crowd candidates; mutate only unauthorized, deleted, invalid, and usage-incompatible records | `MEM-03`, `RET-01`, `SEC-01` | F2, F3, F12; G2-G3 |
+| `ALG-MEM-03` | [Direct cue activation](cognitive-memory-activation-and-focus.md#direct-cue-activation) | Compatible query-memory facets to finite calibrated cues; metric, calibration, missingness, and canonical accumulation are pinned | Inspectable bounded cue lineage; test incompatible spaces, nonfinite values, and duplicated evidence | `SIG-01`, `ACT-00` | F8, F10; G4 |
+| `ALG-MEM-04` | [Base availability](cognitive-memory-activation-and-focus.md#base-availability-from-frequency-and-recency) | Valid history statistics to bounded availability; checked finite arithmetic in canonical event order | Recency and frequency affect accessibility, not truth or authority; test future and duplicate events | `SIG-01`, `EVAL-01` | F4, F8; G4 |
+| `ALG-MEM-05` | [Risk and urgency relevance](cognitive-memory-activation-and-focus.md#risk-and-urgency-relevance) | Typed temporal, spatial, goal, procedure, hazard, and social facets to separate finite channels; missingness stays typed | Context affects relevance without overriding policy; test deadline-over-constraint, social-as-authorization, and risk-as-probability errors | `SIG-01`, `EVAL-01`, `SEC-01` | F2, F5, F8; G4 |
+| `ALG-MEM-06` | [Bounded spreading activation](cognitive-memory-activation-and-focus.md#bounded-spreading-activation) | Bounded seed and substochastic typed relation matrix to bounded propagation; finite depth and canonical sparse order | No unbounded mass or ineligible graph crossing; test cycles, duplicate edges, and unauthorized neighbors | `CORE-01`, `CORE-02`, `PERF-01` | F2, F8; G4 |
+| `ALG-MEM-07` | [Kernel composition](cognitive-memory-activation-and-focus.md#signal-derivation-and-existing-kernel-composition) | Derived channels and gates to activation candidates; exact channel identities, no defaults, typed errors | Preserve kernel bounds and explainability; test hidden zero fill and reused channel lineage | `ACT-00`, `ACT-01`, existing kernel tests | F8, F10; G4 |
+| `ALG-MEM-08` | [Proposition consolidation](cognitive-memory-activation-and-focus.md#request-local-proposition-consolidation) | Eligible activated records to complete bounded `FocusCandidateSet`; registered equivalence and conflict only | Deduplicate without losing conflict, authority, or provenance; test embedding-only equivalence and cloned sources | `PLAN-01`, `EVAL-01` | F5, F6, F12; G4 |
+| `ALG-ACT-01` | [Activation mathematics](situation-conditioned-activation.md#mathematics) | Valid profile and candidates to complete ranking; implemented `f64`, canonical channels, exact score tie then `CandidateId` | \(E_i,R_i,A_i\in[0,1]\), monotonicity, deterministic reconstruction | Existing `nemosyne-core` tests, `ACT-00` | F8; G4 |
+| `ALG-EXP-01` | [Expectation hard eligibility](predictive-attention-and-expectation.md#expectation-projection-hard-eligibility) | \(\psi,\tau_i,K\) to \(\chi_{i,\psi}\); closed use, observation, frame, condition, and missing-facet policy | Ineligible evidence cannot regain support through scores; test predicted evidence and unknown passive conditions | `EXP-01`, `EXP-02` | F2, F12, F15; G4 |
+| `ALG-EXP-02` | [Facet compatibility](predictive-attention-and-expectation.md#facet-compatibility-and-missing-values) | Comparable facets, condition, and horizon to compatibility plus diagnostics; real semantics and a frozen executable numerical policy | Preserve coverage versus mismatch; test missing values, unit mismatch, and each boundary | `EXP-02`, `EVAL-01` | F10, F15; G4 |
+| `ALG-EXP-03` | [Qualified support](predictive-attention-and-expectation.md#qualified-transition-support) | Eligible activation and compatibility factors to \(\alpha_i\); finite factors and named feature interactions | Bounded inspectable support, never probability; test duplicated raw-feature influence | `EXP-02`, `EVAL-01` | F8, F13; G4 |
+| `ALG-EXP-04` | [Dependency-budgeted support](predictive-attention-and-expectation.md#dependency-budgeted-support) | Grouped support to \(s_{a,h},Z_a,r^{\mathrm{share}}_{h\mid a}\); one canonical budget per dependency group and family | Duplicates cannot multiply family budget; test cloned and split provenance roots | `EXP-02`, `EVAL-01`, `DATA-01` | F13, F14; G4 |
+| `ALG-EXP-05` | [Effective support count](predictive-attention-and-expectation.md#effective-support-group-count) | Positive group budgets to participation-ratio diagnostics; explicit zero case, canonical finite sums | Count is bounded by positive groups; test concentration and duplication | `EXP-02`, `EVAL-01` | F13-F15; G4 |
+| `ALG-EXP-06` | [Representative medoid](predictive-attention-and-expectation.md#representative-medoid) | Canonical outcome group and registered dissimilarity to one representative; finite limits and total fallback key | Deterministic representative without truth or metric claims; test unavailable and nontransitive distances | `EXP-02`, `PERF-01` | F10, F15; G4 |
+| `ALG-EXP-07` | [Bounded alternatives](predictive-attention-and-expectation.md#bounded-alternatives-and-diversity) | Complete frame families to positive set or typed abstention; closed inclusive thresholds and tagged family/outcome identities | Retain all material alternatives or abstain; test every threshold and frame-limit boundary | `EXP-03`, `EVAL-01`, `TGT-01` | F14, F15; G4 |
+| `ALG-EXP-08` | [Observation assessment](predictive-attention-and-expectation.md#observation-and-prediction-error-contract) | Immutable prior and independent sealed observation to typed assessment or error; validation precedes classification | Assessment cannot rewrite prior or memory; test predicted evidence, prior abstention, and compatible co-outcomes | `OBS-01`, `EVAL-02` | F4, F16; G9 |
+| `ALG-EXP-09` | [Learned-predictor research boundary](predictive-attention-and-expectation.md#learned-predictor-research-boundary) | Frozen supported envelope and detector artifacts to a pre-invocation disposition, then bounded in-domain slots to typed research candidates, abstention, or null; total through structural errors and independent OOD outcomes | Learned research cannot invent open-world outcomes, bypass eligibility, expose logits as probability, or become a silent V1 fallback | `ML-01`-`ML-03`, `EVAL-02` | P2 research only; F10, F12, F17 |
+| `ALG-EXP-10` | [Predictive-stage complexity](predictive-attention-and-expectation.md#computational-complexity) | Finite configured cardinalities and authenticated distance-cost bounds to explicit time and peak-additional-memory bounds | No hidden cross-frame all-pairs work; reject inputs or artifacts outside every declared finite ceiling | `EXP-02`, `PERF-01` | F8, F10; G4, G6 |
+| `ALG-PLAN-01` | [Structural projection](focus-and-expectation-planning.md#structural-plan-and-renderable-projection) | Closure selection to tagged \(G(X)\) and \(V(X)\); disjoint namespaces and canonical union | Renderer and validator truths cannot cross; test exact-payload and exclusion leakage | `PLAN-02`, `VAL-01` | F5-F7, F17; G4 |
+| `ALG-PLAN-02` | [Mandatory closure](focus-and-expectation-planning.md#mandatory-closure) | Candidates to atomic semantic closures; registered relations; overlapping tagged members counted once | Preserve qualifiers, conflicts, and complete material families; test dropped horizons and alternatives | `PLAN-02`, `EVAL-01` | F5, F6, F15; G4 |
+| `ALG-PLAN-03` | [Cost contract](focus-and-expectation-planning.md#cost-contract) | Renderable projection and rendered bytes to checked integer bound and measured cost; one unit, canonical accumulation, no saturation | Accepted bound is conservative and zero iff \(G=\varnothing\); test slot expansion, overflow, and tokenizer mismatch | `PLAN-02`, `REN-04`, `PERF-01` | F7; G4, G6 |
+| `ALG-PLAN-04` | [Feasible subsets](focus-and-expectation-planning.md#feasible-subsets) | Finite closures to structural and budget-feasible sets; explicit \(\mathcal J\) and cardinality ceilings | Budget cannot create false empty success; test control-only and all-nonempty-over-budget cases | `PLAN-02`, `EVAL-01` | F7, F9; G4 |
+| `ALG-PLAN-05` | [Unified selection](focus-and-expectation-planning.md#canonical-unified-selection) | Finite feasible closure subsets to \(X^*\); complete unified bit objective, no epsilon or cost utility | Unique deterministic cross-branch result without cross-scale score comparison; permute every input and test repairable dependencies | `PLAN-02` exhaustive oracle and equivalence tests | F9, F10, F15; G4 |
+| `ALG-REND-01` | [Renderer projection](vector-to-attention-renderer.md#renderer-projection-view) | \(G(L)\), safe slot metadata, and language to typed tensors; fixed facets, masks, and canonical rank | Preserve selected semantics without exact payload access; alter masked and validator-only fields | `REN-01`, `REN-02`, `VAL-01` | F5, F6, F17; G5 |
+| `ALG-REND-02` | [Latent resampler](vector-to-attention-renderer.md#typed-latent-resampler) | Bounded item tensors to bounded continuous prefix; fixed dimensions and deterministic runtime identity | Canonical-order determinism and no hidden state; test rank permutation, missing facets, and precision drift | `REN-02`, `REN-03`, `PERF-01` | F10, F17; G5-G6 |
+| `ALG-REND-03` | [Generation](vector-to-attention-renderer.md#generation) | Nonempty prefix to slot-bearing claim, then substitution and validation to \(T'\) or error; frozen decoding and checked slots | No answer, action, unsupported claim, or exact-value invention; test injection, smuggling, language, and cost violations | `REN-04`, `VAL-01`, `SEC-01`, `SYS-01` | F7, F17; G5-G7 |
+| `ALG-REND-04` | [Training objective](vector-to-attention-renderer.md#combined-objective) | Frozen examples to candidate parameters; research-only; manifest-bound weights, seeds, splits, masks, and numeric policy | Training does not itself prove faithfulness; test leakage, attribution gaming, and nonfinite runs | `ML-01`-`ML-03`, `REN-05`, `REN-06` | F17 empirical support only; G5-G6 |
+
+The predictive specification keeps finer derivation identities because several
+proof obligations share one executable stage. Their aggregation is complete
+and fixed as follows:
+
+| Cross-stage identity | Predictive-local derivation identities |
+| --- | --- |
+| `ALG-EXP-01` | `EXP-QRY-001`, `EXP-LIN-001`, `EXP-ELIG-001` |
+| `ALG-EXP-02` | `EXP-CMP-001`-`EXP-CMP-003`, `EXP-HOR-001` |
+| `ALG-EXP-03` | `EXP-WGT-001` |
+| `ALG-EXP-04` | `EXP-FAM-001`, `EXP-SUP-001`-`EXP-SUP-004`, `EXP-OMIT-001`, `EXP-OMIT-002` |
+| `ALG-EXP-05` | `EXP-ESS-001`, `EXP-ESS-002`, `EXP-NUM-001` |
+| `ALG-EXP-06` | `EXP-REP-001`, `EXP-REP-002` |
+| `ALG-EXP-07` | `EXP-CTR-001`, `EXP-COV-001`, `EXP-COV-002`, `EXP-DSP-001`, `EXP-MAT-001`-`EXP-MAT-003`, `EXP-ABS-001` |
+| `ALG-EXP-08` | `EXP-OBS-001` |
+| `ALG-EXP-09` | `EXP-OOD-001`, `EXP-LRN-001` |
+| `ALG-EXP-10` | `EXP-CPLX-001`, `EXP-CPLX-002` |
+
+The documentation checker must eventually verify unique IDs, one owner link,
+valid anchors, and referenced work-package and gate IDs. `DOC-00` owns that
+governance extension. Until implemented, each documentation change retains a
+manual conformance receipt in the delivery program.
 
 ### Formal obligations
 
@@ -134,24 +332,27 @@ normalization.
 
 #### F2: Authorization before relevance
 
-Candidate generation receives only the request-compatible `M_Q`, which is a
-subset of `M_A^(r,p,t_auth,U)`. Every downstream source reference must be
+Candidate generation receives only the request-compatible \(\mathcal M_Q\),
+which is a subset of \(\mathcal M_E\), itself a subset of
+\(M_A^{r,p,t_{\mathrm{auth}},I}\). Every downstream source reference must be
 constructed from the candidate source set or from the compile request.
 Therefore, if constructors prevent forged references and no stage has ambient
 memory access, every memory-derived source in a successful plan belongs to
-`M_A^(r,p,t_auth,U)`.
+\(M_A^{r,p,t_{\mathrm{auth}},I}\).
 
 Authorization also requires semantic noninterference. For two physical memory
 states whose authorized projections for the call are identical, changing only
 unauthorized records must not change candidate crowding, ranking, planned
 meaning, rendered attention, or content-bearing diagnostics when the request,
-invocation context, contextual and authorization times, configuration, and
-random tape `omega` are held fixed:
+invocation context, contextual and authorization times, and configuration are
+held fixed:
 
 \[
 projection_A(M_1)=projection_A(M_2)
 \Rightarrow
-semanticCompile(M_1;\omega)=semanticCompile(M_2;\omega)
+semanticCompile(M_1;P,S,\Xi,I,\ell,B,K)
+=
+semanticCompile(M_2;P,S,\Xi,I,\ell,B,K)
 \]
 
 The physical index and search procedure must therefore enforce authorization
@@ -163,7 +364,7 @@ eligibility and noninterference, not truth of an authorized record.
 #### F3: Snapshot consistency
 
 One immutable memory revision `r`, policy revision `p`, trusted authorization
-time `t_auth`, declared context time `t_context`, invocation context `U`, and
+time `t_auth`, declared context time `t_context`, invocation context `I`, and
 authorized view are pinned before memory-dependent work. Authoritative records,
 numerical representations, and indexes are checked against `r`; authorization
 and disclosure expiry, current normative validity, and supersession use
@@ -171,10 +372,13 @@ and disclosure expiry, current normative validity, and supersession use
 `t_context` cannot revive historical instructions as current authority.
 Downstream stages receive no ambient store handle or wall clock. One immutable
 `K` pins the identities of every policy evaluator and content-identified
-artifact handle for the same call. Therefore a successful call is a function
-of one logical memory-policy revision, both pinned time values, and one
-compiler-artifact set even when a writer or updater publishes a later revision
-concurrently.
+artifact handle, execution runtime, precision policy, supported platform
+class, and deterministic inference policy for the same call. Stochastic
+encoding, retrieval, planning, renderer decoding, or validation is not
+V1-deployable. Therefore, for fixed `P`, `S`, \(\Xi\), `I`, `ell`, and `B`, a
+successful call is a function of one logical memory-policy revision, both
+pinned time values, and one compiler-artifact and execution set even when a
+writer or updater publishes a later revision concurrently.
 
 #### F4: Read-only compilation
 
@@ -228,17 +432,17 @@ factual truth.
 
 #### F7: Budget safety
 
-Let `cost_K(T')` be the declared attention-cost function and `B` the available
-budget. Validation accepts only when:
-
-\[
-cost_K(T') \leq B
-\]
-
-Budget is evaluated after exact-slot substitution. Planning, substitution,
-rendering, and validation never truncate semantic content. If mandatory
-qualified content and its exact surface values cannot fit, the call fails with
-insufficient budget.
+Under `ALG-PLAN-03` and `ALG-PLAN-04`, validation accepts only a measured
+post-substitution attention value inside the same checked unit and finite
+budget domain used by planning. Planning, substitution, rendering, and
+validation never truncate semantic content. Mandatory content that cannot fit
+fails. When any otherwise justified nonempty faithful plan exists but none
+fits, the call also fails rather than returning budget-driven empty attention.
+One over-budget optional closure remains skippable when another faithful
+nonempty result fits. Invalid units, incomplete domains, unsupported
+configurations, or overflow fail before selection. `ALG-REND-03` maps a
+post-substitution bound violation to public `FaithfulnessFailure` and
+invalidates the exact renderer qualification.
 
 #### F8: Activation properties
 
@@ -283,23 +487,142 @@ together with an unsigned self-consistent manifest therefore cannot satisfy
 preflight. Trust-root rotation and artifact installation occur outside
 compilation and require a separate authenticated update path.
 
+#### F12: Shared-set branch coherence
+
+Focus and expectation receive projections of the same immutable
+`\mathcal A`. Each output carries the same request, situation, memory, policy,
+authorization-view, retrieval, and configuration identities. The combined
+planner validates those identities before selection:
+
+\[
+lineage(L)=lineage(F)=lineage(E)=lineage(\mathcal A)
+\]
+
+Here, every lineage value is exactly the complete `source_receipt` tuple
+\(\Lambda_A\) owned by the predictive-attention specification. The focus set,
+expectation bundle, every contained expectation set, plan envelope, and
+\(\mathcal A\) expose the same typed fields, and equality is checked field by
+field rather than inferred from a derived digest or reconstructed ambient
+state.
+
+If any identity differs, planning fails. Neither branch may retrieve ambient
+memory, repeat authorization with a different policy, or mutate the shared
+set. This establishes one evidence boundary while preserving distinct focus
+and expectation semantics.
+
+#### F13: Dependency-budget and duplicate non-amplification
+
+Under `ALG-EXP-04`, each dependency group receives one finite budget inside one
+mutually exclusive alternative family. Exact duplicate transitions are
+content-canonicalized before representatives are selected. Consequently, an
+exact duplicate or a record whose qualified weight does not exceed the current
+group maximum cannot change aggregate support. A fully saturated dependency
+budget cannot increase.
+
+An additional record with a higher qualified weight may legitimately increase
+an unsaturated \(b_{a,d}\); the invariant limits one dependency group's total
+budget rather than freezing its current evidence.
+This property depends on correct provenance-root and dependency-group labels.
+It prevents known duplicate amplification; it does not prove that all hidden
+dependencies were discovered.
+
+#### F14: Alternative-family normalization without probability promotion
+
+`ALG-EXP-04` owns the relative-support derivation.
+It computes support separately inside each explicit mutually exclusive
+alternative family. Every canonical known outcome group, including a group
+later classified as non-material and omitted from rendering, and the one
+explicit unknown group enter \(Z_a\) exactly once through their canonical
+group support \(s_{a,h}\). The derived `OmittedSupport` control aggregates
+already-counted non-material known groups after materiality evaluation; it is
+not a member of \(\mathcal H_a\) and never enters the denominator again.
+Compatible co-outcomes belong to separate families and never compete for one
+normalization budget. Under that specification's preconditions, every defined
+\(r^{\mathrm{share}}_{h\mid a}\) is bounded in \([0,1]\) and the complete
+family shares sum to one. It is still only an evidence share under the
+retrieved support model. No renderer, API, metric, or release claim may rename
+it probability, confidence, truth, or expected utility without a separately
+accepted calibration contract and disjoint evidence.
+
+#### F15: Bounded alternatives, abstention, and no action selection
+
+Under `ALG-EXP-07`, a positive expectation requires structurally valid support from an eligible
+direct observation or an explicitly permitted registered derivation, positive
+known support, and every frozen materiality, coverage, dependency, retrieval,
+conflict, canonicalization, and faithful frame-local \(K_{\max}\)
+representation precondition. The expectation branch preserves material
+mutually exclusive alternatives and required unknown or omitted-support
+qualification together within that limit or abstains. Global plan-budget
+failure follows `ALG-PLAN-04`: it remains a typed planning error whenever justified
+nonempty attention cannot fit. An abstention is a successful semantic result,
+not a fabricated negative prediction.
+
+Expectation kinds describe a hidden present state, passive successor, or
+conditional outcome. They contain no action-selection field. Conditions may
+name an observed action but never recommend it. The combined plan and renderer
+must preserve that type boundary.
+
+#### F16: Offline observation-assessment evidence
+
+Under `ALG-EXP-08`, the conformance harness compares an immutable prior expectation
+fixture \(E_{\mathrm{prior}}\) with one independently authenticated observation
+fixture \(o\) under a pinned frame-relation configuration
+\(K_{\mathrm{obs}}\). These fixtures and the assessment record are
+sealed evaluation artifacts, not compile request fields, public product
+results, persistent user memory, or a second V1 API. The total assessment
+function reports a per-hypothesis support, contradiction,
+compatible-co-outcome, different-frame, or ambiguous relation, or a typed
+prior-abstained or observation-ambiguous disposition. It does not change the
+expectation's support, relative support, ordering, or persistent memory.
+
+The harness retains both input fixture identities, the pinned configuration
+identity, the assessment result, and evidence-receipt identity so the result is
+reproducible. Product recomputation requires a new explicit compile query after
+a separately authorized memory-management operation. Renderer or
+downstream-agent output is never an observation merely because it follows the
+prediction. No runtime observation-assessment endpoint or retention contract is
+part of V1.
+
+#### F17: Renderer semantic non-amplification
+
+Every assertion-bearing rendered segment must bind to one selected focus or
+expectation proposition and every mandatory relation or qualifier for that
+proposition. Validation rejects an unknown hypothesis, promoted fact,
+probability statement, answer, action recommendation, lost condition or
+horizon, hidden material alternative, or unsupported connective. Therefore a
+successful renderer result is a lexicalized view of `L`, not a second semantic
+inference path. Neural validation remains empirical and fallible; F17 defines
+the contract to test rather than proving a model can satisfy it.
+
 ### Requirement traceability
 
 | ID | Product requirement | Owning boundary | Required evidence |
 | --- | --- | --- | --- |
 | `V1-R01` | Authentic prompt, zero to three situations, resolved contextual time, explicit request metadata, and separate trusted caller and authorization time | Invocation context and ingress | Origin, count, contextual-time, metadata, absence, invalid-input, and forged-time authorization-isolation tests |
-| `V1-R02` | One complete result or explicit error with separate transport failure | Orchestrator and adapters | F9, failure injection, and adapter delivery tests |
+| `V1-R02` | One deterministic complete result or explicit error with separate transport failure | Orchestrator and adapters | F3, F9, repeatability, prohibited-random-input, failure-injection, and adapter-delivery tests |
 | `V1-R03` | Byte-identical original prompt and exact framing | Ingress and serializer | F1, golden tests, and arbitrary UTF-8 property tests |
 | `V1-R04` | Read-only one-revision compilation | Snapshot and compile capability graph | F3, F4, concurrency, configuration-pinning, and write-detection tests |
 | `V1-R05` | Authorization before unified cross-context relevance | Policy gate and candidate generation | F2, canary exclusions, cross-context recall, and revocation policy tests |
 | `V1-R06` | Source support, qualification, and no authority promotion | Plan and validation | F5, F6, adversarial provenance, and semantic-fidelity cases |
-| `V1-R07` | Focus description, not answer, unsupported claim, or raw dump | Planner, renderer, and validation | Proposition labels, leakage, support, and raw-copy metrics |
+| `V1-R07` | Evidence-bound focus and/or qualified expectation context, or faithful empty attention | Planner, renderer, and validation | Plan-shape, proposition-label, leakage, support, and raw-copy metrics |
 | `V1-R08` | Declared language, finite budget, faithful empty attention, and budget error | Planner, renderer, and validation | Per-language evaluation and exact budget-boundary tests |
-| `V1-R09` | Local memory and no compile network access or disclosure | Runtime and packaging | F11, network-denied integration, capability audit, artifact-authenticity, and storage-location tests |
+| `V1-R09` | Local memory and no compile network access or compiler-initiated disclosure beyond the authorized local result channel | Runtime and packaging | F11, network-denied integration, capability audit, result-channel authorization, artifact-authenticity, and storage-location tests |
 | `V1-R10` | No discovery, downstream AI invocation, or automatic learning | Compile dependency boundary | Capability tests and prohibited-call detection |
 | `V1-R11` | Numerical relevance after ingress with retained exact evidence | Encoding through planning | Schema, reconstruction-limit, provenance, and perturbation tests |
 | `V1-R12` | Coding agents are the first supported domain and claims remain bounded | End-to-end harness and release process | Sealed coding-task outcomes and frozen evidence receipts |
 | `V1-R13` | Memory management remains separate from compile | Compile capability boundary | Absence of management dependencies, persistent-write detection, and explicit rejection of management requests |
+| `V1-R14` | Versioned transition evidence with outcome representation and observation status | Transition schema and memory read boundary | Constructor, provenance, condition, horizon, status, version, and migration fixtures |
+| `V1-R15` | Focus, expectation, goal, action, answer, fact, and probability remain distinct | Domain types, combined plan, renderer, and validator | Type-boundary, corruption, semantic-fidelity, and leakage tests |
+| `V1-R16` | Zero to a finite number of competing expectations | Expectation kernel | Empty, single, tied, alternative, cardinality, and canonical-order properties |
+| `V1-R17` | Complete expectation qualification | Expectation kernel and combined planner | Condition, horizon, support, counterevidence, uncertainty, exact-slot, and authority-closure reconstruction |
+| `V1-R18` | Duplicate and dependency non-amplification | Transition canonicalization and expectation support | F13, duplicate metamorphism, saturated-group, and hidden-dependency sensitivity cases |
+| `V1-R19` | Relative support is not probability | Expectation schema, renderer, API, and documentation | F14, schema-label, forbidden-lexeme, and calibration-claim audits |
+| `V1-R20` | Valid-but-insufficient evidence abstains while malformed canonicalization, dependency, lineage, and global-budget states fail | Expectation kernel and combined planner | Every abstention reason, error-versus-abstention, and boundary-threshold fixture |
+| `V1-R21` | Material alternatives and unknown or omitted support remain visible | Expectation kernel, closure selection, and validator | Alternative-preservation, top-k-renormalization, conflict-budget, and one-sided-rendering cases |
+| `V1-R22` | Observation assessment remains outside compile and cannot mutate a prior result | Offline conformance harness and compile API boundary | F16, API-absence checks, complete relation matrix, immutable-fixture, and explicit-rerun tests |
+| `V1-R23` | Generated outputs never become memory truth implicitly | Compile and memory-management capability boundaries | Taint, provenance-origin, prohibited-write, and generated-output ingestion tests |
+| `V1-R24` | Renderer is a local lexicalizer only | Combined plan, renderer, exact-slot resolver, and validator | F17, model corruptions, semantic verifier, no-answer, no-action, and no-probability gates |
+| `V1-R25` | Every stage has finite configured limits | Ingress, retrieval, activation, expectation, planning, rendering, and runtime | Limit-boundary, complexity, cancellation, memory, latency, and fail-closed tests |
 
 ### Executable conformance program
 
@@ -316,12 +639,36 @@ Implementation evidence must include:
 - stale, superseded, contradictory, low-confidence, and malicious memories;
 - exact values that cannot be reconstructed safely from a lossy vector;
 - cross-project relevant records and same-project irrelevant records;
+- focus and expectation projections with identical and deliberately mismatched
+  lineage identities;
+- transition conditions, horizons, statuses, provenance roots, dependency
+  groups, and alternative-family relations at every validity boundary;
+- exact duplicate transitions, dependent paraphrases, saturated dependency
+  groups, and one deliberately mislabeled hidden dependency;
+- compatible co-outcomes in separate alternative families and mutually
+  exclusive outcomes inside one family;
+- known, unknown, omitted, censored, contradicted, and zero-support outcomes;
+- every expectation abstention reason and every corresponding malformed-input
+  error so abstention is never used to hide corruption;
+- focus-only, expectation-only where the complete-scope precondition holds,
+  combined, expectation-abstaining, and empty plans;
+- planning-priority tables that are total, injective, permutation-invariant,
+  and demonstrably independent from serialization keys and identifier
+  magnitude;
+- valid integer cost boundaries plus missing-unit, unsupported-domain,
+  overflow, and renderer-bound-underestimation failures;
+- supported and deliberately wrong dominant expectations over identical focus;
+- later observations classified exactly as support, contradiction, ambiguity,
+  or a different frame without changing stored support, plus a separate
+  explicit rerun case;
 - missing, stale, incompatible, and corrupt derived artifacts;
 - approximate-index misses and degraded search;
 - empty memory with justified empty and nonempty attention;
 - no situation statements and three situation statements;
 - mixed, ambiguous, unsupported, and explicitly selected languages;
-- answer leakage, raw copying, unsupported clauses, and lost qualifications;
+- answer leakage, action selection, probability inflation, fact promotion,
+  raw copying, unsupported clauses, lost conditions or horizons, collapsed
+  alternatives, and lost qualifications;
 - budgets immediately below and at the faithful minimum;
 - crashes, timeouts, resource exhaustion, and partial-output prevention;
 - blocked network access and persistent-write detection; and
@@ -340,9 +687,13 @@ Each hypothesis is falsifiable and configuration-specific.
 | H2 | Persistent memory adds value beyond caller-supplied situation and metadata | Full memory condition versus situation only |
 | H3 | Proposed candidate generation finds required memory more reliably than semantic top-k at the same candidate budget | Candidate recall and downstream outcomes |
 | H4 | Proposed signal derivation adds value, and the proposed activation rule adds value over simpler rankers when derived signals are held fixed | Separate fixed-signal ranking and end-to-end derivation comparisons |
-| H5 | Proposed planning improves coverage and exclusion when ranking, budget, and renderer are held fixed | Planner-only comparison over frozen ranked inputs |
+| H5a | Focus-candidate construction improves response-changing context coverage and exclusion over record-level top-k when the shared activated set is held fixed | Focus-candidate comparison over frozen activated inputs |
+| H5b | The deterministic expectation baseline preserves eligible alternatives and abstains more faithfully than semantic-neighbor or dominant-outcome heuristics over identical transition evidence | Expectation-kernel comparison over one frozen shared set |
+| H5c | Adding a correct qualified expectation to the same focus plan improves selected context-dependent tasks over focus-only attention without exceeding frozen anchoring and harm limits | Focus-plus-expectation versus token-matched focus-only |
+| H5d | A deliberately wrong dominant expectation is detectably harmful relative to the correct and abstaining conditions | Wrong-expectation negative control versus correct and abstaining conditions |
+| H5e | Combined plan selection improves mandatory closure, qualification, alternative preservation, and budget use over independent focus and expectation truncation | Combined planner over frozen branch outputs |
 | H6a | A learned numerical bridge carries the required typed plan information more faithfully than a simple projection | Registered latent resampler versus MLP projection over identical frozen plans and model |
-| H6b | The local renderer preserves planned meaning without material unsupported claims, exact-value errors, or answer leakage | Candidate renderer versus deterministic and expert rendering |
+| H6b | The local renderer preserves focus and expectation meaning without material unsupported claims, probability inflation, fact promotion, exact-value errors, answer leakage, or action selection | Candidate renderer versus deterministic and expert rendering |
 | H6c | The qualified release checkpoint is the smallest tested local model that passes every frozen renderer and resource gate | Model slate compared under identical plan, adapter, training, quantization, and hardware conditions |
 | H7 | The complete compiler improves context-dependent task success without unacceptable harm on context-independent tasks | Candidate V1 versus prompt only and the strongest frozen non-oracle |
 | H8 | V1 meets frozen local resource budgets on reference hardware | Cold/warm operational measurements |
@@ -352,8 +703,10 @@ implementation. Failure of a later hypothesis directs work to its owning
 stage rather than permitting unrelated tuning.
 
 Component comparisons reuse frozen intermediate artifacts. A ranker comparison
-must not rederive signals, a planner comparison must not rerank candidates, and
-a renderer comparison must use the identical structured plan.
+must not rederive signals, a focus or expectation comparison must consume the
+identical shared activated set, a combined-planner comparison must not change
+either branch output, and a renderer comparison must use the identical
+structured plan.
 
 ### Conditions and ablations
 
@@ -366,10 +719,21 @@ applicable:
 4. token-matched raw context;
 5. token-matched semantic-similarity top-k;
 6. strongest frozen deterministic non-oracle baseline;
-7. Nemosyne selection with a deterministic renderer;
-8. Nemosyne selection with the candidate renderer;
-9. one frozen expert-authored attention plan with the candidate renderer; and
-10. expert/reference rendering of that identical frozen expert plan.
+7. Nemosyne focus-only plan with the deterministic renderer;
+8. Nemosyne expectation-only plan with the deterministic renderer where its
+   complete-scope precondition holds;
+9. Nemosyne focus-plus-expectation plan with the deterministic renderer;
+10. the same Nemosyne focus-only plan with the candidate renderer;
+11. the same valid Nemosyne expectation-only plan with the candidate renderer;
+12. the same Nemosyne focus-plus-expectation plan with the candidate renderer;
+13. the same focus plan with one deliberately wrong dominant expectation and
+    otherwise identical qualification and token budget;
+14. the same focus plan with a renderer-visible expectation abstention, kept
+    distinct from condition `7`, whose plan has no renderer-visible expectation
+    role even when validator-only abstention controls remain;
+15. one frozen expert-authored focus-plus-expectation plan with the candidate
+    renderer; and
+16. expert/reference rendering of that identical frozen expert plan.
 
 All conditions use the same scenario-specific `t_context`, `t_auth`, memory
 revision `r`, policy revision `p`, authorized-view identity, downstream model
@@ -380,9 +744,9 @@ and model session. Mutable caches, tool state, files, and background processes
 are reset or identically preseeded. Condition order is randomized only after
 this carryover isolation. Only the named treatment changes.
 
-H4 and H5 additionally use component-level swaps over frozen signals, rankings,
-and plans; the ten end-to-end conditions alone do not identify those internal
-effects.
+H4 through H6 additionally use component-level swaps over frozen signals,
+shared activated sets, branch outputs, plans, and renderings; the sixteen
+end-to-end conditions alone do not identify those internal effects.
 
 Signal, consolidation, adapter, and model choices also require the following
 component-level ablations over immutable intermediates:
@@ -392,7 +756,8 @@ component-level ablations over immutable intermediates:
 | Signal derivation | one global semantic similarity; typed direct cues; cues plus temporal and base availability; cues plus active-goal, procedural, hazard, and social channels |
 | Associative activation | no graph propagation; each registered bounded hop and restart configuration over the same direct seeds |
 | Focus consolidation | record-level top-k; canonical-proposition grouping without corroboration bonus; accepted support-dependency and conflict-preserving consolidation |
-| Plan selection | score-only top-k; deterministic template-oriented selection; accepted coverage-and-nonredundancy objective |
+| Expectation derivation | no expectation; nearest transition; unbudgeted dominant outcome; dependency-budgeted deterministic baseline with alternatives and abstention; any later learned set predictor |
+| Combined plan selection | independent branch truncation; score-only top-k; exhaustive canonical closure selection; any optimized implementation proven equivalent over supported limits |
 | Adapter | deterministic plan labels; two-layer MLP prefix; typed latent resampler with `8`, `16`, and `32` virtual tokens |
 | Training | frozen model with bridge only; identical bridge plus LoRA; quantized and unquantized inference |
 | Local model | The mandatory cohort slate, deployment pairing, and capacity fallback owned by the local-renderer model-qualification specification |
@@ -406,16 +771,21 @@ These comparisons isolate:
 - situation value: `2 - 1`;
 - prompt-length or placebo effects: `3 - 2`;
 - persistent-memory value: memory conditions against `2`;
-- selection quality: `8` against `9`;
-- renderer quality: `7` against `8`, and `9` against `10`;
-- complete product value: `8` against `1`, `2`, and the strongest of `4` to
+- expectation contribution: `9 - 7` and `12 - 10`;
+- expectation-only behavior where valid: `8` and `11` against `2`;
+- renderer quality: `7` against `10`, `8` against `11`, `9` against `12`, and
+  `15` against `16`;
+- wrong-expectation sensitivity: `13` against `12` and `14`;
+- complete product value: `12` against `1`, `2`, and the strongest of `4` to
   `6`; and
-- remaining headroom: `10 - 8`.
+- remaining headroom: `16 - 12`.
 
-Conditions `9` and `10` differ only in rendering. The expert plan and reference
-rendering obey the same source, authority, language, placement, size, and
-non-answering contract. The expert reference is not an oracle or a proven
-optimum.
+Conditions `15` and `16` differ only in rendering. Conditions `10`, `12`,
+`13`, and `14` share the same focus branch output. The wrong-expectation
+condition is a negative control, not a candidate product configuration. The
+expert plan and reference rendering obey the same source, authority, language,
+placement, size, expectation, and non-answering/non-action contract. The
+expert reference is not an oracle or a proven optimum.
 
 ### Metrics
 
@@ -456,6 +826,35 @@ Measure:
 - score margins and stability under permitted perturbations; and
 - worst-category and worst-repository performance.
 
+#### Expectation and combined planning
+
+For every explicit alternative family, measure:
+
+- eligible-transition recall at the frozen transition budget;
+- condition-, horizon-, outcome-kind-, authority-, and usage compatibility;
+- exact-duplicate and dependency-group amplification under metamorphic
+  additions;
+- known, unknown, omitted, censored, and counterevidence mass preservation;
+- mutually exclusive alternative recall and compatible co-outcome separation;
+- dominant known-support stability and material-alternative preservation;
+- abstention sensitivity and specificity by reason code;
+- hypothesis-level and family-level effective support-group counts;
+- facet coverage, novelty, retrieval-completeness, and missingness diagnostics;
+- rate of invalid probability, confidence, truth, causal, goal, or action
+  interpretations; and
+- reconstruction of every hypothesis, control, and support summary from
+  retained transition references and the pinned configuration.
+
+For the combined planner, measure mandatory-closure recall, forbidden-item
+precision, authority and relation preservation, cost-bound validity, exact
+reference agreement on small fixtures, and the rate at which material
+alternatives force faithful abstention rather than one-sided output.
+
+Relative support and entropy-like dispersion are descriptive score diagnostics
+only. They are not evaluated with probability calibration metrics unless a
+later accepted calibration contract defines a probabilistic target and
+disjoint observations.
+
 #### Rendering
 
 Measure:
@@ -466,6 +865,11 @@ Measure:
 - qualification and conflict preservation;
 - normative-authority violations;
 - answer leakage;
+- unsupported action or tool-selection leakage;
+- expectation-to-fact, condition-to-recommendation, and evidence-share-to-
+  probability promotion;
+- expectation-kind, condition, horizon, alternative, counterevidence,
+  uncertainty, and abstention fidelity;
 - language match;
 - mandatory exact-slot recall and authorized-slot precision;
 - wrong-slot, duplicate-slot, and altered exact-value rates;
@@ -498,12 +902,14 @@ binary task-level rule before evaluation or replaces these formulas with a
 paired hierarchical model that estimates task-population effects and
 reversals directly. Fractional within-task averages are never inserted into
 the binary harm predicates, and repeated generations are never counted as
-independent tasks. The binary task-level estimands use frozen normalized design
-weights `v_i > 0`, with `sum_i v_i = 1`. A self-weighting sample uses
-`v_i = 1/N`. A stratified, unequal-probability, or deliberately balanced sample
-must derive and freeze its weights from the sampling design before outcomes
-are observed. If no population sampling design is claimed, uniform weights
-estimate only the sealed evaluation set.
+independent tasks. Let \(N_{\mathrm{task}}>0\) be the finite number of sealed
+task units in the declared evaluation population. The binary task-level
+estimands use frozen normalized design weights `v_i > 0`, with
+`sum_i v_i = 1`. A self-weighting sample uses
+\(v_i=1/N_{\mathrm{task}}\). A stratified, unequal-probability, or deliberately
+balanced sample must derive and freeze its weights from the sampling design
+before outcomes are observed. If no population sampling design is claimed,
+uniform weights estimate only the sealed evaluation set.
 
 Let `I_D` and `I_I` be the frozen context-dependent and context-independent
 task sets. For each nonempty set, its design weights are renormalized within
@@ -631,6 +1037,16 @@ upperCI(h_{population,b}) < h_{population\_max,b}
 upperCI(h_{reversal,b}) < h_{reversal\_max,b}
 \]
 
+Because the task-level outcomes are binary, both paired effects have estimand
+domain \([-1,1]\), while both harm rates have estimand domain \([0,1]\) when
+defined. Every frozen threshold is finite and must satisfy
+\(0<\delta_{min,b}<1\),
+\(0<\delta_{NI,b}\leq1\),
+\(0<h_{population\_max,b}\leq1\), and
+\(0<h_{reversal\_max,b}\leq1\). A manifest containing a non-finite or
+out-of-domain threshold is invalid before sealed data become accessible and
+cannot support a release claim.
+
 Every claim-bearing subgroup must additionally pass its frozen
 non-inferiority and harm bounds for every required baseline. The positive
 values of the margins and bounds are not selected by this specification. They
@@ -683,6 +1099,17 @@ The development suite must include:
 - unresolved conflict between sources;
 - duplicate memories that amplify one proposition;
 - correlated evidence channels and correlated multiplicative inhibitions;
+- exact duplicate transitions and many paraphrases from one dependency group;
+- compatible co-outcomes incorrectly forced into one exclusive family;
+- mutually exclusive outcomes incorrectly placed into separate families;
+- a dominant known outcome with material unknown or omitted support;
+- zero known support with large unknown support;
+- one eligible transition versus many weak dependent transitions;
+- an observed action condition rendered as a recommended action;
+- relative support rendered as probability or confidence;
+- a later observation from a different horizon or condition treated as direct
+  contradiction;
+- downstream agent output fed back as if it were an independent observation;
 - an exact name, path, time, or number lost by numerical compression;
 - an embedding collision or misleading nearest neighbor;
 - a deleted record retained by a derived index;
@@ -695,6 +1122,8 @@ The development suite must include:
 - authorization revocation during compilation;
 - unsupported or ambiguous output language;
 - attention that subtly answers the user request;
+- attention that promotes an expectation to fact, silently hides an
+  alternative, drops a horizon, or suggests the next action;
 - validator false acceptance and false rejection;
 - average improvement with harm concentrated in one declared subgroup; and
 - equal or tiny activation margins that flip under permitted perturbation.
@@ -706,18 +1135,22 @@ The proof program proceeds in risk order:
 | Gate | Required result | Failure action |
 | --- | --- | --- |
 | G0: Contract | Product, architecture, and proof documents are internally consistent | Resolve contracts before implementation |
-| G1: Headroom | Expert reference beats prompt-only and situation-only by the predeclared meaningful margin | Reject or narrow the V1 premise |
-| G2: Boundary model | Formal obligations are reviewed and executable harnesses can represent every boundary | Do not select implementation technologies |
-| G3: Renderer feasibility | A registered numerical bridge and the smallest passing local checkpoint faithfully render frozen expert inclusion plans and exact slots, preserve qualifications, and avoid control-only exclusions within local budgets | Replace or constrain the bridge, model, or rendering contract before retrieval integration; do not weaken a failed gate |
-| G4: Memory read and snapshots | Supplied revisions, authorization views, pinned indexes, concurrent publication, and compile/management separation satisfy their contracts | Do not build persistent-memory retrieval |
-| G5: Retrieval | Required-proposition recall and cross-context behavior beat frozen simple baselines | Replace or simplify retrieval |
-| G6: Ranking and planning | Fixed-intermediate comparisons show value over semantic and rule baselines | Do not calibrate a mechanism without added value |
-| G7: Vertical slice | All critical invariants and resource budgets hold in an offline local integration | Do not build release packaging |
-| G8: Sealed evaluation | Every superiority, non-inferiority, harm, critical, and operational gate passes | Report failure or inconclusive evidence; do not relabel it |
+| G1: Product headroom | Expert focus beats prompt-only and situation-only, and correctly qualified expert focus-plus-expectation beats token-matched focus-only by predeclared meaningful margins without failing harm gates | Reject, narrow, or defer the premise before architecture implementation |
+| G2: Evidence harness | Formal obligations are reviewed; one versioned manifest, receipt, split, lineage, baseline, and analysis harness can represent every required condition and preserve failed or inconclusive results | Do not select implementation technologies |
+| G3: Predictive semantics | The deterministic expectation baseline passes transition-schema, dependency-budget, alternative, abstention, observation-assessment, and non-probability contracts on curated and adversarial evidence | Correct or simplify predictive semantics before renderer or persistence integration |
+| G4: Renderer feasibility | A deterministic renderer or registered numerical bridge plus the smallest passing local checkpoint faithfully renders frozen expert focus-and-expectation plans and exact slots within local budgets | Replace or constrain the bridge, model, or rendering contract; do not weaken a failed gate |
+| G5: Memory read and snapshots | Supplied revisions, authorization views, pinned indexes, concurrent publication, and compile/management separation satisfy their contracts | Do not build persistent-memory retrieval |
+| G6: Retrieval | Required-proposition and eligible-transition recall plus cross-context behavior beat frozen simple baselines | Replace or simplify retrieval |
+| G7: Activation and planning | Fixed-intermediate comparisons show value for signal derivation, activation, focus construction, expectation derivation, and combined closure selection over their strongest simpler baselines | Do not calibrate or integrate a mechanism without added value |
+| G8: Vertical slice | All critical invariants, offline boundaries, and resource budgets hold in one local end-to-end integration | Do not build release packaging |
+| G9: Sealed evaluation | Every superiority, non-inferiority, anchoring, harm, critical, subgroup, and operational gate passes | Report failure or inconclusive evidence; do not relabel it |
+| G10: Shipment | Reproducible artifacts, authenticated manifests, migrations, backup/restore, rollback, licenses, SBOM, platform CI, installation, and evidence receipts pass one release-candidate rehearsal | Do not publish or broaden the supported claim |
 
 Stop or redirect work when:
 
 - expert attention fails to establish product headroom;
+- correct expert expectation adds no value over token-matched focus-only or the
+  wrong-expectation control is not detectably harmful;
 - situation-only input explains the complete benefit;
 - semantic top-k or a simpler deterministic rule is non-inferior at lower
   complexity;
@@ -766,6 +1199,11 @@ the frozen receipt when adopting a component or claim.
   calibration, and sealed evidence.
 - The frozen target population contains adequately powered context-dependent
   and context-independent strata for every claim-bearing subgroup.
+- Transition fixtures distinguish mutually exclusive alternative families
+  from compatible co-outcomes and retain known dependency lineages.
+- Every focus-only, focus-plus-renderable-abstention, expectation-only,
+  combined, and wrong-expectation comparison reuses its frozen shared inputs
+  exactly as declared.
 - Primary labels and thresholds are frozen before candidate outputs are seen.
 - Private user memory is never used for training or evaluation without a
   separate consent and data-governance contract.
@@ -778,9 +1216,13 @@ the frozen receipt when adopting a component or claim.
 - Every sealed attempt remains in the permanent claim history.
 - Aggregate metrics derive from retained per-case observations.
 - Component comparisons reuse frozen upstream and downstream intermediates.
+- Focus and expectation comparisons consume one shared activated-set identity;
+  plan and renderer comparisons consume one frozen upstream semantic result.
 - A simpler baseline is not omitted because it performs well.
 - Failed, timed-out, and harmed cases remain visible.
 - No metric treats activation as probability, truth, or safety.
+- No metric treats relative support as calibrated probability or observation
+  assessment as automatic learning.
 - Claims are limited to the frozen domain, languages, models, tasks, hardware,
   and configuration evaluated.
 - One failed mandatory gate prevents a supported release claim.
@@ -794,6 +1236,12 @@ the frozen receipt when adopting a component or claim.
   missing relevant memory.
 - Complete provenance can support a false memory; support is not truth.
 - A faithful renderer can express a badly selected plan.
+- A well-supported expectation can still be false, and a later contradiction
+  does not retroactively make its earlier support computation invalid.
+- A condition recorded with an action does not establish causality or authorize
+  the renderer to recommend that action.
+- Separate normalization of compatible outcome families is required; forcing
+  them into one denominator creates a false tradeoff.
 - A useful planner can be obscured by a poor renderer.
 - An average improvement can coexist with an unacceptable harm subgroup.
 - Exact agreement on one floating-point platform does not imply bit-identical
@@ -820,10 +1268,15 @@ fixtures that preserve:
 - authorization before candidate generation;
 - historical validity without revival of current instruction authority;
 - provenance-root duplicate suppression and unresolved conflict;
+- transition kind, condition, horizon, observation status, dependency budget,
+  alternative-family, unknown-support, and abstention semantics;
+- separate focus and expectation projections from one shared activated-set
+  identity;
 - exact-value slot identity and deterministic surface substitution;
-- plan-role distinctions such as dominant versus secondary context; and
-- explicit separation between a focus narrative, an answer, and a claimed
-  chain of thought.
+- plan-role distinctions such as dominant versus secondary context,
+  hypothesis versus fact, and condition versus selected action; and
+- explicit separation between lexicalized attention, an answer, an action
+  plan, a probability claim, and a claimed chain of thought.
 
 Before any component is accepted:
 
@@ -838,6 +1291,7 @@ Before `Validated` product status:
 - pass the memory-read and snapshot gate;
 - complete the sealed evaluation protocol;
 - pass every predeclared statistical, critical, and operational gate;
+- pass one reproducible G10 shipment rehearsal with rollback and recovery;
 - publish an inspectable evidence receipt;
 - verify product-contract boundary tests on every supported platform; and
 - state every unsupported domain, language, model, and hardware class.
@@ -852,6 +1306,12 @@ Before `Validated` product status:
 - Sampling-frame construction, inclusion probabilities, and design weights.
 - Supported languages, downstream models, and reference hardware.
 - Attention and resource budgets.
+- Transition schema, alternative-family registry, dependency-group policy,
+  expectation materiality, coverage, effective-support, and abstention
+  thresholds.
+- Wrong-expectation anchoring metric and maximum tolerated harm.
+- Whether expectation-only output enters the supported product claim after its
+  complete-scope cases are evaluated.
 - Annotation protocol and agreement threshold.
 - Retrieval, renderer, and operational metric thresholds.
 - Evidence-receipt serialization and long-term storage.
@@ -863,12 +1323,17 @@ after the sealed outcomes are known.
 
 - [V1 product contract](v1-product-contract.md)
 - [V1 reference architecture](v1-reference-architecture.md)
+- [V1 delivery program](v1-delivery-program.md)
 - [Situation-conditioned activation](situation-conditioned-activation.md)
 - [Activation parameter evaluation](activation-parameter-evaluation.md)
 - [Curated activation evidence](curated-activation-evidence.md)
 - [Cognitive memory activation and focus](cognitive-memory-activation-and-focus.md)
+- [Predictive attention and expectation](predictive-attention-and-expectation.md)
+- [Focus-and-expectation planning](focus-and-expectation-planning.md)
 - [Vector-to-attention renderer](vector-to-attention-renderer.md)
 - [Local renderer model qualification](local-renderer-model-qualification.md)
-- [Decision 0011: Adopt a local read-only attention compiler for V1](../decisions/0011-adopt-local-read-only-attention-compiler-v1.md)
-- [Decision 0012: Adopt numerical cognitive memory and focus compilation](../decisions/0012-adopt-numerical-cognitive-memory-and-focus-compilation.md)
-- [Decision 0013: Adopt a vector-prefix local renderer qualification path](../decisions/0013-adopt-a-vector-prefix-local-renderer-qualification-path.md)
+- [Superseded Decision 0011: Adopt a local read-only attention compiler for V1](../decisions/0011-adopt-local-read-only-attention-compiler-v1.md)
+- [Superseded Decision 0012: Adopt numerical cognitive memory and focus compilation](../decisions/0012-adopt-numerical-cognitive-memory-and-focus-compilation.md)
+- [Superseded Decision 0013: Adopt a vector-prefix local renderer qualification path](../decisions/0013-adopt-a-vector-prefix-local-renderer-qualification-path.md)
+- [Decision 0014: Adopt memory-grounded predictive attention](../decisions/0014-adopt-memory-grounded-predictive-attention.md)
+- [Decision 0015: Render qualified focus-and-expectation plans](../decisions/0015-render-qualified-focus-and-expectation-plans.md)

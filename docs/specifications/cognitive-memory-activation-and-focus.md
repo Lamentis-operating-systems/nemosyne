@@ -8,16 +8,19 @@ This specification defines the proposed cognitive-memory hypothesis for
 Nemosyne V1. It describes how an already authorized, immutable memory revision
 and one compile request can be represented numerically, activated by
 situation-dependent cues, consolidated into request-local propositions, and
-reduced to a bounded focus plan.
+reduced to a bounded focus-candidate set.
 
-Decision 0012 accepts numerical memory, situation-conditioned activation,
-request-local consolidation, and bounded focus planning as the intended V1
-direction. This specification makes that path testable while its particular
-facet schema, derivation functions, coefficients, and planning mechanism remain
-proposed pending implementation and evaluation. It refines the
-signal-derivation and attention-planning boundaries in the V1 reference
-architecture. It does not select an embedding model, vector dimension,
-database, index, renderer model, runtime, or persistent consolidation policy.
+Decision 0014 retains numerical memory, situation-conditioned activation, and
+request-local consolidation while replacing the focus-only terminal plan
+selected by superseded Decision 0012. This specification now owns only the
+memory, activation, consolidation, and focus branch. The parallel expectation
+branch is defined by the predictive-attention specification, and the only
+renderer-facing plan is defined by the focus-and-expectation-planning
+specification. The particular facet schema, derivation functions,
+coefficients, and focus-candidate mechanism remain proposed pending
+implementation and evaluation. This document does not select an embedding
+model, vector dimension, database, index, renderer model, runtime, or
+persistent consolidation policy.
 
 The proposal is cognitively inspired. It does not claim to simulate a human
 brain, consciousness, subjective experience, inner speech, or a literal chain
@@ -33,17 +36,45 @@ For one compile invocation:
 
 - `P` is the retained original prompt;
 - `S` contains zero to three situation statements;
-- `X` contains request metadata and the declared contextual time `t_context`;
-- `U` is the authenticated invocation context;
+- \(\Xi\) contains request metadata and the declared contextual time
+  `t_context`;
+- `I` is the authenticated invocation context;
 - `t_auth` is the trusted authorization time;
-- `M_A^(r,p,t_auth,U)` is the immutable authorized and disclosable view of
+- `M_A^(r,p,t_auth,I)` is the immutable authorized and disclosable view of
   memory revision `r` under policy revision `p`;
 - `K` is the pinned compiler configuration and artifact set; and
-- `B > 0` is the finite attention budget resolved by policy and configuration.
+- \(N_{\mathrm{focus}}>0\) and \(W_{\mathrm{focus}}>0\) are the finite
+  focus-candidate cardinality and work budgets resolved by policy and
+  configuration.
 
-The output of this specification is a structured focus plan `L`. Rendering,
-validation, and exact serialization remain separate stages. The public product
-output remains the one compiled text defined by the V1 product contract.
+The output of this specification is a structured focus-candidate set `F`.
+`F` and the independently derived expectation bundle `E` are inputs to the
+combined-plan contract. Rendering, validation, and exact serialization remain
+separate stages. The public product output remains the one compiled text
+defined by the V1 product contract.
+
+### Local notation
+
+The global cross-stage registry is in the
+[V1 proof program](v1-proof-program.md#canonical-notation-and-derivation-ownership).
+This table owns symbols reused only inside this specification:
+
+| Symbol | Local meaning |
+| --- | --- |
+| \(f=(\tau_f,v_f,\kappa_f,\nu_f)\) | One typed numerical facet and its type, payload, transform identity, and presence state |
+| \(F_i,X_i,H_i\) | Memory-unit facets, exact sidecars, and history/transition references |
+| \(F_Q,X_Q,G_Q,Z_Q\) | Query facets, exact values, active goals, and typed absence/quality state |
+| \(c_{i,f},C_i\) | One calibrated direct cue and the complete direct-cue vector |
+| \(k_{\mathrm{hist}},n_i^{\mathrm{hist}},t_{i,k_{\mathrm{hist}}},\delta_{i,k_{\mathrm{hist}}}^{\mathrm{hist}},\beta_{\mathrm{decay}},b_i^{\mathrm{raw}},b_i\) | History-event index and count, event time, dimensionless age, decay exponent, raw base availability, and calibrated availability |
+| \(t_i,x_i,g_i,u_i,s_i\) | Temporal, spatial, goal, procedural, and social relevance channels |
+| \(k_{\mathrm{haz}},n_Q^{\mathrm{haz}},z_{k_{\mathrm{haz}}}^{\mathrm{haz}},h_{i,k_{\mathrm{haz}}},h_i\) | Hazard index and count, one represented hazard, per-hazard relevance, and aggregate hazard relevance |
+| \(a^{(k)},W,\rho,K_{\mathrm{spread}}\) | Spreading-activation state, relation matrix, restart factor, and fixed iteration count |
+| \(e_{i,c},w_c,g_c,p_{i,j},\lambda_j\) | Evidence signals, weights, gates, inhibition signals, and strengths passed to activation |
+| \(\phi,q_\phi,\operatorname{score}_\phi\) | Request-local proposition, request-derived support, and conservative proposition activation |
+| \(N_{\mathrm{focus}},W_{\mathrm{focus}}\) | Focus candidate-count and conservative work ceilings |
+
+Symbols with the same bare Latin letter in another specification are unrelated
+unless the global registry explicitly connects their complete qualified form.
 
 ### Typed numerical facets
 
@@ -99,13 +130,13 @@ include, where applicable:
 - UTF-8 or opaque bytes for names, paths, identifiers, quotations, and other
   loss-sensitive values;
 - authority, authorization, disclosure, validity, and supersession labels;
-- provenance roots and source-independence groups;
+- provenance roots and dependency groups;
 - confidence and uncertainty values under a declared calibration contract; and
 - encoder, transform, schema, and index identities.
 
 Bytes are data, not instructions. A renderer may reproduce exact bytes only
-through an explicit focus-plan binding whose disclosure and authority checks
-have already passed.
+through an explicit `FocusExpectationPlan` binding whose disclosure and
+authority checks have already passed.
 
 ### Numerical memory unit
 
@@ -115,23 +146,24 @@ The compile-time representation of one immutable memory record version `i` is:
 m_i=
 (
 \operatorname{id}_i,
-F_i,
-X_i,
-H_i,
-R_i,
-\Pi_i
-)
+	F_i,
+	X_i,
+	H_i,
+	\mathcal G_i,
+	\Pi_i
+	)
 \]
 
 where:
 
 - `F_i` is a finite collection of typed numerical facets;
 - `X_i` is the collection of exact sidecars;
-- `H_i` is a versioned history of relevant real observations, uses, and
-  outcomes;
-- `R_i` is a finite set of typed numerical relations to other immutable record
-  versions; and
-- `Pi_i` is provenance, authority, validity, uncertainty, and policy metadata.
+- `H_i` contains immutable references to relevant history and transition
+  records governed by the predictive-attention specification;
+- \(\mathcal G_i\) is a finite set of typed numerical relations to other
+  immutable record versions; and
+- \(\Pi_i\) is provenance, authority, validity, uncertainty, and policy
+  metadata.
 
 The authoritative memory plane may retain exact source material or canonical
 propositions as defined by a future memory-management contract. The
@@ -145,7 +177,7 @@ source of truth.
 Situation encoding produces:
 
 \[
-Q=\operatorname{encode}(P,S,X,t_{\mathrm{auth}};K)
+Q=\operatorname{encode}(P,S,\Xi,t_{\mathrm{auth}};K)
 \]
 
 with:
@@ -178,9 +210,9 @@ request-local candidate graph:
 
 \[
 \operatorname{eligible}(m_i)=
-\operatorname{readable}(m_i,U)
+\operatorname{readable}(m_i,I)
 \land
-\operatorname{disclosable}(m_i,U,t_{\mathrm{auth}})
+\operatorname{disclosable}(m_i,I,t_{\mathrm{auth}})
 \land
 \operatorname{revisionCompatible}(m_i,r,K)
 \land
@@ -192,8 +224,8 @@ request-local candidate graph:
 The eligible set is:
 
 \[
-\mathcal{M}_{E}=
-\{m_i\in M_A^{(r,p,t_{\mathrm{auth}},U)}
+\mathcal M_E=
+\{m_i\in M_A^{(r,p,t_{\mathrm{auth}},I)}
 \mid\operatorname{eligible}(m_i)\}
 \]
 
@@ -229,21 +261,21 @@ request. Define a pinned usage-compatibility predicate:
 The request-local candidate universe is:
 
 \[
-\mathcal{M}_{Q}=
-\{m_i\in\mathcal{M}_{E}\mid
+\mathcal M_Q=
+\{m_i\in\mathcal M_E\mid
 \operatorname{usageCompatible}(m_i,Q)\}
 \]
 
 `currentUsable` applies the record's validity and supersession contract.
 Historical admission is explicit, carries a `historical_only` qualification,
 and cannot support a current normative instruction. Candidate generation and
-graph expansion operate on `mathcal{M}_Q`; a stale record cannot enter an
+graph expansion operate on \(\mathcal M_Q\); a stale record cannot enter an
 ordinary current request merely because it is semantically similar.
 
 ### Direct cue activation
 
 Candidate generation derives a bounded direct candidate set from `Q` and
-`mathcal{M}_Q`. A direct cue score is a collection of independently inspectable
+\(\mathcal M_Q\). A direct cue score is a collection of independently inspectable
 facet matches rather than one undifferentiated embedding similarity.
 
 For a compatible facet family `f`:
@@ -276,25 +308,31 @@ retrieval requires measured recall and cannot replace authorization.
 
 Human-memory research motivates a prior availability term based on the timing
 of real observations or uses. Let `u_time > 0` be a pinned reference duration
-in the same units as timestamps and let `delta_min > 0` be a dimensionless
-minimum age. For every configured history event `t_(i,h) <= t_auth`, define:
+in the same units as timestamps, let `delta_min > 0` be a dimensionless
+minimum age, and let \(n_i^{\mathrm{hist}}\) be the finite nonnegative count of
+qualifying configured history events in canonical order. For
+\(n_i^{\mathrm{hist}}>0\) and each
+\(k_{\mathrm{hist}}\in\{1,\ldots,n_i^{\mathrm{hist}}\}\), require
+\(t_{i,k_{\mathrm{hist}}}\leq t_{\mathrm{auth}}\) and define:
 
 \[
-\delta_{i,h}=
+\delta_{i,k_{\mathrm{hist}}}^{\mathrm{hist}}=
 \max
 \left(
-\frac{t_{\mathrm{auth}}-t_{i,h}}{u_{\mathrm{time}}},
+\frac{t_{\mathrm{auth}}-t_{i,k_{\mathrm{hist}}}}{u_{\mathrm{time}}},
 \delta_{\min}
 \right)
 \]
 
-For `n_i > 0` and pinned `d > 0`, define:
+When \(n_i^{\mathrm{hist}}>0\), for pinned
+\(\beta_{\mathrm{decay}}>0\), define:
 
 \[
 b_i^{raw}=
 \ln
 \left(
-\sum_{h=1}^{n_i}\delta_{i,h}^{-d}
+\sum_{k_{\mathrm{hist}}=1}^{n_i^{\mathrm{hist}}}
+\left(\delta_{i,k_{\mathrm{hist}}}^{\mathrm{hist}}\right)^{-\beta_{\mathrm{decay}}}
 \right)
 \]
 
@@ -409,28 +447,36 @@ tool.
 
 ### Risk and urgency relevance
 
-For each currently represented hazard `h`, the separately derived
-`severity(h)`, `causalRelevance(m_i,h)`, and `confidence(h)` values are finite
-and lie in `[0,1]`. Define:
+Let
+\((z_1^{\mathrm{haz}},\ldots,z_{n_Q^{\mathrm{haz}}}^{\mathrm{haz}})\)
+be the finite canonical sequence of currently represented hazards. When
+\(n_Q^{\mathrm{haz}}>0\), each
+\(k_{\mathrm{haz}}\in\{1,\ldots,n_Q^{\mathrm{haz}}\}\) has separately derived
+`severity`, `causalRelevance`, and `confidence` values that are finite and lie
+in `[0,1]`. Define:
 
 \[
-h_{i,h}=
-\operatorname{severity}(h)
+h_{i,k_{\mathrm{haz}}}=
+\operatorname{severity}(z_{k_{\mathrm{haz}}}^{\mathrm{haz}})
 \cdot
-\operatorname{causalRelevance}(m_i,h)
+\operatorname{causalRelevance}(m_i,z_{k_{\mathrm{haz}}}^{\mathrm{haz}})
 \cdot
-\operatorname{confidence}(h)
+\operatorname{confidence}(z_{k_{\mathrm{haz}}}^{\mathrm{haz}})
 \]
 
 and:
 
 \[
-h_i=\max_h h_{i,h}\in[0,1]
+h_i=
+\max_{1\leq k_{\mathrm{haz}}\leq n_Q^{\mathrm{haz}}}
+h_{i,k_{\mathrm{haz}}}
+\in[0,1]
 \]
 
-An empty hazard set disables the risk channel. Arousal, emotional language, or
-negative sentiment does not by itself establish severity or causal relevance.
-Risk relevance and truth confidence remain separate values.
+When \(n_Q^{\mathrm{haz}}=0\), the maximum is not evaluated and the risk
+channel is disabled. Arousal, emotional language, or negative sentiment does
+not by itself establish severity or causal relevance. Risk relevance and truth
+confidence remain separate values.
 
 For a future deadline with remaining duration `Delta_i >= 0`, a proposed
 urgency feature is:
@@ -471,7 +517,7 @@ authorization, establish truth, or elevate instruction authority.
 ### Bounded spreading activation
 
 Direct candidates may activate usage-compatible related records through typed,
-versioned relations. Let `n` be the number of records in `mathcal{M}_Q`
+versioned relations. Let `n` be the number of records in \(\mathcal M_Q\)
 admitted to a bounded request-local graph. Let:
 
 \[
@@ -576,26 +622,13 @@ also requires current validity and non-supersession as a hard authority rule.
 Historical relevance is represented explicitly rather than by weakening that
 rule.
 
-The existing kernel computes:
-
-\[
-E_i=
-\frac{\sum_c w_cg_c(Q)e_{i,c}}
-{\sum_c w_cg_c(Q)}
-\]
-
-\[
-R_i=
-\prod_j(1-\lambda_jp_{i,j})
-\]
-
-\[
-A_i=E_iR_i
-\]
-
-The evidence denominator must be positive. Kernel input validation, canonical
-channel order, floating-point behavior, explanation contract, and tie-breaking
-remain governed by the situation-conditioned activation specification.
+The existing kernel consumes those evidence and inhibition channel values.
+Its formulas, denominator precondition, canonical channel order,
+floating-point behavior, explanation contract, tie-breaking, and notation are
+owned only by the
+[situation-conditioned activation specification](situation-conditioned-activation.md).
+This specification supplies candidate meaning and signal lineage but does not
+restate the kernel derivation.
 
 `A_i` is a bounded relative activation score. It is not:
 
@@ -682,231 +715,190 @@ source binding. The proposition's activation score is conservatively:
 \]
 
 The set inside `max` is nonempty because every proposition has support.
-Independent corroboration count, source diversity, and conflicts are recorded
-as separate planning features. They do not silently increase the activation
-score. A later accepted decision may replace this conservative aggregation
-only after source-dependence and calibration evidence exists.
+Dependency-group diversity and conflicts are recorded as separate planning
+features. They do not silently increase the activation score. A later accepted
+decision may replace this conservative aggregation only after source-dependence
+and calibration evidence exists.
 
 Consolidation creates request-local computational state only. Persistent
 episodic-to-semantic consolidation, reconsolidation, deletion, correction, and
 learning belong to a separately authorized memory-management path.
 
-### Budgeted focus-plan selection
+### Focus-candidate construction
 
-The planner receives request-supported propositions and request-local memory
-propositions. It first partitions the applicable, authorized propositions into
-an inclusion candidate set \(\Phi_{\mathrm{include}}\) and a control-only
-exclusion set \(\Phi_{\mathrm{exclude}}\). A proposition enters
-\(\Phi_{\mathrm{exclude}}\) only through an explicit request, policy,
-supersession, or conflict-resolution rule in the pinned configuration. A
-record removed by authorization or usage gating never enters either set.
+The focus branch receives the shared eligible activated memory set before
+renderer-budget pruning. It consolidates compatible support into propositions,
+then partitions the applicable propositions into:
 
-Each proposition in \(\Phi_{\mathrm{include}}\) is classified as one of:
+- inclusion candidates;
+- mandatory inclusion candidates; and
+- control-only exclusions created by an explicit request, policy,
+  supersession, or conflict-resolution rule.
 
-- current focus;
-- dominant goal;
-- dominant constraint;
-- relevant background;
-- secondary influence;
-- conflict; or
-- uncertainty.
+Authorization-rejected records never enter any partition. Each inclusion
+candidate is classified as current focus, dominant goal, dominant constraint,
+relevant background, secondary influence, conflict, or uncertainty. It retains
+its activation, support, provenance roots, authority ceiling, qualifications,
+exact-sidecar bindings, stable identifier, and deterministic cost estimate.
+Control-only exclusions retain enough evidence for validation but are never
+renderer input.
 
-Let
-\(\Phi_{\mathrm{mandatory}}\subseteq\Phi_{\mathrm{include}}\) be the
-propositions whose faithful inclusion is mandatory. Each inclusion candidate
-has:
+The output is:
 
-- activation `score_phi` in `[0,1]`;
-- deterministic estimated rendering cost `cost_phi > 0`;
-- coverage `cov_(phi,d)` in `[0,1]` for focus dimension `d`;
-- pairwise redundancy `red_(phi,psi)` in `[0,1]`;
-- mandatory qualifications and exact bindings; and
-- a stable identifier for canonical tie-breaking.
+```text
+FocusCandidateSet
+├── schema_id
+├── candidates[]
+│   ├── proposition_id
+│   ├── focus_roles[]
+│   ├── numerical_meaning
+│   ├── activation
+│   ├── support[]
+│   ├── provenance_roots[]
+│   ├── qualifications[]
+│   ├── exact_bindings[]
+│   ├── estimated_cost
+│   ├── mandatory
+│   └── order_key: FocusCandidateOrderKey
+├── control_exclusions[]
+└── source_receipt: exact copy of Lambda_A
+```
 
-All scores, costs, coverage values, and redundancy values are finite.
-Redundancy is symmetric with a zero diagonal. Dimension weights satisfy:
+The predictive-attention specification solely owns the complete immutable
+lineage tuple \(\Lambda_A\). The focus branch copies it field-for-field from the
+one shared `EligibleActivatedMemorySet`; it does not omit, extend, or
+reconstruct lineage from ambient state. A mismatch with the shared set or a
+receipt assembled from more than one set is a structural error. The receipt is
+lineage metadata only: it contains no raw evidence, diagnostic prose, or
+independent semantic truth.
 
-\[
-\omega_d\geq0,
-\qquad
-\sum_{d\in D}\omega_d=1
-\]
+The schema's versioned total focus-role order sorts every candidate's
+nonempty, duplicate-free `focus_roles` list. The first role is the primary
+role. `FocusCandidateOrderKey` is the closed lexicographic tuple:
 
-The finite planning coefficients satisfy
-`kappa >= 0`, `eta >= 0`, `alpha >= 0`, and `zeta >= 0`, with at least one of
-`alpha` or `zeta` positive. They are compiler parameters, not inferred from the
-current candidate set.
+1. primary focus-role rank;
+2. the complete sorted focus-role rank vector;
+3. descending finite canonical activation; and
+4. ascending `proposition_id`.
 
-For selected set
-\(U\subseteq\Phi_{\mathrm{include}}\), define:
+The key is derived, never caller-authored. Its activation component uses the
+exact bounded activation value already carried by the candidate under the
+pinned numerical policy; it introduces no new score. An unknown role,
+duplicate role, non-total role table, mismatch between a candidate and its
+derived key, or duplicate complete candidate key is a structural error.
+Missing qualifications, incompatible exact values, unresolved contradictions,
+or an unbounded candidate set are also structural errors. No candidate is
+silently truncated merely to satisfy the final output budget.
 
-\[
-\operatorname{coverage}(U)
-=
-\sum_{d\in D}
-\omega_d
-\min
-\left(
-1,
-\sum_{\phi\in U}\operatorname{cov}_{\phi,d}
-\right)
-\]
+The focus branch does not own final plan selection. The
+[focus-and-expectation-planning specification](focus-and-expectation-planning.md)
+combines this complete candidate set with the independently produced
+expectation bundle, applies the one authoritative rendering budget and
+lexicographic selection contract, and creates the sole renderer-facing plan.
+This separation prevents a focus-only objective from deleting alternative or
+counterevidential transition support before expectation formation.
 
-\[
-\operatorname{redundancy}(U)
-=
-\sum_{\substack{\phi,\psi\in U\\\operatorname{id}_\phi<
-\operatorname{id}_\psi}}
-\operatorname{red}_{\phi,\psi}
-\]
+### Focus contribution to the attention text
 
-The proposed selection objective is:
-
-\[
-U^\*=
-\arg\max_{U\in\mathcal{F}}
-\left[
-\sum_{\phi\in U}\operatorname{score}_{\phi}
-+
-\kappa\operatorname{coverage}(U)
--
-\eta\operatorname{redundancy}(U)
--
-\alpha|U|
--
-\zeta
-\frac{\sum_{\phi\in U}\operatorname{cost}_{\phi}}{B}
-\right]
-\]
-
-subject to:
-
-\[
-\Phi_{\mathrm{mandatory}}\subseteq U,
-\qquad
-\sum_{\phi\in U}\operatorname{cost}_{\phi}\leq B
-\]
-
-`mathcal{F}` contains the empty set when `Phi_mandatory` is empty and otherwise
-only sets that include every mandatory proposition and preserve mandatory
-qualification, authority, exact-value, and conflict constraints. A proposition
-that requires a qualifier is infeasible without that qualifier. If one side of
-an unresolved material conflict is selected, the plan must include the conflict
-status and every side required for a faithful representation.
-
-Exclusions are not members of \(\mathcal F\), receive no positive utility, and
-cannot be removed by the optimization. Every member of
-\(\Phi_{\mathrm{exclude}}\) becomes a canonical control record in the plan.
-These records do not consume the attention output budget `B` because they can
-never be rendered. They count against a separate schema-bound maximum
-`N_exclude`. Exceeding that maximum returns `AttentionPlanCapacityExceeded`
-rather than omitting an exclusion. Exclusion records are available only to
-validation and never enter the generative renderer prefix.
-
-Planning uses the pinned finite dtype, canonical accumulation order, and
-rounding contract in `K`. Exact optimization, deterministic greedy selection,
-and a tested approximation remain open implementation choices. Equal
-objectives resolve first by lower total cost, then fewer propositions, then
-canonical proposition-identifier order. When `Phi_mandatory` is empty and no
-nonempty set has objective strictly above the empty set's value of zero,
-\(U^\*\) is empty. The item and normalized-cost penalties prevent a positive but
-negligible score from automatically filling otherwise unused budget.
-
-If mandatory faithful focus cannot fit within `B`, planning returns
-`InsufficientAttentionBudget`. It must not silently truncate, weaken a
-qualification, or substitute empty attention. Empty attention is valid only
-when no additional focus is justified.
-
-### Structured focus plan
-
-The selected plan is one immutable authoritative envelope:
-
-\[
-L=
-\left(
-\kappa_L,
-(u_1,\ldots,u_n),
-\mathcal X_L,
-\mathcal{R}_L,
-V_L,
-\Phi_{\mathrm{mandatory}},
-\Phi_{\mathrm{optional}},
-\ell_L,
-B_L
-\right)
-\]
-
-where `kappa_L` identifies the complete plan schema, `u_i` are canonically
-ordered plan items corresponding exactly to \(U^\*\), `X_L` is the complete
-canonically ordered control view of \(\Phi_{\mathrm{exclude}}\), `R_L`
-contains typed dominant, secondary, conflict, and qualification relations,
-`V_L` is the output-authorized exact-value sidecar, `Phi_mandatory` and
-`Phi_optional` partition the selected plan items, `ell_L` is the resolved
-output language, and `B_L` is the post-substitution rendering budget. A
-renderer has no independent language, budget, or inclusion source of truth and
-rejects a configuration that is incompatible with `kappa_L`.
-
-Each entry in `X_L` retains the numerical proposition meaning, scope,
-qualification, control-rule identity, and any exact surfaces required for
-deterministic or semantic exclusion checks. It is visible only to validators.
-It is not a plan item, an exact substitution source, or a model-prefix input.
-
-Before the planning objective is evaluated, the pinned deterministic formatter
-materializes every authorized exact surface for `ell_L` and its contribution to
-the declared cost function. `V_L` retains those approved bytes, lengths,
-permitted bindings, and minimum and maximum occurrence counts for substitution
-and post-render verification, but the language model never receives the bytes.
-Estimated proposition cost reserves the schema-declared maximum permitted
-exact-value expansion rather than treating a one-token slot as the final cost.
-
-Each `u_i` carries the complete lossless renderer view of one selected
-proposition:
-
-- the ordered focus categories;
-- typed numerical proposition meanings and role-bound facets;
-- source and provenance bindings;
-- authority ceilings;
-- confidence, validity, and uncertainty qualifications;
-- exact-value bindings;
-- dominant and secondary priority relations;
-- unresolved conflicts;
-- required inclusions and permitted omissions;
-- exact-slot identities and binding roles; and
-- mandatory or optional disposition.
-
-The plan contains no answer to `P`, no executable tool call, and no free-form
-draft reasoning. Role identity is retained so a renderer cannot mistake
-background for a constraint or uncertainty for a fact.
-
-### Focus narrative
-
-A renderer may lexicalize `L` into a concise focus narrative containing:
+When selected into the combined plan, focus candidates may support language
+about:
 
 - what the current situation makes salient;
 - which goals or constraints dominate;
 - which background materially changes interpretation;
-- which secondary pressures remain relevant;
-- which conflicts or uncertainties must remain visible; and
-- how the downstream model should orient its response without answering `P`.
+- which secondary pressures remain relevant; and
+- which conflicts or uncertainties must remain visible.
 
-The focus narrative is an interface artifact. It is not a transcript of
-internal human cognition, model reasoning, hidden reasoning, or chain of
-thought. It must not claim emotions, beliefs, motives, or subjective experience
-that are not represented by authorized evidence in `L`.
+The combined attention text is an interface artifact. It is not a transcript
+of internal human cognition, model reasoning, hidden reasoning, or chain of
+thought. The focus branch does not create expectations, answers, executable
+actions, or unsupported claims about emotions, beliefs, motives, or subjective
+experience.
 
 ### Action-selection boundary
 
-This specification ends at focus-plan construction. Nemosyne V1 does not:
+This specification ends at focus-candidate construction. Nemosyne V1 does not:
 
 - choose or execute a downstream action;
 - authorize a tool;
 - override the downstream model's safety or instruction hierarchy;
 - infer that the highest-activation memory prescribes the correct action; or
-- guarantee that a focus narrative improves the downstream response.
+- guarantee that a focus contribution improves the downstream response.
 
 Action competition, evidence accumulation, and urgency-gating research motivate
 separating possible actions and time pressure from general semantic similarity.
 They do not place action selection inside the V1 compiler.
+
+## Computational complexity
+
+This specification owns the conservative reference bounds for memory
+eligibility, numerical cue and signal derivation, spreading activation,
+request-local proposition consolidation, and focus-candidate construction. Let:
+
+- \(n_M\) be the number of records in the acquired immutable revision;
+- \(n_r\) be the bounded direct candidate count;
+- \(c_{\mathrm{facet}}\) be the sum of declared per-candidate direct,
+  temporal, spatial, procedural, and social metric/calibrator costs;
+- \(h_\Sigma\) be the total qualifying history-event count traversed for the
+  \(n_r\) candidates;
+- \(n_G\) and \(n_H\) be the active-goal and represented-hazard counts, with
+  worst-case per-pair costs \(c_G\) and \(c_H\);
+- \(n_g,e_g,k_g\) be the bounded spreading graph's node count, edge count, and
+  fixed iteration count;
+- \(c_e,c_j\) be the activation evidence and inhibition channel counts;
+- \(n_a\) be the activated records admitted to consolidation;
+- \(d_{\mathrm{eq}}\) be the declared worst-case cost of one proposition
+  compatibility/equivalence comparison, including exact-slot checks; and
+- \(n_\phi,s_\phi\) be the resulting proposition count and total retained
+  source-binding count.
+
+The exhaustive reference candidate generator authorizes and scores every
+eligible record, keeps a bounded top-\(n_r\) heap, and therefore costs
+\[
+O\!\left(n_M(c_{\mathrm{policy}}+c_{\mathrm{facet}}+\log n_r)\right)
+\]
+time and \(O(n_r)\) selection workspace, where
+\(c_{\mathrm{policy}}\) is the pinned worst-case per-record authorization,
+validity, and usage-gate cost. A selected approximate index may replace this
+oracle only when its own build/query/storage bounds, immutable-revision
+binding, and recall contract are declared and it passes the proof program's
+false-negative gates. Authorization still precedes retrieval competition.
+
+For the bounded candidates, reference facet, availability, goal, procedural,
+risk, and social derivation costs
+\[
+O\!\left(
+n_r c_{\mathrm{facet}}+h_\Sigma+n_r(n_Gc_G+n_Hc_H)+n_r(c_e+c_j)
+\right)
+\]
+before graph propagation. A selected metric or calibrator with a greater cost
+replaces its corresponding term explicitly; no encoder, nearest-neighbour, or
+calibrator cost is hidden inside an assumed constant. Bounded spreading costs
+\[
+O\!\left(k_g(n_g+e_g)\right)
+\]
+time and \(O(n_g+e_g)\) workspace. Activation evaluation and full ordering use
+the exact bounds owned by the
+[situation-conditioned activation specification](situation-conditioned-activation.md#computational-complexity).
+
+The conservative consolidation oracle compares each activated record with
+each existing compatible proposition representative and therefore costs at
+most
+\[
+O(n_a^2d_{\mathrm{eq}}+s_\phi+n_\phi\log n_\phi)
+\]
+time and \(O(n_a+s_\phi+n_\phi)\) request-local state. An optimized grouping
+index may reduce comparisons only if it produces the same proposition
+partition, conflicts, support bindings, authority ceilings, and canonical
+order as the oracle. Focus-candidate construction is linear in the proposition
+and source state after that canonical sort.
+
+All counts have authenticated finite configuration ceilings and use checked
+arithmetic before allocation or iteration. These expressions are complexity
+contracts, not scale, latency, memory, or suitability claims. Cold encoder and
+database-open costs, persistent index construction, rendering, validation, and
+transport are owned by the reference architecture and their focused
+specifications.
 
 ## Preconditions
 
@@ -923,11 +915,11 @@ A conforming experiment requires:
 - lossless sidecars for every exact value required downstream;
 - an authorization and disclosure view established before candidate
   generation;
-- a bounded candidate, graph, relation, and planning budget;
+- bounded candidate, graph, relation, cardinality, and work budgets;
 - a channel schema with versioned parameters and no implicit default weights;
 - a positive effective evidence denominator for every activation call;
 - stable provenance roots and record-version identities;
-- declared language and focus-budget limits; and
+- declared focus-candidate limits; and
 - no network access or persistent write capability on the compile path.
 
 ## Invariants
@@ -958,22 +950,23 @@ A conforming experiment requires:
 - Every selected focus proposition has source bindings and an authority ceiling
   permitted by its essential support.
 - Required exact values flow through explicit sidecar bindings.
-- Planning respects the finite attention budget without truncating required
-  meaning.
-- The focus plan contains neither an answer nor an executable action.
+- Focus-candidate construction respects its finite candidate bound without
+  truncating required meaning.
+- The focus-candidate set contains neither an answer nor an executable action.
 - Activation values are not presented as truth, probability, safety,
   instruction authority, or biological measurements.
-- The focus narrative is not presented as human inner speech or chain of
-  thought.
-- For fixed input, revision, configuration, canonical order, declared random
-  tape, and pinned dtype, backend, elementary functions, reduction order,
-  rounding, and tie semantics, every numerical intermediate and focus plan is
-  reproducible within the declared bitwise or tolerance contract.
+- A rendered focus contribution is not presented as human inner speech or
+  chain of thought.
+- For fixed input, revision, configuration, canonical order, and pinned dtype,
+  backend, elementary functions, reduction order, rounding, and tie semantics,
+  every numerical intermediate and focus-candidate set is reproducible within
+  the declared bitwise or tolerance contract. A V1-deployable compile uses no
+  request-time random input.
 
 ## Edge cases
 
 - An empty authorized memory revision may still produce request-supported focus.
-- No justified additional focus produces a valid empty plan.
+- No justified additional focus produces a valid empty focus-candidate set.
 - A perfect vector match in an unauthorized record has no effect.
 - A recent irrelevant record may rank below an old but strongly matching
   procedural record.
@@ -996,10 +989,10 @@ A conforming experiment requires:
   conflicting.
 - A consolidated semantic proposition does not delete or replace its episodic
   support.
-- A material qualification that does not fit the budget causes an explicit
-  budget failure.
-- Equal activation or planning objectives use stable numeric identifiers rather
-  than input order.
+- Candidate construction retains every material qualification required to
+  interpret a candidate; an overflow of its own finite bound is explicit.
+- Equal activation or candidate-order values use stable numeric identifiers
+  rather than input order.
 - A renderer that produces plausible but unsupported introspection fails
   faithfulness validation outside this specification.
 
@@ -1014,8 +1007,9 @@ The following learning or calibration problems are distinct:
 3. deriving situation-dependent gates;
 4. calibrating evidence weights and soft inhibition strengths;
 5. identifying proposition equivalence, contradiction, and scope;
-6. selecting a budgeted focus plan; and
-7. lexicalizing a fixed plan into a focus narrative.
+6. constructing a complete focus-candidate set;
+7. combining focus candidates with independently derived expectations; and
+8. lexicalizing the fixed combined plan.
 
 Training only an end-to-end vector-to-text target would obscure which boundary
 failed and could teach the renderer to retrieve, rerank, invent, or answer the
@@ -1033,20 +1027,22 @@ A complete corpus and evaluation-harness record should retain at least:
 - candidate signals, gates, parameters, activations, and derivation receipts;
 - relation paths used by bounded spreading activation;
 - request-local proposition support and provenance groups;
-- dominant, secondary, conflicting, uncertain, and mandatory plan items plus
+- dominant, secondary, conflicting, uncertain, and mandatory focus candidates
+  plus
   control-only exclusion records;
 - exact-value bindings;
 - `must_include` and `must_exclude` proposition identifiers;
 - output language and maximum rendering budget;
-- one evidence-bound target focus narrative; and
+- one evidence-bound target combined attention text; and
 - downstream outcome labels kept separate from renderer faithfulness labels.
 
-Only the generator view of the canonical plan envelope—selected inclusion
-items, their relations, language, budget, and exact-slot identities—is renderer
-model input. Control-only exclusions, exact surface bytes, the original prompt,
-situation, raw memory, eligible and excluded candidates, and derivation
-receipts remain outside the renderer as validator input, corpus provenance,
-leakage labels, or evaluation context.
+The focus-candidate record is not renderer input. Only the generator view of
+the canonical combined plan—selected focus and expectation items, their
+relations, language, budget, and exact-slot identities—is renderer model input.
+Control-only exclusions, exact surface bytes, the original prompt, situation,
+raw memory, unselected candidates, and derivation receipts remain outside the
+renderer as validator input, corpus provenance, leakage labels, or evaluation
+context.
 
 All generated variants from one semantic scenario family belong to the same
 train, validation, or test partition.
@@ -1063,7 +1059,7 @@ Training and evaluation should include:
 - partner-specific information used with the wrong participant;
 - unacknowledged assertions versus established common ground;
 - redundant imports and paraphrases with one provenance root;
-- independent corroboration without hidden source duplication;
+- additional dependency-group support without hidden source duplication;
 - unresolved contradiction and supersession;
 - empty memory and request-only focus;
 - no justified attention;
@@ -1075,21 +1071,13 @@ Training and evaluation should include:
 - limited budgets requiring principled omission; and
 - cases where the only faithful outcome is an explicit error.
 
-### Focus-narrative targets
+### Focus-candidate label requirements
 
-Target narratives should:
-
-- describe the current focus and relevant background;
-- preserve dominant-versus-secondary priority relations;
-- preserve uncertainty, attribution, and conflict;
-- use only planned propositions and exact bindings;
-- avoid answering the original prompt;
-- avoid new causal, motivational, emotional, or normative claims;
-- avoid first-person simulated introspection unless the product contract later
-  requires and justifies it;
-- avoid phrases that claim step-by-step thought or chain of thought;
-- remain concise and within the declared budget; and
-- use the resolved output language.
+Focus labels identify current situation, goal, constraint, relevant background,
+secondary influence, conflict, uncertainty, and social perspective. Each label
+retains source, authority, qualification, exact-binding, and mandatory/optional
+status. This specification does not own target prose. The combined-plan and
+renderer specifications own selection and lexicalization targets.
 
 Free-form human think-aloud reports are not ground truth for hidden cognition.
 If human inner-experience data is collected, it requires informed consent and
@@ -1126,7 +1114,7 @@ Verification must establish:
 - eligibility noninterference: changing only ineligible records cannot change
   any content-bearing result;
 - facet-type safety: incompatible spaces are rejected before comparison;
-- exact-sidecar preservation from memory revision to focus plan;
+- exact-sidecar preservation from memory revision to focus-candidate set;
 - bounded and finite calibrated channel outputs;
 - bounded spreading mass for every configured iteration;
 - graph authorization closure;
@@ -1135,7 +1123,7 @@ Verification must establish:
   public contract;
 - proposition support completeness and authority non-amplification;
 - no hidden conflict through consolidation;
-- budget feasibility and explicit insufficient-budget failure; and
+- finite focus-candidate construction and explicit capacity failure; and
 - read-only persistent-state noninterference.
 
 ### Executable evaluation
@@ -1146,7 +1134,7 @@ A curated, disjoint evaluation corpus must test:
 - direct retrieval and bounded graph-retrieval ablations;
 - recency-only, similarity-only, goal-only, and full multi-channel baselines;
 - no-inhibition and no-consolidation ablations;
-- simple top-k against budgeted coverage-and-redundancy selection;
+- simple top-k against complete bounded `FocusCandidateSet` construction;
 - source duplication and correlated-evidence attacks;
 - parameter sensitivity and monotonicity where the mathematics requires it;
 - perturbation of time, location, participant, goal, risk, and procedure
@@ -1155,21 +1143,22 @@ A curated, disjoint evaluation corpus must test:
 - cross-language and rare exact-value cases;
 - prompt injection inside authorized memory content;
 - empty, insufficient, corrupt, and incompatible states; and
-- end-to-end focus utility under the V1 proof program.
+- focus-branch utility and combined-plan utility under the V1 proof program.
 
 The activation kernel's existing tests prove only its normalized aggregation
 contract. They do not validate the proposed channel meanings, parameter values,
-retrieval process, proposition consolidation, focus objective, or cognitive
+retrieval process, proposition consolidation, focus-candidate construction, or cognitive
 fidelity.
 
 ### Claim threshold
 
-Decision 0012 accepts the architecture direction, but this specification
-remains `Proposed` because no conforming implementation or evaluation evidence
-exists for its particular mechanisms and mathematics. An implementation begins
-as `Experimental`. A `Validated` status requires:
+Decision 0014 retains this focus branch inside the predictive architecture.
+Superseded Decision 0012 records the earlier focus-only terminal-plan design.
+This specification remains `Proposed` because no conforming implementation or
+evaluation evidence exists for its particular mechanisms. An implementation
+begins as `Experimental`. A `Validated` status requires:
 
-- frozen facet, sidecar, relation, channel, and planning schemas;
+- frozen facet, sidecar, relation, channel, and focus-candidate schemas;
 - implementation and public-boundary tests;
 - disjoint curated evaluation data;
 - comparison with simpler baselines and named ablations;
@@ -1197,9 +1186,10 @@ inner experience, or literal thought.
   without semantic drift?
 - How is request-local proposition equivalence established across languages and
   vector spaces?
-- How are provenance roots and source independence established without
+- How are provenance roots and dependency groups established without
   overstating corroboration?
-- Which deterministic or learned planner satisfies the budgeted objective?
+- Which deterministic focus-candidate policy gives the combined planner enough
+  coverage without unbounded candidate growth?
 - Which qualified dimensions and model artifact satisfy the accepted
   vector-prefix renderer contract?
 - Which parts require learned models, and which remain deterministic?
@@ -1215,10 +1205,15 @@ inner experience, or literal thought.
 - [V1 product contract](v1-product-contract.md)
 - [V1 reference architecture](v1-reference-architecture.md)
 - [V1 proof program](v1-proof-program.md)
+- [V1 delivery program](v1-delivery-program.md)
 - [Situation-conditioned activation](situation-conditioned-activation.md)
 - [Deterministic activation-parameter evaluation](activation-parameter-evaluation.md)
-- [Decision 0011: Adopt a local read-only attention compiler for V1](../decisions/0011-adopt-local-read-only-attention-compiler-v1.md)
-- [Decision 0012: Adopt numerical cognitive memory and focus compilation](../decisions/0012-adopt-numerical-cognitive-memory-and-focus-compilation.md)
+- [Predictive attention and expectation](predictive-attention-and-expectation.md)
+- [Focus and expectation planning](focus-and-expectation-planning.md)
+- [Superseded Decision 0011: Adopt a local read-only attention compiler for V1](../decisions/0011-adopt-local-read-only-attention-compiler-v1.md)
+- [Decision 0012: Adopt numerical cognitive memory and focus compilation
+  (superseded)](../decisions/0012-adopt-numerical-cognitive-memory-and-focus-compilation.md)
+- [Decision 0014: Adopt memory-grounded predictive attention](../decisions/0014-adopt-memory-grounded-predictive-attention.md)
 
 ### Human-memory and cognition research
 

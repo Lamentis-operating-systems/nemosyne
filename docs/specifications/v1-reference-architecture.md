@@ -10,12 +10,13 @@ boundaries, trust boundaries, memory-revision semantics, failure classes, and
 the decisions that must be resolved before production implementation.
 
 This remains a proposed logical decomposition rather than an implemented or
-validated product. Decisions 0012 and 0013 nevertheless select the intended V1
-implementation path: typed numerical memory and query facets, request-local
-focus consolidation, a canonical numerical attention plan, and a qualified
-local vector-prefix renderer. Physical database, encoder, index, process,
-packaging, release-model, and production-runtime choices remain independently
-evidence-gated.
+validated product. Decisions 0014 and 0015 select the intended V1
+implementation path: typed numerical memory and query facets, a shared eligible
+activated-memory set, parallel focus and expectation formation, a canonical
+focus-and-expectation plan, and qualification of a deterministic lexicalizer
+against a local vector-prefix candidate.
+Physical database, encoder, index, process, packaging, release-model, and
+production-runtime choices remain independently evidence-gated.
 
 The architecture has four maturity labels:
 
@@ -30,8 +31,8 @@ The architecture has four maturity labels:
 ### Compile inputs and result
 
 A compile request contains the original prompt `P`, zero to three situation
-statements `S`, and request metadata `X`, including a declared contextual time
-`t_context`. An authenticated invocation context `U` identifies the trusted
+statements `S`, and request metadata \(\Xi\), including a declared contextual
+time `t_context`. An authenticated invocation context `I` identifies the trusted
 local principal and caller and supplies a trusted authorization time `t_auth`
 outside the untrusted request payload. A pinned compiler configuration and
 policy resolve the finite attention budget `B`.
@@ -47,75 +48,69 @@ not additional product results.
 
 The proposed compile path is:
 
-```text
-Compile invocation
-    |
-    v
-Local-principal and configuration resolution
-    |
-    v
-Ingress validation and prompt-origin check
-    |
-    v
-Immutable artifact preflight
-    |---------------------------|
-    v                           v
-Situation encoding       Immutable memory revision acquisition
-    |                           |
-    |                    Authorization and disclosure view
-    |                           |
-    |---------------------------|
-                |
-                v
-Request-compatible validity and historical-scope gate
-    |
-    v
-Authorized candidate generation
-    |
-    v
-Signal and gate derivation
-    |
-    v
-Activation ranking
-    |
-    v
-Proposition support and conflict consolidation
-    |
-    v
-Budgeted attention planning
-    |
-    v
-Canonical numerical attention plan
-    |
-    v
-Typed latent resampling and virtual-prefix projection
-    |
-    v
-Local non-thinking language-model rendering
-    |
-    v
-Exact-slot substitution
-    |
-    v
-Faithfulness and policy validation
-    |
-    v
-Exact compiled-text serialization
+```mermaid
+flowchart TD
+    I["Compile invocation"] --> C["Principal, policy, configuration, and limits"]
+    C --> V["Ingress validation and prompt-origin check"]
+    V --> A["Authenticated immutable artifact preflight"]
+    A --> Q["Numerical situation construction"]
+    A --> M["Immutable memory revision acquisition"]
+    M --> P["Authorization, disclosure, validity, and usage view"]
+    Q --> R["Authorized bounded candidate retrieval"]
+    P --> R
+    R --> D["Signal and gate derivation"]
+    D --> K["Activation ranking"]
+    K --> S["Eligible activated-memory set"]
+    S --> F["Focus planner"]
+    S --> E["Deterministic expectation kernel"]
+    F --> J["Focus-and-expectation plan validation and selection"]
+    E --> J
+    J --> L["Preselected qualified local lexicalizer: deterministic or vector-prefix"]
+    L --> Z["Exact-slot validation and substitution"]
+    Z --> H["Independent faithfulness and policy validation"]
+    H --> O["Exact compiled-text serialization"]
 ```
 
 These are logical boundaries. They do not imply one process, one crate per
 stage, or a synchronous implementation.
+
+```mermaid
+sequenceDiagram
+    participant Caller as Trusted local caller
+    participant Compiler as Compiler
+    participant Store as Local memory
+    participant Focus as Focus branch
+    participant Expect as Expectation branch
+    participant Renderer as Renderer and validator
+    Caller->>Compiler: compile(invocation, request, cancellation)
+    Compiler->>Compiler: Validate and retain original prompt bytes
+    Compiler->>Store: Open authorized immutable revision
+    Store-->>Compiler: Revision, policy, exact data, and numerical views
+    Compiler->>Compiler: Encode situation, retrieve, derive signals, activate
+    par Shared eligible set
+        Compiler->>Focus: Immutable focus projection
+        Focus-->>Compiler: FocusCandidateSet
+    and
+        Compiler->>Expect: Immutable transition projection
+        Expect-->>Compiler: ExpectationBundle with per-frame results
+    end
+    Compiler->>Compiler: Validate and select FocusExpectationPlan
+    Compiler->>Renderer: One canonical plan
+    Renderer-->>Compiler: Accepted attention text or typed failure
+    Compiler->>Compiler: Concatenate framing, attention, and retained prompt
+    Compiler-->>Caller: CompiledPrompt bytes or one typed error
+```
 
 Every logical component in this data flow is a **proposed boundary** unless
 the table below states otherwise.
 
 | Boundary | Maturity |
 | --- | --- |
-| Product input, result, read-only behavior, and local trust boundary | Accepted boundary from Decision 0011 |
+| Product input, result, read-only behavior, and local trust boundary | Decision 0014 retains the boundary selected by superseded Decision 0011 |
 | Exact framing and prompt-byte preservation | Required property from the product contract |
-| Numerical memory, query facets, request-local focus consolidation, and focus narrative | Accepted implementation direction from Decision 0012 |
-| Vector-prefix bridge, exact slots, local renderer qualification, and non-thinking generation | Accepted implementation direction from Decision 0013 |
-| Ingress, preflight, snapshot, authorization, encoding, retrieval, derivation, planning, rendering, and validation decomposition | Proposed boundaries governed by the focused specifications |
+| Numerical memory, transition records, shared activated set, parallel focus and expectation, and combined plan | Accepted implementation direction from Decision 0014 |
+| Deterministic lexicalizer baseline, vector-prefix candidate, exact slots, local qualification, and non-thinking generation | Accepted implementation direction from Decision 0015 |
+| Ingress, preflight, snapshot, authorization, encoding, retrieval, derivation, expectation, planning, rendering, and validation decomposition | Proposed boundaries governed by the focused specifications |
 | Existing activation kernel, evaluator, and corpus | Experimental implementations and evidence |
 | Physical database and schema, exact encoders and indexes, calibrated parameters, release model and quantization, production runtime, processes, and resource thresholds | Open choices |
 
@@ -197,11 +192,12 @@ One logical memory revision `M^r` is a self-consistent read view containing:
 - manifests for rebuildable numerical representations; and
 - every index used for candidate generation.
 
-For one call, the compiler pins `t_auth`, invocation context `U`, memory
+For one call, the compiler pins `t_auth`, invocation context `I`, memory
 revision `r`, and policy revision `p`. It derives one call-specific authorized
-view `M_A^(r,p,t_auth,U)`. Authorization expiry and disclosure decisions use
-that same `t_auth`; current normative validity and supersession are also
-resolved at `t_auth`. They do not use `t_context` or reread the wall clock.
+view \(M_A^{r,p,t_{\mathrm{auth}},I}\). Authorization expiry and disclosure
+decisions use that same \(t_{\mathrm{auth}}\); current normative validity and
+supersession are also resolved at \(t_{\mathrm{auth}}\). They do not use
+\(t_{\mathrm{context}}\) or reread the wall clock.
 
 Every derived artifact is bound to the authoritative record version, encoder
 or transform version, and revision for which it is valid. A stale derived
@@ -213,14 +209,15 @@ access-history updates, and cache publication are write or maintenance
 operations; they are not hidden effects of compilation.
 
 The proposed V1 rule is snapshot-stable authorization: a revocation published
-after `M_A^(r,p,t_auth,U)` is acquired applies to later calls and does not
+after \(M_A^{r,p,t_{\mathrm{auth}},I}\) is acquired applies to later calls and does not
 rewrite the authorization view of the in-flight call. Compile duration must
 remain bounded. Immediate cancellation on revocation is an alternative that
 requires a later privacy and concurrency decision before implementation.
 
 ### Memory planes
 
-Decision 0012 selects a two-plane logical memory model.
+Decision 0014 retains the two-plane logical memory model selected by the
+superseded Decision 0012 and extends it with transition records.
 
 The **authoritative exact plane** preserves immutable record-version and
 canonical-proposition identities, provenance, validity, authority,
@@ -252,10 +249,49 @@ The exact physical representation remains open, but its contract must expose:
 This list does not require one universal memory-object row or one physical
 schema. The complete logical record and facet contract is defined in
 [`cognitive-memory-activation-and-focus.md`](cognitive-memory-activation-and-focus.md).
+Transition records, prediction frames, dependency groups, observation status,
+and expectation mathematics are defined only in
+[`predictive-attention-and-expectation.md`](predictive-attention-and-expectation.md).
+
+The management and compile lifecycles remain separate:
+
+```mermaid
+flowchart TD
+    NEW["Authorized installation provisioning"] --> INIT["Create empty authoritative revision and trust-bound manifest"]
+    INIT --> PUB
+    SRC["Authorized import, correction, or deletion request"] --> VAL["Validate source, policy, provenance, and exact values"]
+    VAL --> VER["Create immutable authoritative record version"]
+    VER --> PUB["Atomically publish logical memory revision M^r"]
+    PUB --> NUM["Build or rebuild revision-bound numerical facets and indexes"]
+    NUM --> READY["Publish compatible derived-artifact manifest"]
+    READY --> SNAP["Compile acquires immutable authorized snapshot"]
+    SNAP --> READ["Read-only retrieval, activation, planning, and rendering"]
+    READ --> OUT["Compiled prompt or typed error; no memory mutation"]
+    VER -->|correction| SUP["Link superseding version; preserve history under policy"]
+    VER -->|logical deletion| TOMB["Publish tombstone in a new revision"]
+    TOMB --> ERASE["Policy-governed physical erasure and derived-artifact rebuild"]
+    PUB --> BAK["Authenticated backup or export"]
+    BAK --> REST["Restore into a separately validated installation"]
+    READY --> MIG["Stage schema or representation migration against a pinned source revision"]
+    MIG --> MVERIFY["Verify schema, record counts, provenance, derived-artifact bindings, and rollback fixture"]
+    MVERIFY -->|pass| MPUB["Atomically publish migrated revision and manifest"]
+    MVERIFY -->|fail| MROLL["Discard staging state; retain prior revision"]
+    MPUB --> READY
+    REST --> MVERIFY
+```
+
+A compile call enters only at `SNAP`. Import, correction, consolidation,
+supersession, deletion, erasure, backup, export, restore, and derived-index
+publication are authenticated management operations and cannot be triggered by
+prompt, memory, renderer, or downstream-agent text. Provisioning is explicit;
+an uninitialized installation cannot compile. Migration and restore operate on
+staging state, verify before atomic publication, and preserve the prior
+revision until rollback evidence passes. Downgrade is rejected unless the
+target schema declares and verifies backward compatibility.
 
 ### Situation encoding
 
-Situation encoding converts `P`, `S`, `X`, and `t_auth` into a versioned
+Situation encoding converts `P`, `S`, \(\Xi\), and `t_auth` into a versioned
 numerical query state `Q`. The query contains separate facets for the declared
 contextual time and trusted authorization time so relevance can use temporal
 context without granting the caller control over authorization or expiry. The
@@ -270,7 +306,7 @@ The encoder contract must define:
 - exact scalar and categorical encodings;
 - treatment of absent, unknown, and uncertain values;
 - model and transform versions;
-- deterministic or stochastic behavior;
+- deterministic numerical behavior under the declared V1 execution envelope;
 - supported languages and modalities; and
 - failure behavior for unavailable or incompatible artifacts.
 
@@ -278,13 +314,12 @@ The encoder does not decide instruction authority and does not retrieve memory.
 
 ### Authorized candidate generation
 
-Candidate generation searches only the authorized view of `M^r`. It accepts
-`Q` and produces a bounded candidate set `C^r` with source bindings and
-retrieval diagnostics:
-
-\[
-C^r = G(Q, M^r_{authorized}; K_G)
-\]
+Candidate generation searches only the usage-compatible view
+\(\mathcal M_Q\). It accepts \(Q\) and produces the bounded candidate set
+\(C^r\) with source bindings and retrieval diagnostics. The
+[proof program](v1-proof-program.md#formal-compile-model) owns the sole
+cross-stage composition and function name for this transition; this
+architecture does not define a second retrieval equation.
 
 Project, workspace, application, time, and location may affect search and
 ordering but are not undocumented exclusion predicates. Logical eligibility
@@ -305,20 +340,19 @@ Empty candidates and retrieval failure are not equivalent.
 
 ### Signal and gate derivation
 
-Signal derivation maps `Q` and every candidate to the normalized inputs required
-by an activation mechanism:
-
-\[
-N = D(Q, C^r; K_D)
-\]
+Signal derivation maps \(Q\) and every member of \(C^r\) to the normalized
+candidate inputs \(N\) required by an activation mechanism. The proof program
+owns the sole cross-stage composition and function name for this transition;
+this architecture does not define a second signal-derivation equation.
 
 It owns channel semantics, gates, evidence signals, inhibition signals, and
 their provenance. It must not assign arbitrary numbers without an authored or
-learned derivation contract and independent evaluation targets. Decision 0012
-selects cue, temporal-context, base-availability, active-goal, procedural,
-hazard, and social-perspective fit as the initial channel hypotheses when the
-required facets exist. The focused specification defines their candidate
-mathematics and the separation between hard policy gates and soft inhibition.
+learned derivation contract and independent evaluation targets. Decision 0014
+retains cue, temporal-context, base-availability, active-goal, procedural,
+hazard, and social-perspective fit as initial focus-channel hypotheses when the
+required facets exist. The focused specifications define their candidate
+mathematics, signal lineage, and the separation between hard policy gates and
+soft inhibition.
 
 The five channels in the revision-1 coding-agent corpus are experimental
 evidence labels. They are not the V1 memory ontology or an accepted runtime
@@ -332,100 +366,88 @@ a complete bounded ranking of aggregate scores. A separate operation explains
 one candidate with a per-channel breakdown. The kernel remains replaceable
 until a later decision adopts it for V1 using end-to-end evidence.
 
-If adopted without changing its current contract, candidate `i` receives:
-
-\[
-A_i =
-\frac{\sum_c w_c g_c e_{i,c}}
-     {\sum_c w_c g_c}
-\cdot
-\prod_j(1-\lambda_jp_{i,j})
-\]
-
-The formula is defined only when the evidence denominator is positive. The
-kernel's values are activation scores, not truth, probability, safety, or
-instruction authority.
+The formula, validation, floating-point order, tie behavior, and proofs are
+owned only by
+[`situation-conditioned-activation.md`](situation-conditioned-activation.md).
+Architecture consumes the resulting activation value and explanation
+reference; it does not redefine them. Activation remains relevance, not truth,
+probability, safety, instruction authority, predictive support, or expected
+utility.
 
 Runtime compilation may depend on an adopted runtime kernel. It must not
 depend on the offline evaluation or corpus crates.
 
-### Proposition consolidation and attention planning
+### Shared activated set and parallel planning
 
-Request-local proposition consolidation first groups activated memory facets by
-canonical proposition and source-dependency group. Duplicates from one
-dependency group cannot multiply support. Independent corroboration remains
-visible, and unresolved conflicting propositions remain separate. This stage
-does not create, update, or delete persistent memory.
+Activation produces one canonical `EligibleActivatedMemorySet`. Its normative
+schema and ordering are owned only by
+[`predictive-attention-and-expectation.md`](predictive-attention-and-expectation.md);
+this architecture consumes that contract and does not define a parallel
+version. In summary, it binds the pinned query, memory and policy revisions,
+activated records, source and authority data, exact sidecars, and retrieval
+diagnostics. It is the only branch point.
 
-Attention planning then converts source-bound query evidence, consolidated
-propositions, ranked candidates, and the resolved budget into a bounded
-structured plan. Request, situation, and metadata evidence can therefore
-support attention even when the memory candidate set is empty. The planner
-owns:
+The focus planner and expectation kernel consume immutable projections of that
+same set before final focus pruning:
 
-- proposition selection;
-- redundancy and diversity control;
-- conflict and uncertainty preservation;
-- authority ceilings;
-- exact-value bindings;
-- abstention and empty-attention decisions;
-- inclusion priority; and
-- allocation of the attention budget.
+- the focus planner consolidates canonical propositions and creates bounded
+  focus candidates;
+- the expectation kernel evaluates eligible direct observations and explicitly
+  permitted registered derivations, retains competing outcome groups and
+  counterevidence, and may abstain; and
+- neither component retrieves ambient memory, repeats authorization, or
+  mutates persistent state.
 
-The planner produces empty attention only when no additional focus is
-justified. If materially required context cannot be expressed faithfully
-within `B`, planning fails with insufficient budget.
+The expectation derivation, support semantics, uncertainty vector, medoids,
+coverage, and abstention are owned only by
+[`predictive-attention-and-expectation.md`](predictive-attention-and-expectation.md).
+The focus derivation is owned by
+[`cognitive-memory-activation-and-focus.md`](cognitive-memory-activation-and-focus.md).
 
-Decision 0012 selects a deterministic coverage-and-nonredundancy objective as
-the first planning hypothesis. The focused specification defines its terms,
-canonical tie-breaking, conflict-preservation rule, and mandatory baseline
-comparisons. Its coefficients, budget, and promotion thresholds remain frozen
-experiment parameters rather than defaults inferred at runtime.
+### Canonical focus-and-expectation plan
 
-### Canonical numerical attention plan
+The combined planner consumes the focus candidates and canonical
+`ExpectationBundle`,
+checks their shared request and configuration lineage, applies authority and
+budget closure, preserves material alternatives, and creates one canonical
+`FocusExpectationPlan`. Request, situation, and metadata evidence may support
+focus even when memory is empty. Predictive-evidence abstention may coexist
+with useful focus.
 
-The internal attention plan is the single source of meaning for rendering and
-diagnostics. It is a canonical set of typed numerical plan items rather than a
-draft prose block. Each planned proposition contains at least:
+The plan is the only source of meaning for rendering and diagnostics. It
+contains:
 
-- a stable proposition identity;
-- the intended meaning;
-- essential source references;
-- whether each source comes from the request or authorized memory revision;
-- source authority and the proposition's authority ceiling;
-- validity, confidence, uncertainty, and conflict qualification;
-- exact values that must survive rendering;
-- inclusion priority and budget estimate; and
-- allowed omission or mandatory-inclusion status.
+- stable focus and expectation proposition identities;
+- essential request and authorized-memory source references;
+- distinct roles for focus, present-state hypotheses, passive successors, and
+  conditional outcomes;
+- conditions, horizons, support, counterevidence, uncertainty, and
+  abstention;
+- authority ceilings and exact-value bindings;
+- mandatory qualifications and relations;
+- output-language and post-substitution budget;
+- validator-only exclusions, omitted support, dependency groups, no-answer,
+  and no-action controls; and
+- canonical item order and configuration identity.
 
-The plan contains canonical control-only exclusions for content that must not
-appear. They cannot be removed by output-budget optimization, but they are not
-renderable items, substitution sources, or generative-prefix inputs. They are
-available only to validation. The plan does not contain a draft answer to the
-original prompt. Its renderable roles distinguish current situation, dominant
-goal, immediate constraint or hazard, relevant background, secondary
-influence, conflict, uncertainty, and social perspective. Exact output values
-are referenced through authorized slots rather than encoded as content to
-reconstruct.
-
-The plan envelope also owns its schema identity, canonical item order,
-mandatory and optional sets, exact-value sidecar, resolved output language, and
-post-substitution rendering budget. These values have no second renderer-side
-source of truth.
-
-The plan is internal. It does not change the one-text successful product
-contract.
+The complete wireframe, mandatory closure, lexicographic reference selection,
+cost upper bound, and examples are owned by
+[`focus-and-expectation-planning.md`](focus-and-expectation-planning.md).
+The plan contains no draft answer, action selection, tool call, or independent
+prose truth. It remains internal and does not change the one-text product
+result.
 
 ### Vector-prefix adapter and renderer
 
-The renderer accepts only the bounded numerical attention-plan envelope and
-the compatible rendering configuration. It reads output language and budget
-from that envelope and rejects a configuration-schema mismatch. It does not
-receive the whole memory universe, raw memory prose, or decimal serializations
-of plan vectors. It does not retrieve, rerank, select new facts, invent policy,
-or answer the original prompt.
+The renderer accepts only the bounded numerical focus-and-expectation plan
+envelope and the compatible rendering configuration. It reads output language
+and budget from that envelope and rejects a configuration-schema mismatch. It
+does not receive the whole memory universe, raw memory prose, or decimal
+serializations of plan vectors. It does not retrieve, rerank, select new facts,
+create or reorder expectations, invent policy, choose actions, or answer the
+original prompt.
 
-Decision 0013 selects a typed latent resampler followed by direct virtual input
+Decision 0015 retains a typed latent resampler followed by direct virtual input
 embeddings as the first generative renderer hypothesis. The renderer
 specification owns the experimental dimensions, tensor mapping, training
 phases, and required simple baselines.
@@ -442,6 +464,11 @@ configuration-listed structural delimiters; it cannot carry a connective,
 relation, exact value, or independent semantic claim. Bindings are validation
 input, not proof that the text expresses the identified propositions. They are
 omitted from the successful product result.
+
+Expectation spans additionally bind kind, condition, horizon, alternative set,
+support semantics, and mandatory uncertainty. Validation rejects probability
+inflation, fact promotion, condition or horizon loss, alternative collapse,
+unsupported action language, and suppressed abstention.
 
 The renderer emits only registered placeholder tokens for loss-sensitive exact
 values. A deterministic resolver rejects unauthorized, unknown, omitted,
@@ -482,7 +509,7 @@ identities. It accepts the exact rendered text unchanged or returns an error.
 It is not a second renderer.
 
 Validation establishes conformance to a bounded plan, not truth of the source
-memory. Decision 0013 selects a fail-closed hybrid contract: deterministic
+memory. Decision 0015 retains a fail-closed hybrid contract: deterministic
 structural, slot, and literal checks followed by an independently trained and
 calibrated dual-branch semantic verifier. The focused renderer specification
 fixes its inputs, independence boundary, classifier heads, threshold-selection
@@ -497,19 +524,204 @@ The serializer performs only the exact byte concatenation defined by the
 product contract and uses the retained original prompt buffer directly. It
 adds no suffix.
 
-The programmatic API is the canonical semantic operation. A CLI is the proposed
-first adapter for one-call local use, not yet an accepted V1 requirement. If
-adopted, its exact flags and input transport must support:
+The programmatic API is the canonical semantic operation. The CLI is the
+proposed first adapter for one-call local use. The CLI, library, and any later
+application adapter share the same compile orchestrator and error taxonomy.
 
-- exactly one prompt, supplied without shell-induced mutation;
-- zero to three repeated situation statements;
-- explicit contextual time and optional metadata;
-- the finite budget resolved by configuration and policy;
-- compiled text only on standard output; and
-- diagnostics and errors only on standard error.
+### Callable library API contract
 
-The CLI, library, and any later application adapter share the same compile
-orchestrator and error taxonomy.
+The proposed stable entry point is:
+
+```rust
+pub struct Compiler { /* private immutable configuration and handles */ }
+
+impl Compiler {
+    pub fn open(
+        installation: &InstallationConfig,
+    ) -> Result<Self, OpenError>;
+
+    pub fn compile(
+        &self,
+        invocation: &InvocationContext,
+        request: &CompileRequest,
+        cancellation: &CancellationToken,
+    ) -> Result<CompiledPrompt, CompileError>;
+}
+```
+
+This is a target contract, not implemented Rustdoc. `Compiler::open` verifies
+the authenticated artifact manifest, opens the local memory installation, and
+retains only installation-stable trust roots, configuration registries, and
+handles. `compile` validates the request-specific invocation context and obtains
+one immutable memory, policy, configuration, and artifact revision for that
+call. An invocation context is never retained by `Compiler` or reused across
+requests.
+The compiler can serve sequential or concurrent read-only requests only when
+its adopted storage and model runtime prove safe sharing.
+
+The request is logically:
+
+```rust
+pub struct CompileRequest {
+    original_prompt: String,
+    situation: Vec<SituationStatement>, // 0..=3
+    contextual_time: ContextualTime,
+    location: Option<LocationInput>,
+    metadata: RequestMetadata,
+    output_language: Option<LanguageTag>,
+    attention_budget_ceiling: Option<AttentionBudget>,
+}
+```
+
+Fields are private. Validated constructors reject empty prompts, whitespace-only
+situation statements, whitespace-only original prompts, more than three
+statements, invalid coordinates, invalid time offsets, malformed or unsupported
+language tags, unknown metadata schemas, and unsupported budgets.
+`String` denotes the exact valid UTF-8 bytes received by the API; no
+normalization is permitted. Reading getters borrow values. No public mutable
+field, unchecked public constructor, global singleton, unsafe Rust, or ambient
+clock is part of the contract.
+
+`ContextualTime` is one RFC 3339 instant with explicit offset plus a
+time-schema identity. Its parsed instant is represented in one checked
+canonical UTC integer unit for equality and ordering; the supplied offset and
+authorized exact surface remain separate exact facets when rendering needs
+them. Leap-second acceptance, range, fractional precision, and rounding are
+fixed by the time-schema identity rather than the ambient platform parser.
+`LocationInput` is either:
+
+- a non-whitespace exact UTF-8 caller label within the configured byte limit;
+- WGS 84 latitude and longitude in decimal degrees with optional accuracy in
+  metres; or
+- both, with the exact label and coordinates retained as distinct facets.
+
+Coordinate constructors require finite latitude in `[-90, 90]`, finite
+longitude in the canonical half-open interval `[-180, 180)`, and finite
+nonnegative accuracy. They reject longitude `180` rather than silently wrapping
+it, and canonicalize every accepted negative zero to positive zero before
+equality, hashing, serialization, or numerical encoding. No other coordinate
+reference system, altitude, inferred geocoding, or implicit unit conversion is
+part of V1.
+
+Absence means unknown to Nemosyne and does not trigger discovery. Optional
+metadata has a versioned allowlist; the first proposed keys are `project`,
+`workspace`, and `application`, each a non-whitespace exact UTF-8 value within
+its configured byte limit plus a source label. Unknown extension keys require
+a newer schema instead of being silently ignored.
+
+`LanguageTag` is a validated BCP 47 language tag under the pinned language
+schema. When supplied, it selects that declared supported output language.
+When absent, the pinned language resolver must resolve exactly one supported
+language from the original prompt or return `UnsupportedLanguage`; it never
+silently falls back. Explicit selection affects generated attention only and
+never translates or rewrites the retained prompt.
+
+`InvocationContext` is constructed by a trusted local adapter and contains the
+principal, caller identity, prompt-origin assertion, trusted authorization
+time, disclosure policy reference, selected installed configuration identity,
+and capability limits. The selected identity resolves only through the
+installation's authenticated manifest; caller input cannot name an arbitrary
+file or artifact. Request code cannot construct a higher-authority context from
+caller metadata.
+
+The optional request attention budget is a ceiling only. It may reduce the
+maximum authorized by the selected configuration and invocation context, but
+cannot increase it. The effective budget is the minimum of every applicable
+authorized ceiling.
+
+`CompiledPrompt` exposes only the complete compiled bytes. It does not expose a
+configuration fingerprint, scores, memory, plan, or diagnostics as a second
+product result. A separate privileged receipt or diagnostic API may expose
+authorized configuration and evidence identities later; it cannot change
+compile semantics, share the product return channel, or disclose unauthorized
+evidence.
+
+### CLI contract
+
+The proposed command is:
+
+```text
+nemosyne compile \
+  (--prompt TEXT | --prompt-file PATH | --prompt-stdin) \
+  --context-time RFC3339 \
+  [--situation TEXT]... \
+  [--location-label TEXT] \
+  [--latitude NUMBER --longitude NUMBER [--accuracy-m NUMBER]] \
+  [--project TEXT] [--workspace TEXT] [--application TEXT] \
+  [--output-language BCP47] \
+  [--attention-budget INTEGER] \
+  [--configuration ID]
+```
+
+Exactly one prompt source is required. `--prompt-file -` is not an alias;
+standard input is selected only by `--prompt-stdin`, which prevents accidental
+blocking. The CLI reads the complete prompt before compilation, validates UTF-8
+without newline stripping, and preserves the bytes it receives. Shell quoting,
+command substitution, and terminal encoding occur before the process boundary;
+for arbitrary line endings or trailing newlines, callers should use
+`--prompt-file` or `--prompt-stdin`.
+
+`--situation` may occur at most three times. Repeated singleton flags, partial
+coordinate pairs, empty or whitespace-only location and metadata values,
+coordinates outside the WGS 84 ranges above, longitude `180`, unknown flags,
+nonfinite numbers, invalid RFC 3339 values, malformed language tags, and an
+empty or whitespace-only prompt are usage errors. Accepted coordinate negative
+zero is canonicalized exactly as at the library boundary. Invalid UTF-8 from a
+file or standard input is an adapter input error before a Rust
+`CompileRequest` exists. Configuration supplies limits when
+`--attention-budget` or `--configuration` is absent; it never guesses
+contextual time or location. `--configuration` selects an installed,
+authenticated manifest entry by exact identity. It never accepts an arbitrary
+configuration path. `--attention-budget` can only lower the selected
+configuration and invocation-context ceiling. `--output-language` follows the
+same resolution rule as the library field and is not general request metadata.
+
+Successful standard output is exactly the complete compiled prompt with no
+diagnostic prefix, ANSI styling, progress message, or suffix. Standard error is
+empty unless the selected adapter's explicit verbose diagnostic mode is added
+by a later contract. The adapter buffers the complete compiled prompt before
+starting output and attempts one ordered `write_all` followed by `flush`.
+Failures before that attempt write one concise stable error code and message to
+standard error and write zero bytes to standard output. A transport failure
+during `write_all` or `flush` may leave a partial byte prefix in standard
+output; exit `10` makes that output invalid and callers must discard it.
+
+| Exit | Stable class |
+| ---: | --- |
+| `0` | Complete compiled prompt delivered |
+| `2` | CLI usage or invalid request |
+| `3` | Prompt-origin, principal, authorization, or disclosure failure |
+| `4` | Memory, snapshot, or persistence failure |
+| `5` | Configuration, schema, or artifact failure |
+| `6` | Retrieval, representation, signal, activation, expectation, or planning failure |
+| `7` | Renderer, exact-slot, or faithfulness failure |
+| `8` | Resource limit, deadline, or cancellation |
+| `9` | Prohibited capability or policy violation |
+| `10` | Output transport failure after successful compilation |
+| `70` | Internal invariant violation |
+
+Specific typed errors remain available through the library `source()` chain.
+An adapter maps a typed error to exactly one stable exit class. The mapping is
+versioned and tested.
+
+```text
+$ printf 'Fix the failing login test.\n' |
+  nemosyne compile \
+    --prompt-stdin \
+    --context-time 2026-07-24T16:30:00+02:00 \
+    --situation 'The repository has uncommitted changes.' \
+    --situation 'The failure began after a dependency update.' \
+    --project nemosyne
+
+attention:
+Preserve the existing uncommitted changes. Focus on dependency-related causes. Similar observed failures support both a stale lockfile and a runtime-version mismatch; treat them as hypotheses until validated.
+
+user prompt:
+Fix the failing login test.
+```
+
+The exact attention prose is illustrative. The framing and prompt bytes are
+normative.
 
 ### Configuration and reproducibility
 
@@ -526,52 +738,491 @@ handles, binds all behavior that can change an output:
 - activation implementation and parameters;
 - selection policy;
 - renderer and tokenizer artifacts;
-- decoding configuration;
+- deterministic decoding configuration with no request-time random source;
+- runtime, precision, target platform class, and numerical-kernel policy;
 - language support; and
 - validator and serializer versions.
+
+A V1-deployable configuration permits no stochastic compile stage. Training
+and downstream evaluation may use frozen seeds or random tapes, but those do
+not enter the compile API or renderer inference. A future stochastic compile
+path requires a new decision and must add its random source to request
+lineage, receipts, noninterference proofs, and compatibility identity.
 
 Diagnostics and evaluation receipts identify the content of `K` and its
 artifacts without exposing private memory content. A change that can alter
 semantics creates a new configuration revision and receives the required
 specification and decision review.
 
+### Internal Rust ownership and dependency direction
+
+The smallest proposed runtime decomposition is:
+
+```mermaid
+flowchart TD
+    CLI["nemosyne-cli"] --> COMP["nemosyne-compiler"]
+    ADMIN["nemosyne-admin"] --> MEM["nemosyne-memory"]
+    COMP --> CORE["nemosyne-core"]
+    COMP --> MEM
+    COMP --> REN["nemosyne-renderer"]
+    MEM --> CORE
+    REN --> CORE
+    EVAL["nemosyne-evaluation"] --> CORE
+    CORPUS["nemosyne-evaluation-corpus"] --> EVAL
+```
+
+| Crate | Owns | Must not own |
+| --- | --- | --- |
+| `nemosyne-core` | Dependency-light validated domain types and deterministic activation, expectation, and plan algorithms | Filesystem, database, network, model runtime, CLI, or telemetry |
+| `nemosyne-memory` | Local storage, immutable revisions, authorization views, migrations, indexes, backup, recovery, and provisioning | Rendering, downstream model calls, or semantic planning |
+| `nemosyne-renderer` | Plan adapter, local lexicalizer runtime, exact slots, and independent faithfulness validation | Memory retrieval, hypothesis generation, authority policy, or action selection |
+| `nemosyne-compiler` | Public callable API, ingress, artifact preflight, situation encoding, retrieval orchestration, signal derivation, stage errors, and exact serialization | Persistent writes during compile or adapter-specific terminal behavior |
+| `nemosyne-cli` | Argument and stream transport, authenticated configuration selection, trusted local invocation construction, exit mapping, and one buffered stdout delivery attempt | Duplicate compile logic or claims of transport atomicity |
+| `nemosyne-admin` | Privileged initialization, revision publication, backup, restore, migration, export, deletion, and later correction command transport under explicit management capabilities | Compile transport, implicit writes, or a shared unprivileged invocation context |
+| Evaluation crates | Offline corpora, reports, baselines, calibration, and receipts | Runtime compile dependencies |
+
+These names are proposed ownership surfaces, not permission to scaffold all
+crates at once. A work package creates a crate only when its complete public
+contract and tests are ready. Further splits require evidence of an actual
+dependency, build, security, or ownership problem. Cyclic dependencies are
+forbidden.
+
+Public Rust items have complete Rustdoc. Domain fields are private; validated
+constructors reject invalid states; getters borrow; IDs use canonical numeric
+or content identities rather than display strings; errors retain typed sources;
+and ordering is explicit. Runtime code forbids unsafe Rust. Public stability is
+limited to the callable compiler API and documented domain contracts; internal
+stage traits remain crate-private until a concrete external use requires them.
+
+Ownership rules are:
+
+- authoritative records and artifacts are immutable shared handles;
+- request data and plans are request-owned values;
+- stage APIs borrow upstream state and return owned complete results;
+- no stage receives a more powerful capability than it needs;
+- core algorithms receive slices or typed iterators, never ambient stores;
+- cancellation and budgets are explicit inputs; and
+- reports derive from source observations rather than mutable duplicated
+  counters.
+
+### Local persistence and migration contract
+
+V1 owns one local database installation per user principal. One logical memory
+universe may use several tables, indexes, files, or immutable artifact bundles,
+but callers never select a project-specific database as a hidden retrieval
+partition.
+
+The logical store must provide:
+
+- one atomic authoritative revision and policy revision;
+- immutable record versions and append-only provenance history;
+- exact and derived planes with explicit rebuild boundaries;
+- revision-pinned indexes;
+- a read-only snapshot handle that remains coherent for one compile call;
+- a single published schema identity and migration history;
+- crash-atomic management operations;
+- integrity and foreign-reference checks;
+- online or quiescent backup with a documented consistency point;
+- restore verification into an isolated destination;
+- logical deletion, physical erasure policy, retention, and audit state; and
+- deterministic recovery or explicit irrecoverable-corruption failure.
+
+Compile opens only read capabilities. Provision, import, observation capture,
+correction, consolidation, migration, backup, deletion, and repair use a
+separate management capability and command path. At least one explicit
+provisioning path must create an empty valid revision before shipment; a
+compile-only binary with no valid installation path is not a usable product.
+The proposed `nemosyne-admin` adapter is the sole command-transport owner for
+that path. It constructs a management-specific authenticated principal and
+capability set, calls validated operations owned by `nemosyne-memory`, and
+cannot invoke compile by reusing those write capabilities. The compile CLI
+cannot dispatch management operations. Each management command requires its
+own focused contract before implementation; naming the adapter does not make
+all listed commands V1 prerequisites.
+
+```mermaid
+sequenceDiagram
+    participant W as Management writer
+    participant DB as Local memory store
+    participant C as Compiler
+    W->>DB: Begin validated revision transaction
+    W->>DB: Write authoritative records and derived manifests
+    W->>DB: Verify integrity and publish r+1 atomically
+    C->>DB: Open read-only snapshot r+1
+    DB-->>C: Immutable revision and policy handles
+    W->>DB: Publish later revision r+2
+    C->>C: Complete entirely against r+1
+    C-->>DB: Close snapshot without writes
+```
+
+Migration never edits the only known-good database in place without a
+recoverable transaction or verified backup. The migration flow is:
+
+1. authenticate source installation and target schema;
+2. create and verify a backup or copy-on-write destination;
+3. migrate authoritative exact data;
+4. rebuild or invalidate derived numerical data and indexes;
+5. run integrity, reference, authorization, and semantic-count checks;
+6. atomically publish the target revision;
+7. retain the rollback artifact according to policy; and
+8. record an evidence receipt without private content.
+
+Downgrade is not assumed. A release declares which prior schema versions it can
+read, migrate, and roll back. An incompatible or partially migrated store is
+rejected before retrieval.
+
+SQLite is an implementation candidate, not an accepted dependency. Its
+transaction, snapshot, single-writer, WAL, backup, and integrity behavior must
+be tested against this contract. Base SQLite does not provide database
+encryption or row-level `GRANT`/`REVOKE`; choosing it cannot create those
+claims by implication.
+
+At-rest protection requires an explicit release profile:
+
+- owner-only operating-system file permissions are the minimum;
+- any database encryption must name the implementation, authenticated mode,
+  key origin, storage, rotation, backup, memory-exposure, and recovery policy;
+- temporary, journal, WAL, backup, model cache, and crash artifacts are in
+  scope; and
+- when encryption is not selected or unavailable, the product states that
+  plainly and makes no encryption claim.
+
+Secure deletion is constrained by database pages, journals, backups,
+filesystem behavior, snapshots, and solid-state storage. V1 may guarantee only
+the tested deletion and retention contract, not universal forensic erasure.
+
+### Concurrency, cancellation, and resource limits
+
+One compile call pins all revision, policy, configuration, artifact, clock, and
+budget inputs before memory-dependent work. No stage rereads ambient clock or
+configuration.
+
+Multiple compile calls may run concurrently only when:
+
+- the store provides independent immutable snapshots;
+- the renderer runtime proves cache and request isolation;
+- global model or allocator state cannot leak one request into another;
+- aggregate memory and compute admission limits are enforced; and
+- cancellation of one call cannot corrupt another.
+
+Until those properties are established, the reference adapter serializes model
+inference while permitting safe read-only preparation. One management writer
+may publish a later revision concurrently, but in-flight calls keep their
+pinned view.
+
+Every stage receives:
+
+- a monotonic deadline derived by the trusted adapter;
+- an explicit cancellation token;
+- maximum input bytes, candidates, facets, relations, transition groups,
+  alternatives, exact-sidecar bytes, plan items, attention cost, and memory;
+  and
+- a stage-specific work counter where input-controlled loops exist.
+
+Cancellation is checked before persistent access, between bounded retrieval
+batches, during quadratic medoid or validation work, before model inference,
+and before serialization. Cancellation returns no product bytes and performs
+no persistent write. A renderer process that cannot be safely interrupted is
+terminated or isolated according to its runtime contract.
+
+Degradation is explicit and deterministic:
+
+| Condition | Allowed result |
+| --- | --- |
+| No renderer-visible attention is justified after structural validation, independently of budget | Faithful empty attention |
+| Valid but insufficient predictive evidence | Focus-plus-abstention when useful focus exists; otherwise validator-only abstention and faithful empty attention only when no renderer-visible attention is otherwise justified |
+| Bounded retrieval with declared incomplete status | Use only if the pinned policy permits that status; otherwise abstain or fail |
+| A structurally faithful mandatory or otherwise justified nonempty attention projection cannot fit the resolved budget | `InsufficientAttentionBudget`; no product result and no budget-driven empty attention |
+| Artifact, schema, integrity, authority, or policy failure | Error |
+| Deadline, cancellation, memory, or compute limit | `ResourceFailure` |
+| Renderer or validator failure | Error; no fallback retry inside the call |
+
+Empty attention is a successful semantic result only when the validated inputs
+justify no renderer-visible attention independently of budget. It is never a
+fallback for an otherwise justified nonempty faithful plan that cannot fit.
+
+The orchestrator does not silently switch models, thresholds, databases,
+policies, or renderers after a call begins.
+
+### Security and privacy boundaries
+
+```mermaid
+flowchart LR
+    U["Authenticated local user/caller"] -->|request + invocation context| C["Trusted compiler boundary"]
+    DB[("Local private memory store")] -->|authorized immutable view| C
+    ART["Authenticated local artifacts"] -->|pinned read-only handles| C
+    C -->|compiled text only| CALLER["Trusted caller"]
+    CALLER -->|independent disclosure decision| EXT["External target AI trust domain"]
+    NET["Network"] -. "forbidden during compile" .-> C
+    MEM["Untrusted memory and situation content"] -->|data, never instructions| C
+```
+
+The compiler trusts authenticated identities and pinned policy/artifact roots;
+it does not trust semantic content merely because it is local. Threats and
+required controls include:
+
+| Threat | Required control |
+| --- | --- |
+| Unauthorized or cross-user memory | Principal isolation and authorization before retrieval competition |
+| Prompt injection stored in memory | Treat content as data; authority labels, exclusions, no raw prompt execution |
+| Poisoned transition | Provenance, allowed-use status, dependency grouping, counterevidence, and abstention |
+| Duplicate imports | One dependency support budget; duplicate diagnostics |
+| Forged provenance/dependency ID | Authenticated import lineage and invariant failure |
+| Stale derived index | Revision and representation fingerprints; fail closed |
+| Unsafe expectation anchoring | Alternatives, uncertainty, no fact/probability promotion, wrong-expectation harm evaluation |
+| Exact-value disclosure | Authorized slot bindings and independent literal checks |
+| Resource denial | Input/cardinality/byte/time/memory limits before expensive work |
+| Malicious model or tokenizer | Authenticated manifest, digests, compatibility checks, no runtime download |
+| Renderer invents action or answer | Plan roles, independent verifier, fail closed |
+| Model output feeds memory | Separate authenticated observation and management contract |
+| Side-channel diagnostics | Content-minimized receipts and no unauthorized candidate diagnostics |
+
+Local execution is a boundary, not a complete privacy proof. Process memory
+contains plaintext prompts, selected evidence, exact values, and model states.
+Crash dumps, swap, debugging, logs, terminal history, and downstream disclosure
+must be addressed by the supported platform threat model. The successful
+product channel contains no diagnostics, plan IDs, scores, or raw sources.
+
+### Performance contract
+
+No latency, memory, storage, or model-size number becomes normative without a
+reproducible measurement receipt. The release manifest nevertheless must
+declare finite budgets for:
+
+- prompt, situation, metadata, and exact-sidecar bytes;
+- database and active revision size;
+- retrieved candidates and activated memories;
+- facets, graph edges, transitions, outcome groups, and medoid representatives;
+- plan items, alternatives, prefix tokens, attention output, and validation
+  spans;
+- cold artifact load, warm compile, and total wall time;
+- peak resident and additional unified memory;
+- CPU, GPU, accelerator, thread, and temporary-storage use; and
+- cancellation and unload deadlines.
+
+Measure four phases separately:
+
+1. `open-cold`: process start, manifest verification, database open, and model
+   load;
+2. `compile-cold`: first request including lazy initialization;
+3. `compile-warm`: request with permitted immutable artifacts resident; and
+4. `idle-release`: time and memory after configured unload or process exit.
+
+Reference hardware includes exact Mac model identifier, chip, CPU/GPU cores,
+unified memory, storage state, macOS version, power mode, thermal state,
+runtime, quantization, and artifact digests. `macos-latest` CI is portability
+evidence, not reference-hardware performance evidence.
+
+Benchmarks use fixed public or synthetic memory revisions, candidate scales,
+languages, output budgets, cold/warm definitions, iteration counts, and
+statistical summaries. Report median, p95, peak memory, load/unload time,
+timeout rate, and scaling curves. Do not exclude failures or thermal runs after
+seeing results. The focused specification linked from a registry row is the
+sole owner of that component's algorithmic bound. This section owns only
+ingress, open/preflight, end-to-end composition, transport, and explicitly
+marked pre-selection obligations. The registry links to, rather than silently
+redefines, focused formulas. The end-to-end budget includes every stage and
+transport.
+
+The following registry prevents a stage from disappearing from complexity and
+benchmark planning. Let \(b_{\mathrm{in}}\) be validated request bytes,
+\(n_r\) retrieved candidates, \(c_e,c_j\) activation evidence and inhibition
+channels, \(n_g,e_g,k_g\) request-local graph nodes, edges, and propagation
+iterations, \(n_t\) eligible transitions, \(n_p\) planning closures,
+\(m_p\) tagged plan members, \(n_o\) emitted attention units, and
+\(b_{\mathrm{out}}\) output bytes.
+
+| Stage | Sole complexity owner or unresolved pre-selection obligation | Working-space contract | Mandatory measurement |
+| --- | --- | --- | --- |
+| Ingress, origin, and metadata validation | This section: \(O(b_{\mathrm{in}})\) over bounded inputs | \(O(b_{\mathrm{in}})\), including retained prompt | bytes versus wall time; invalid-input early exit |
+| Artifact preflight and snapshot acquisition | This section requires a selected implementation to freeze \(T_{\mathrm{open}}\) by artifact count, manifest bytes, and database schema; unresolved before storage/runtime selection; no hidden download | Selected implementation must bound opened handles and authenticated manifest state | cold open, digest verification, database open, cancellation |
+| Situation encoding | The selected encoder must freeze \(T_{\mathrm{enc}}(b_{\mathrm{in}})\) and encoder workspace; unresolved before encoder selection; deterministic formatters are linear in their bounded exact input | Bounded encoder state plus \(Q\) | language/input-length scaling and peak memory |
+| Eligibility, retrieval, cue and signal derivation | [Cognitive-memory complexity](cognitive-memory-activation-and-focus.md#computational-complexity), including its exhaustive oracle and selected-index obligations | Bounded candidate heap, revision-bound index view, history traversal, and candidate/channel state | corpus scale, candidate scale, recall, excluded-record noninterference, channels, facets, nonfinite failures |
+| Spreading activation and focus consolidation | [Cognitive-memory complexity](cognitive-memory-activation-and-focus.md#computational-complexity) | Bounded graph and proposition/source state | nodes, edges, iterations, duplicate/conflict density, source cardinality |
+| Activation ranking | [Activation-kernel complexity](situation-conditioned-activation.md#computational-complexity) | \(O(n_r)\) ranking output/workspace; one separate explanation returns \(O(c_e+c_j)\) contribution output | channel/candidate scaling and permutation identity |
+| Expectation kernel | [Predictive-attention complexity](predictive-attention-and-expectation.md#computational-complexity) | Bounded frame, group, provenance, medoid, and assessment state defined there | transitions, frames, groups, dependencies, medoid limits |
+| Combined planning | [Planning complexity](focus-and-expectation-planning.md#canonical-unified-selection) and `ALG-PLAN-05` | Streaming oracle workspace and hard closure/member limits defined there | closure/member scales, cost calls, oracle-equivalence, limit rejection |
+| Deterministic lexicalizer baseline | This section requires its selected template/grammar artifact to freeze an exact bound over \(m_p\), slots, language morphology, and output ceiling; unresolved before lexicalizer selection | Selected artifact must bound grammar, output, substitution, and validation buffers | items, slots, language, output length |
+| Vector-prefix renderer candidate | [Renderer complexity](vector-to-attention-renderer.md#computational-complexity), including explicit unresolved model/verifier functions before artifact selection | Model weights, KV cache, prefix, output, exact sidecar, and verifier state defined there | cold/warm load, prefix items, output tokens, precision, peak unified memory |
+| Substitution and independent validation | [Renderer complexity](vector-to-attention-renderer.md#computational-complexity) | Isolated exact sidecar, segment map, validator, and verifier state | output units, bindings, slots, adversarial validator cases |
+| Product serialization and adapter delivery | This section: \(O(b_{\mathrm{out}}+\lvert P\rvert)\) exact copy | Complete buffered output before visible delivery | prompt/output bytes, short writes, broken pipe, no partial stdout |
+
+The end-to-end declared upper bound is the checked sum of the selected stage
+bounds plus transport. A release may use a tighter implementation-specific
+bound only when its artifact identity, derivation, benchmark harness, and
+failure behavior are retained. Big-O entries are architecture obligations, not
+latency evidence.
+
+Offline evidence tooling is not part of request latency but remains subject to
+the same accounting discipline. The implemented activation evaluator's exact
+construction, suite-evaluation, report-space, and graph-validation bounds are
+owned by the
+[activation-parameter evaluation specification](activation-parameter-evaluation.md#computational-complexity).
+Every later corpus builder, parameter calibrator, training pipeline, and sealed
+evaluation runner must add its own finite input, time, workspace, persistent
+storage, and parallelism contract before execution.
+
+### Compatibility, release, and rollback contract
+
+Every persisted or exchanged internal format has a content-identified schema
+name and `major.minor` version:
+
+- a major change is incompatible or changes meaning;
+- a minor change is backward-readable only when unknown optional fields can be
+  ignored without changing semantics; and
+- a semantic change never hides in a patch label.
+
+Readers reject unknown mandatory features. Writers never downgrade a newer
+authoritative store implicitly. Model, tokenizer, encoder, vector space,
+normalization, index, policy, planner, renderer, validator, decoding, and
+runtime identities form one compatibility matrix and configuration
+fingerprint.
+
+Before 1.0, callable APIs and schemas are explicitly experimental. A release
+still provides migration and rollback evidence for every version it claims to
+support. Deprecation includes replacement, warning window, last supported
+reader, migration path, rollback limit, and removal decision.
+
+```mermaid
+flowchart TD
+    S["Accepted contracts and frozen configuration"] --> B["Reproducible build, tests, licenses, and SBOM"]
+    B --> M["Migration, backup, restore, upgrade, downgrade-rejection, and rollback fixtures"]
+    M --> P["Signed package and authenticated artifact manifest"]
+    P --> V["Offline vertical slice on supported platforms"]
+    V --> Q["Reference-Mac renderer and resource qualification"]
+    Q --> A["Adversarial privacy, poisoning, and capability tests"]
+    A --> E["Sealed end-to-end evaluation"]
+    E -->|all gates pass| R["Supported release"]
+    E -->|fail or inconclusive| X["No shipment; new revision and new sealed evidence"]
+```
+
+Release artifacts include checksums, provenance, license inventory, software
+bill of materials, schema/migration identities, model-artifact manifest,
+configuration fingerprint, supported scope, known limitations, install,
+backup, upgrade, rollback, uninstall, and recovery instructions. Compile never
+downloads or updates them.
+
 ### Failure taxonomy
+
+A failure to open an installation creates no compiler. `OpenError` preserves
+one stable class, its typed source chain, retryability, and CLI mapping:
+
+| Open class | Representative causes | Retryable without state change | CLI exit |
+| --- | --- | :---: | ---: |
+| `InvalidInstallation` | Malformed installation identity, unsupported installation schema, or missing mandatory configuration | No | `5` |
+| `ManifestUnavailable` | Missing trust root, invalid manifest, digest mismatch, or unavailable required artifact | Only after an external installation or update repairs it | `5` |
+| `MemoryOpenFailure` | Uninitialized, locked, unreadable, incompatible, or corrupt memory installation | Locked I/O may be; schema or corruption is not | `4` |
+| `PolicyOpenFailure` | Missing or invalid installed policy evaluator or policy schema | Only after an authorized installation repair | `5` |
+| `OpenResourceFailure` | Declared memory, file-descriptor, or initialization deadline exceeded | Yes when the resource condition is transient | `8` |
+| `OpenPolicyViolation` | Preflight attempts network or a capability outside its installation contract | No | `9` |
+| `OpenInvariantViolation` | Internal state violates a validated constructor or manifest invariant | No | `70` |
+
+Retryability is a property of the typed error instance, not permission for an
+adapter to retry automatically. The CLI performs one open attempt and maps an
+`OpenError` to the listed stable exit without converting it to a
+`CompileError`.
 
 A compile failure returns no compiled prompt. `CompileError` preserves a stable
 class and an inspectable underlying stage or cause.
 
-| Class | Representative causes |
-| --- | --- |
-| `InvalidRequest` | Invalid UTF-8, empty prompt, invalid time, excessive input, or too many statements |
-| `PromptOrigin` | Caller cannot satisfy the authenticated prompt-origin precondition |
-| `UnsupportedLanguage` | Language is absent, undetermined, or outside declared support |
-| `AuthorizationUnavailable` | Caller trust or disclosure view cannot be established |
-| `MemoryUnavailable` | Uninitialized, locked, unreadable, incompatible, or corrupt memory |
-| `SnapshotUnavailable` | No coherent revision or a representation/index revision mismatch |
-| `RepresentationFailure` | Missing encoder or schema artifact, incompatible schema, or invalid numerical state |
-| `RetrievalFailure` | Search cannot meet its declared completeness contract |
-| `ActivationFailure` | Invalid profile, signal, parameter, or numerical evaluation |
-| `PlanningFailure` | Unresolvable selection, qualification, conflict, or abstention state |
-| `InsufficientAttentionBudget` | Mandatory qualified attention cannot fit the resolved budget |
-| `RendererFailure` | Missing renderer artifact, malformed output, or unsupported generation |
-| `FaithfulnessFailure` | Unsupported claim, lost qualification, escalation, or answer leakage |
-| `ResourceFailure` | A declared memory, deadline, or compute budget is exceeded at any stage |
-| `PolicyViolation` | A compile component attempts prohibited network or persistent write access |
+| Variant | Representative causes | CLI exit |
+| --- | --- | ---: |
+| `InvalidRequest` | Empty or whitespace-only prompt, invalid time, excessive input, malformed metadata, or too many statements | `2` |
+| `PromptOrigin` | Caller cannot satisfy the authenticated prompt-origin precondition | `3` |
+| `UnsupportedLanguage` | Language is absent, undetermined, or outside declared support | `2` |
+| `AuthorizationUnavailable` | Caller trust or disclosure view cannot be established | `3` |
+| `MemoryUnavailable` | Uninitialized, locked, unreadable, incompatible, or corrupt memory | `4` |
+| `SnapshotUnavailable` | No coherent revision or a representation/index revision mismatch | `4` |
+| `ArtifactUnavailable` | A pinned configuration, schema, encoder, renderer, validator, or other mandatory artifact is missing, unauthenticated, digest-invalid, or incompatible | `5` |
+| `RepresentationFailure` | An installed compatible encoder or decoder produces an invalid numerical state | `6` |
+| `RetrievalFailure` | Search cannot meet its declared completeness contract | `6` |
+| `ActivationFailure` | Invalid profile, signal, parameter, or numerical evaluation | `6` |
+| `ExpectationFailure` | Invalid transition, frame, grouping, provenance, or expectation derivation | `6` |
+| `PlanningFailure` | Unresolvable selection, qualification, conflict, or plan state | `6` |
+| `InsufficientAttentionBudget` | Mandatory or otherwise justified nonempty qualified attention cannot fit the resolved budget | `8` |
+| `RendererFailure` | An installed compatible renderer produces malformed or unsupported generation | `7` |
+| `FaithfulnessFailure` | Unsupported claim, lost qualification, escalation, answer leakage, or `RendererCostBoundViolation` after exact substitution | `7` |
+| `ResourceFailure` | A declared memory, deadline, cancellation, or compute budget is exceeded at any stage | `8` |
+| `PolicyViolation` | A compile component attempts prohibited network or persistent write access | `9` |
+| `InternalInvariantViolation` | Internal state violates a validated constructor or unreachable-state invariant | `70` |
 
-Adapter delivery errors are separate from `CompileError`. A
-`TransportFailure` means compilation succeeded but an adapter could not deliver
-the complete text. It remains an unsuccessful invocation. CLI standard-output
-failure is one possible adapter-specific mapping.
+Invalid UTF-8 exists only at a byte-oriented adapter boundary because the
+library accepts a valid Rust `String`; it is a CLI input failure mapped to exit
+`2`, not a `CompileError`. Adapter delivery errors are separate from
+`OpenError` and `CompileError`. A `TransportFailure` means compilation
+succeeded but an adapter could not deliver the complete text. It remains an
+unsuccessful invocation. CLI standard-output failure is one possible
+adapter-specific mapping.
 
-Error ownership is stage-specific. A missing artifact belongs to the stage that
-owns it; an externally enforced deadline or resource ceiling is
-`ResourceFailure`; and an attempted prohibited action is always
-`PolicyViolation`, even when it also causes another stage to fail. Focused
-error specifications must resolve any remaining overlap before public error
-codes are stabilized.
+Classification is deterministic. An internal invariant violation takes its
+dedicated variant; an attempted prohibited capability is `PolicyViolation`; an
+external deadline, cancellation, or resource ceiling is `ResourceFailure`; and
+a missing, unauthenticated, digest-invalid, schema-incompatible, or otherwise
+unavailable pinned artifact is `ArtifactUnavailable`. Only after these
+conditions are excluded does the owning computational stage return its stage
+variant. The adapter does not inspect error-message text or nested I/O causes to
+choose an exit.
+
+Planning-stage causes map as follows:
+
+| Internal planning condition | Public `CompileError` | Required disposition |
+| --- | --- | --- |
+| Requested language is absent, undetermined, or outside the installed declared language set | `UnsupportedLanguage` | Reject before selection |
+| Pinned priority table, classifier, schema, cost function, tokenizer identity, slot policy, or other required planning artifact is missing, malformed, digest-invalid, internally inconsistent, or falsely claims the selected language/domain | `ArtifactUnavailable` | Reject and invalidate that installed artifact identity |
+| Validated input has a schema or lineage mismatch, invalid role or disposition, missing qualifier or relation, conflicting controls, invalid exact-slot shape, or no structurally feasible plan | `PlanningFailure` | Return the typed planning source; no partial plan |
+| A source unknown to or excluded from the authorized shared set reaches planning, or planning would raise an authority ceiling | `InternalInvariantViolation` | Stop; authorization-before-relevance was violated |
+| Checked planning-cost arithmetic overflows or exits the domain of a preflight-validated artifact | `InternalInvariantViolation` | Stop; do not saturate or reinterpret as budget pressure |
+| Canonical planning candidates exceed the pinned closure or tagged-member ceiling | `ResourceFailure` | Reject before subset enumeration |
+| A structurally faithful mandatory or otherwise justified nonempty attention projection cannot fit the resolved budget | `InsufficientAttentionBudget` | Return no product result; do not emit budget-driven empty attention |
+| A valid optional closure is individually over budget while another faithful nonempty or faithfully empty plan remains possible | no error by itself | Mark only that closure infeasible |
+| Measured post-substitution cost exceeds the accepted conservative bound or resolved budget | `FaithfulnessFailure` | Return no result and invalidate renderer qualification for the exact artifact identity |
+
+Static artifact validation occurs during open/preflight. The planning mappings
+remain defensive so a corrupted in-memory artifact cannot be mislabeled as a
+request or planning error. Neither a rank table nor a cost contract may be
+selected from ambient state after compilation starts.
+
+`RendererCostBoundViolation` is an internal renderer-validation error mapped
+deterministically to public `FaithfulnessFailure`. It means the measured
+post-substitution attention cost exceeded the accepted qualified upper bound or
+resolved budget after planning had accepted the plan. It is not a planning
+failure or ordinary resource exhaustion; it invalidates qualification evidence
+for the pinned rendering identity and returns no product result.
 
 Memory import, correction, migration, deletion, and index-build failures belong
 to the separate management plane.
+
+Evidence abstention is a valid expectation disposition, not an
+`ExpectationFailure`. A plan may render the abstention when it changes
+interpretation as the distinct focus-plus-abstention shape, retain it only for
+validation in a focus-only plan, or emit focus without any expectation
+disposition according to the pinned plan configuration. A renderer-visible
+abstention without focus is not a valid plan shape.
+
+```mermaid
+stateDiagram-v2
+    [*] --> Open
+    Open --> Compile: installation valid
+    Open --> Failure: preflight error
+    Compile --> EmptyAttention: no useful focus or expectation
+    Compile --> FocusOnly: useful focus, no renderer-visible expectation role
+    Compile --> FocusWithAbstention: useful focus, renderable abstention
+    Compile --> ExpectationOnly: expectation closure is independently complete
+    Compile --> Combined: qualified focus and expectations
+    Compile --> Failure: typed stage error, cancellation, or resource limit
+    EmptyAttention --> Serialize
+    FocusOnly --> RenderAndValidate
+    FocusWithAbstention --> RenderAndValidate
+    ExpectationOnly --> RenderAndValidate
+    Combined --> RenderAndValidate
+    RenderAndValidate --> Serialize: accepted unchanged
+    RenderAndValidate --> Failure: no retry or partial output
+    Serialize --> Delivered: adapter writes complete result
+    Serialize --> TransportFailure: delivery incomplete
+    Failure --> [*]
+    Delivered --> [*]
+    TransportFailure --> [*]
+```
 
 ### Decision register
 
@@ -588,11 +1239,14 @@ The following decisions are already accepted and constrain this proposal:
 - coding agents as the first domain eligible for a supported V1 claim;
 - typed numerical memory and query facets with a parallel authoritative exact
   plane;
-- request-local proposition consolidation into a bounded numerical focus plan;
-- an evidence-bound focus narrative rather than a claimed chain of thought;
+- transition memories and dependency-aware observed-outcome evidence;
+- focus and expectation branching from one eligible activated-memory set;
+- a bounded focus-and-expectation plan that preserves alternatives and
+  abstention;
+- evidence-bound attention rather than a claimed chain of thought;
 - a direct vector-prefix bridge with deterministic exact-value slots; and
-- a frozen, task-specific local-model qualification path before any release
-  model is selected.
+- a frozen, task-specific local lexicalizer qualification path before any
+  release model is selected.
 
 The proposed product contract additionally requires compilation without any
 network access. This stricter boundary is a required property of this proposed
@@ -611,16 +1265,18 @@ implemented:
 | Candidate generation | Recall, false-negative, cross-context, scale, and authorization measurements |
 | Signal derivation | Grounded channel semantics, independent labels, sensitivity, and robustness |
 | Activation adoption | Improvement over simpler ranking baselines on disjoint evidence |
-| Attention planning | Accepted objective instantiated with coverage, exclusion, conflict, redundancy, abstention, and budget evidence |
-| Renderer and validation | Accepted vector-prefix path compared with templates and MLP; model selected by faithfulness, leakage, language, exact-slot, downstream, and resource evidence |
+| Expectation baseline | Transition corpus, deterministic grouping, dependency budgets, alternatives, coverage, abstention, and wrong-expectation cases |
+| Attention planning | Accepted objective instantiated with focus/expectation separation, coverage, exclusion, conflict, redundancy, abstention, and budget evidence |
+| Renderer and validation | Accepted vector-prefix path compared with templates and MLP; model selected by focus/expectation faithfulness, leakage, language, exact-slot, downstream, and resource evidence |
 | Runtime topology | Offline enforcement, packaging, failure isolation, and reference-hardware measurements |
 | Release claim | Sealed end-to-end evaluation and all predeclared gates |
 
 Database engine, physical schema, concrete facet encoders and dimensions,
-index, release renderer model and quantization, production model runtime,
-caching strategy, and process topology are chosen only after their owning
-contracts and minimum evidence exist. The logical numerical representation and
-renderer qualification path are no longer open.
+index, expectation thresholds, release renderer model and quantization,
+production model runtime, caching strategy, and process topology are chosen
+only after their owning contracts and minimum evidence exist. The logical
+numerical representation, predictive branch, and renderer qualification path
+are no longer open.
 Initialization, create/import, correction, revocation, deletion, export,
 consolidation, migration, and recovery are separately scoped management
 operations. Each requires a contract before its own implementation, but this
@@ -638,6 +1294,7 @@ A conforming implementation requires:
   content identities;
 - one pinned versioned compiler configuration and artifact set;
 - declared language, input, resource, and attention-budget limits; and
+- validated transition, expectation, and combined-plan schemas; and
 - a compile dependency boundary that exposes no network capability and
   performs no network access.
 
@@ -653,12 +1310,22 @@ A conforming implementation requires:
   than its essential supporting sources.
 - Every planned and rendered proposition has source bindings and preserves
   material qualifications.
+- Focus and expectation consume the same eligible activated-memory set before
+  final focus pruning.
+- Expectation remains distinct from goal, action, answer, fact, and
+  probability.
+- Dependency grouping prevents one known evidence lineage from multiplying its
+  total predictive-support budget.
+- Material expectation alternatives are retained or the expectation branch
+  abstains.
 - No compile stage writes any persistent compiler state or performs a network
   call.
 - Every index and numerical representation is compatible with the pinned
   authoritative revision.
 - Empty attention, retrieval failure, renderer failure, and insufficient
   budget remain distinct outcomes.
+- Expectation evidence abstention remains distinct from an invalid state or
+  failed dependency.
 - No stage silently substitutes missing data, guessed metadata, stale indexes,
   unsupported language, or truncated content.
 - Offline evaluation artifacts are not runtime dependencies.
@@ -680,6 +1347,14 @@ A conforming implementation requires:
   lossy vector.
 - Two copies derived from one source must not masquerade as independent
   corroboration.
+- The same dependency group cannot contribute full predictive support to
+  several contradictory outcomes.
+- A predicted or rendered outcome cannot support a later expectation as an
+  observed transition.
+- A strong expectation remains a hypothesis and cannot become an action
+  recommendation.
+- Different horizons do not become contradictions merely because their
+  outcomes differ.
 - Conflicting propositions must not be averaged into a false compromise.
 - A renderer must not expose a reasoning trace or label its focus narrative as
   human thought.
@@ -704,8 +1379,16 @@ Architecture conformance requires:
 - cross-context candidate-generation tests and measured retrieval recall;
 - signal-provenance and channel-grounding tests;
 - existing activation-kernel verification where that kernel is used;
-- attention-plan coverage, exclusion, conflict, abstention, and budget tests;
-- renderer faithfulness, language, leakage, and qualification evaluation;
+- transition eligibility, outcome relation, dependency aggregation, coverage,
+  unknown-support, alternative, and prediction-abstention tests;
+- focus-and-expectation plan coverage, exclusion, conflict, closure,
+  abstention, and budget tests;
+- renderer focus/expectation faithfulness, language, probability inflation,
+  action and answer leakage, exact-slot, and qualification evaluation;
+- compile/management capability separation, migration, backup, restore, and
+  corruption tests;
+- CLI prompt-source, byte-preservation, stdout-isolation, exit-map, and
+  cancellation tests;
 - network-blocked and persistent-write-detection integration tests;
 - result isolation and transport-failure tests for every adopted adapter;
 - resource measurements on frozen reference hardware; and
@@ -722,9 +1405,8 @@ conditions are defined in
 
 ## Open questions
 
-- Exact request types, whether the proposed CLI is adopted, its syntax, input
-  limits, and budget unit.
-- Time, location, project, workspace, application, and language metadata.
+- Adoption and stabilization of the proposed callable and CLI contracts,
+  concrete input limits, and budget unit.
 - Authoritative memory representation and minimum provisioning operation.
 - Storage engine, encryption policy, filesystem ownership, and physical
   deletion.
@@ -736,7 +1418,9 @@ conditions are defined in
 - Retrieval indexes, candidate budgets, and permitted false-negative rates.
 - Calibrated runtime channel parameters, inhibition strengths, and
   normalization artifacts.
-- Planning coefficients, item and cost penalties, mandatory-set policy, and
+- Transition outcome canonicalization, condition/horizon compatibility,
+  expectation thresholds, and deterministic numerical policy.
+- Plan role coverage, materiality, cost bounds, mandatory-set policy, and
   attention budget.
 - Public diagnostic authorization for the internal plan and bindings.
 - Release renderer checkpoint, adapter configuration, quantization, validator,
@@ -752,12 +1436,19 @@ omnibus acceptance of those choices.
 
 - [V1 product contract](v1-product-contract.md)
 - [V1 proof program](v1-proof-program.md)
+- [V1 delivery program](v1-delivery-program.md)
 - [Situation-conditioned activation](situation-conditioned-activation.md)
 - [Activation parameter evaluation](activation-parameter-evaluation.md)
 - [Curated activation evidence](curated-activation-evidence.md)
 - [Cognitive memory activation and focus](cognitive-memory-activation-and-focus.md)
+- [Predictive attention and expectation](predictive-attention-and-expectation.md)
+- [Focus-and-expectation planning](focus-and-expectation-planning.md)
 - [Vector-to-attention renderer](vector-to-attention-renderer.md)
 - [Local renderer model qualification](local-renderer-model-qualification.md)
-- [Decision 0011: Adopt a local read-only attention compiler for V1](../decisions/0011-adopt-local-read-only-attention-compiler-v1.md)
-- [Decision 0012: Adopt numerical cognitive memory and focus compilation](../decisions/0012-adopt-numerical-cognitive-memory-and-focus-compilation.md)
-- [Decision 0013: Adopt a vector-prefix local renderer qualification path](../decisions/0013-adopt-a-vector-prefix-local-renderer-qualification-path.md)
+- [Superseded Decision 0011: Adopt a local read-only attention compiler for V1](../decisions/0011-adopt-local-read-only-attention-compiler-v1.md)
+- [Decision 0014: Adopt memory-grounded predictive attention](../decisions/0014-adopt-memory-grounded-predictive-attention.md)
+- [Decision 0015: Render qualified focus-and-expectation plans](../decisions/0015-render-qualified-focus-and-expectation-plans.md)
+- [SQLite transactions](https://www.sqlite.org/lang_transaction.html)
+- [SQLite write-ahead logging](https://www.sqlite.org/wal.html)
+- [SQLite backup API](https://www.sqlite.org/backup.html)
+- [SQLite integrity and schema pragmas](https://www.sqlite.org/pragma.html)

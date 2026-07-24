@@ -33,6 +33,8 @@ pub fn explain_activation(
 ) -> Result<ActivationExplanation, ActivationError>;
 ```
 
+## Mathematics
+
 For each evidence channel, its effective weight is:
 
 \[
@@ -137,9 +139,35 @@ The output contains every input candidate exactly once. Results are ordered by d
 
 ## Operational boundary
 
-The kernel is intended for a bounded post-retrieval candidate set. The current design assumes approximately 10 to 500 candidates per ranking call. It deliberately returns all candidates and performs a full deterministic sort; it is not a database-scale retrieval or top-k interface.
+The kernel is intended for a bounded post-retrieval candidate set. No supported
+candidate-count range is claimed without a frozen configuration and retained
+benchmark receipt on declared hardware. It deliberately returns all candidates
+and performs a full deterministic sort; it is not a database-scale retrieval
+or top-k interface.
 
 The evidence denominator depends on the complete active evidence-channel set. Adding or removing a channel can therefore change every normalized evidence contribution even when existing channel parameters are unchanged. Multiplicative inhibition also treats each inhibition channel as an independent retention factor; correlated inhibition channels can compound one underlying concern. Callers own channel construction and calibration. This kernel does not claim statistical independence, calibrated probabilities, or safety semantics.
+
+## Computational complexity
+
+Let \(n_{\mathrm{act}}\) be the activation-candidate count,
+\(c_{\mathrm{act}}=|C|+|J|\) the total activation-profile-channel count, and
+\(s\) the number of signals supplied to one candidate constructor. The
+implemented public operations have these worst-case bounds:
+
+| Operation | Time | Additional space, excluding caller-owned input |
+| --- | --- | --- |
+| `ActivationProfile::new` | \(O(c_{\mathrm{act}}\log c_{\mathrm{act}})\) for canonical sorting plus \(O(c_{\mathrm{act}})\) preparation | \(O(c_{\mathrm{act}})\) owned canonical profile |
+| `ActivationCandidate::new` | \(O(s\log s)\) for canonical signal sorting | \(O(s)\) owned canonical candidate |
+| `rank_activations` | \(O(n_{\mathrm{act}}c_{\mathrm{act}}+n_{\mathrm{act}}\log n_{\mathrm{act}})\) | \(O(n_{\mathrm{act}})\) candidate-reference and result vectors |
+| `explain_activation` | \(O(c_{\mathrm{act}})\) | \(O(c_{\mathrm{act}})\) returned contribution breakdown |
+
+Ranking first canonicalizes candidate references, validates and evaluates each
+candidate in canonical channel order, then performs the required full result
+sort. The bound does not assume a constant channel count. The complete
+breakdown returned by explanation is output, not hidden workspace. Any future
+optimization must remain extensionally identical for every accepted input,
+including exact tie behavior and error precedence, or establish a new
+contract.
 
 ## Verification
 
