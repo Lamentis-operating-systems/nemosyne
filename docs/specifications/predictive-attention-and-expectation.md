@@ -250,6 +250,7 @@ pub enum ObservationTime {
 pub struct TransitionReliability {
     schema: ReliabilitySchemaId,
     state: ReliabilityState,
+    migration: Option<ReliabilityMigrationRef>,
 }
 
 pub enum ReliabilityState {
@@ -257,7 +258,6 @@ pub enum ReliabilityState {
         value: UnitInterval,
         derivation: ReliabilityDerivationId,
         calibration_domain: ReliabilityCalibrationDomainId,
-        migration: Option<ReliabilityMigrationRef>,
     },
     Missing {
         reason: MissingReliabilityCode,
@@ -274,8 +274,24 @@ pub struct ReliabilityMigrationRef {
     migration: ReliabilityMigrationId,
     source_record: TransitionRecordRevisionId,
     source_schema: ReliabilitySchemaId,
-    source_calibration_domain: ReliabilityCalibrationDomainId,
+    source_state: ReliabilityMigrationSource,
     source_state_digest: ReliabilityStateDigest,
+}
+
+pub enum ReliabilityMigrationSource {
+    Derived {
+        derivation: ReliabilityDerivationId,
+        calibration_domain: ReliabilityCalibrationDomainId,
+    },
+    Missing {
+        reason: MissingReliabilityCode,
+    },
+    Unknown {
+        reason: UnknownReliabilityCode,
+    },
+    Inapplicable {
+        reason: InapplicableReliabilityCode,
+    },
 }
 ```
 
@@ -305,23 +321,42 @@ compatibility relation over reliability schema, derivation, calibration
 domain, transition schema, observation states, and prediction-frame class.
 A known, well-formed incompatibility or a non-`Derived` state makes that
 transition ineligible for the frame and retains a typed exclusion diagnostic.
-An unknown or malformed schema, derivation, calibration domain, missingness
-code, or migration identity is a structural error.
+An unknown or malformed schema, applicable derivation or calibration domain,
+missingness code, source-state binding, or migration identity is a structural
+error. A field that does not belong to the selected state variant is also a
+structural error rather than an ignored value.
 
-Reliability migration never occurs implicitly during compilation. A separately
-authorized management operation or derived-artifact rebuild may apply one
-authenticated, versioned `ReliabilityMigrationId` with declared source and
-target schemas, derivations, calibration domains, missingness mapping,
-finite-range behavior, and compatibility proof. It publishes a new immutable
-record version or revision-bound derived artifact. Its
-`ReliabilityMigrationRef` binds the exact source record revision, source
-schema and calibration domain, and canonical digest of the complete source
-state, including its value or missingness variant and derivation when present.
-Compilation accepts that value only under the target contract pinned by the
-compile configuration. No matching migration means incompatibility; equal
+Reliability migration never occurs implicitly during compilation. Migration
+lineage belongs to `TransitionReliability`, not to one state variant, because
+a registered migration may map any source state to any target state. A
+separately authorized management operation or derived-artifact rebuild may
+apply one authenticated, versioned `ReliabilityMigrationId` with declared
+source and target schemas, state-transition matrix, derivations, calibration
+domains, missingness mapping, finite-range behavior, and compatibility proof.
+It publishes a new immutable record version or revision-bound derived
+artifact.
+
+Its `ReliabilityMigrationRef` binds the exact source record revision and
+schema, a canonical digest of the complete source state, and variant-specific
+source metadata. A `Derived` source supplies its derivation and calibration
+domain. `Missing`, `Unknown`, and `Inapplicable` sources supply only their
+registered reason code and cannot carry or require a fabricated derivation,
+numeric value, or calibration domain. The reference's source variant and
+metadata must reconstruct and match the authenticated source record and
+digest exactly; mismatch is a structural error.
+
+The outer `schema` and `state` are the migration target. A target `Derived`
+state therefore carries its own derivation, calibration domain, and finite
+value, while a target unavailable state carries only its typed reason. The
+optional migration reference remains representable on every target state.
+Compilation accepts a target value only under the target contract pinned by
+the compile configuration. A valid migrated unavailable target remains
+frame-ineligible while preserving its lineage; migration does not convert
+missingness into support. No matching migration means incompatibility; equal
 numeric payloads under different schemas or calibration domains do not
-establish compatibility. Rollback restores the prior immutable revision and
-artifact rather than translating a value in place.
+establish compatibility. Rollback restores the exact prior immutable record
+revision or artifact, including its original state variant, rather than
+translating a value in place or applying an inverse migration.
 
 The payload and support contract is total:
 
@@ -594,24 +629,27 @@ contract returns exactly one of:
 \end{cases}
 \]
 
-The complete contract includes reliability schema, derivation, calibration
-domain, transition schema, observation states, prediction-frame class, and
-any authenticated migration lineage. `Compatible` carries the exact finite
-value \(v\in\mathbb U\), sets \(\varrho_i=v\), and satisfies the reliability
-conjunct of \(\chi_{i,\psi}\). `Excluded` sets that conjunct to zero and emits
-one typed frame-local exclusion diagnostic; it does not synthesize
-\(\varrho_i\). `Error` aborts the evaluation and cannot be converted to either
-exclusion or abstention.
+For a `Derived` target, the complete contract includes reliability schema,
+derivation, calibration domain, transition schema, observation states,
+prediction-frame class, and any authenticated migration lineage. For an
+unavailable target, validation uses its schema, exact state variant, reason,
+and migration lineage without inventing derived-only fields. `Compatible`
+carries the exact finite value \(v\in\mathbb U\), sets \(\varrho_i=v\), and
+satisfies the reliability conjunct of \(\chi_{i,\psi}\). `Excluded` sets that
+conjunct to zero and emits one typed frame-local exclusion diagnostic; it does
+not synthesize \(\varrho_i\). `Error` aborts the evaluation and cannot be
+converted to either exclusion or abstention.
 
 A compatible derived value of zero remains an available reliability
 observation and may satisfy \(\chi_{i,\psi}\), although it makes the
 transition's qualified support zero. `Missing`, `Unknown`, and
 `Inapplicable` are unavailable states, not alternative spellings of zero.
-Values from distinct reliability schemas or calibration domains are
+Derived values from distinct reliability schemas or calibration domains are
 incomparable unless the value carries a registered migration lineage admitted
-by the pinned compatibility contract. Compilation performs no migration,
-fallback calibration, neutral-value substitution, or numeric-only
-compatibility test.
+by the pinned compatibility contract. Every source and target state pair is
+validated against the migration's declared state-transition matrix.
+Compilation performs no migration, fallback calibration, neutral-value
+substitution, or numeric-only compatibility test.
 
 ### Facet compatibility and missing values
 
@@ -2122,6 +2160,9 @@ tests include immediately below, at, and above each boundary.
 - An unknown or malformed reliability schema, derivation, calibration domain,
   missingness code, or migration lineage is a structural error. Equal numeric
   values under incompatible contracts are not interchangeable.
+- A valid cross-state migration preserves variant-specific source and target
+  metadata without manufacturing a calibration domain for an unavailable
+  state. Rollback restores the exact source revision and variant.
 - Eligible transitions with all zero qualified weights produce `ZeroSupport`.
 - Unknown-only family support produces `NoKnownOutcomeSupport`.
 - One supported outcome may be rendered as a single hypothesis, but lack of a
@@ -2201,8 +2242,9 @@ The first executable implementation requires:
   transitions;
 - compatible derived zero and unit reliability, every unavailable reliability
   state, schema/derivation/calibration-domain incompatibility, unknown
-  contract identities, authenticated migration acceptance, and missing,
-  stale, or mismatched migration rejection;
+  contract identities, every permitted and forbidden source/target state
+  migration pair, authenticated cross-state migration acceptance, exact
+  rollback restoration, and missing, stale, or mismatched migration rejection;
 - numerical-policy authentication, incomplete-policy rejection, operation
   ordering, rounding, positive-underflow, overflow, non-finite, negative-zero,
   exact-tie, and cross-platform receipt cases;

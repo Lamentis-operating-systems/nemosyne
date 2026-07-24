@@ -57,7 +57,7 @@ and claims must use registered or visibly qualified symbols.
 | --- | --- | --- | --- |
 | \(P\) | bytes | Retained original prompt | [Product contract](v1-product-contract.md) |
 | \(S\) | zero to three statements | Caller-supplied situation statements | [Product contract](v1-product-contract.md) |
-| \(\Xi\) | typed metadata | Explicit request metadata, including contextual time | [Reference architecture](v1-reference-architecture.md) |
+| \(\Xi\) | typed request evidence | Caller-supplied contextual time, optional declared location, and explicit metadata | [Reference architecture](v1-reference-architecture.md) |
 | \(I\) | authenticated context | Trusted invocation principal, caller, and authorization facts | [Reference architecture](v1-reference-architecture.md) |
 | \(t_{\mathrm{context}}\) | exact contextual instant | Caller-declared situational time | [Product contract](v1-product-contract.md) |
 | \(t_{\mathrm{auth}}\) | exact trusted instant | One pinned authorization time | [Reference architecture](v1-reference-architecture.md) |
@@ -68,7 +68,8 @@ and claims must use registered or visibly qualified symbols.
 | \(m_i\) | cognitive memory unit | One immutable exact-plus-numerical record version | [Cognitive memory specification](cognitive-memory-activation-and-focus.md) |
 | \(\mathcal G_i\) | finite relation set | Typed numerical memory relations for \(m_i\) | [Cognitive memory specification](cognitive-memory-activation-and-focus.md) |
 | \(\Pi_i\) | typed metadata | Provenance, authority, validity, uncertainty, and policy of \(m_i\) | [Cognitive memory specification](cognitive-memory-activation-and-focus.md) |
-| \(Q\) | numerical query state | Encoding of \(P,S,\Xi,t_{\mathrm{auth}}\) under \(K\) | [Cognitive memory specification](cognitive-memory-activation-and-focus.md) |
+| \(Q\) | numerical query state | Encoding of \(P,S,\Xi\) under pinned \(K\); no trusted authorization input | [Cognitive memory specification](cognitive-memory-activation-and-focus.md) |
+| \(B_Q\) | exact query binding | \((request\_id,situation\_id,configuration\_id)\) derived with \(Q\) | [Cognitive memory specification](cognitive-memory-activation-and-focus.md) |
 | \(C^r\) | finite retrieved set | Authorized bounded retrieval result | [Reference architecture](v1-reference-architecture.md) |
 | \(N\) | finite numerical candidates | Derived activation candidates and signals | [Cognitive memory specification](cognitive-memory-activation-and-focus.md) |
 | \(\mathbb U\) | \([0,1]\) | Predictive derivation's closed finite unit interval | [Predictive-attention specification](predictive-attention-and-expectation.md) |
@@ -143,8 +144,9 @@ Let:
 
 - `P` be the retained original prompt bytes;
 - `S` be zero to three situation statements;
-- \(\Xi\) be validated metadata containing declared contextual time
-  `t_context`;
+- \(\Xi\) be validated caller-supplied request evidence containing declared
+  contextual time `t_context`, optional declared location, and explicit
+  metadata;
 - `I` be the authenticated invocation context outside the request payload,
   including trusted authorization time `t_auth`;
 - \(\ell\) be the resolved declared output language;
@@ -165,7 +167,7 @@ authorize(M^r,I,t_{\mathrm{auth}};K)
 \]
 
 \[
-Q = encode(P,S,\Xi,t_{\mathrm{auth}};K)
+Q = encode(P,S,\Xi;K)
 \]
 
 \[
@@ -267,7 +269,7 @@ normative and move only with a same-change registry update.
 | ID | Sole owner | Domain, codomain, totality, and numeric contract | Required property and counterexample class | Executable evidence owner | Obligation and gate |
 | --- | --- | --- | --- | --- | --- |
 | `ALG-SER-01` | [Product output](v1-product-contract.md#successful-output) | Validated attention bytes plus retained prompt bytes to one compiled byte string; exact byte serialization; total after validation | Prompt is the final byte-identical suffix; test normalization, line endings, nested headers, and trailing bytes | `API-01`, `CLI-01`, `SYS-01` | F1, F9; G7 |
-| `ALG-MEM-01` | [Numerical query state](cognitive-memory-activation-and-focus.md#numerical-query-state) | \(P,S,\Xi,t_{\mathrm{auth}},K\) to \(Q\); typed failure; presence differs from numeric zero; exact prompt remains outside \(Q\) | Deterministic situation encoding without authority inference; test ambient time, absent-as-zero, and prompt mutation | `SIT-01`, `ENC-01` | F2, F3, F10; G3 |
+| `ALG-MEM-01` | [Numerical query state](cognitive-memory-activation-and-focus.md#numerical-query-state) | \(P,S,\Xi,K\) to \(Q\) and \(B_Q=(request,situation,configuration)\); typed failure; presence differs from numeric zero; exact prompt remains outside \(Q\); no principal, trusted time, policy, or authorization-view input | Deterministic situation encoding without authority inference; test prompt and zero-to-three situation ordering, contextual-time/location/metadata presence, pinned encoder identity, ambient/trusted-time noninterference, absent-as-zero, prompt mutation, locators, and content identities | `SIT-01`, `ENC-01` | F2, F3, F10; G3 |
 | `ALG-MEM-02` | [Eligible memory view](cognitive-memory-activation-and-focus.md#eligible-memory-view) | Authorized snapshot to \(\mathcal M_E\), then \(Q,\mathcal M_E\) to \(\mathcal M_Q\); total for valid policy artifacts; hard gates precede scores | Excluded records cannot crowd candidates; mutate only unauthorized, deleted, invalid, and usage-incompatible records | `MEM-03`, `RET-01`, `SEC-01` | F2, F3, F12; G2-G3 |
 | `ALG-MEM-03` | [Direct cue activation](cognitive-memory-activation-and-focus.md#direct-cue-activation) | Compatible query-memory facets to finite calibrated cues; metric, calibration, missingness, and canonical accumulation are pinned | Inspectable bounded cue lineage; test incompatible spaces, nonfinite values, and duplicated evidence | `SIG-01`, `ACT-00` | F8, F10; G4 |
 | `ALG-MEM-04` | [Base availability](cognitive-memory-activation-and-focus.md#base-availability-from-frequency-and-recency) | Valid history statistics to bounded availability; checked finite arithmetic in canonical event order | Recency and frequency affect accessibility, not truth or authority; test future and duplicate events | `SIG-01`, `EVAL-01` | F4, F8; G4 |
@@ -278,7 +280,7 @@ normative and move only with a same-change registry update.
 | `ALG-ACT-01` | [Activation mathematics](situation-conditioned-activation.md#mathematics) | Valid profile and candidates to complete ranking; implemented `f64`, canonical channels, exact score tie then `CandidateId` | \(E_i,R_i,A_i\in[0,1]\), monotonicity, deterministic reconstruction | Existing `nemosyne-core` tests, `ACT-00` | F8; G4 |
 | `ALG-EXP-01` | [Expectation hard eligibility](predictive-attention-and-expectation.md#expectation-projection-hard-eligibility) | \(\psi,\tau_i,K\) to \(\chi_{i,\psi}\); closed use, observation, frame, condition, missing-facet, and typed-reliability policy | Ineligible evidence cannot regain support through scores; test predicted evidence, unknown passive conditions, unavailable reliability, and incompatible reliability contracts | `EXP-01`, `EXP-02` | F2, F12, F15; G4 |
 | `ALG-EXP-02` | [Facet compatibility](predictive-attention-and-expectation.md#facet-compatibility-and-missing-values) | Comparable facets, condition, and horizon to compatibility plus diagnostics; real semantics and a frozen executable numerical policy | Preserve coverage versus mismatch; test missing values, unit mismatch, and each boundary | `EXP-02`, `EVAL-01` | F10, F15; G4 |
-| `ALG-EXP-03` | [Qualified support](predictive-attention-and-expectation.md#qualified-transition-support) | Eligible activation, compatibility, and compatible typed reliability to \(\alpha_i\); finite factors, explicit unavailable states, registered migration lineage, and named feature interactions | Bounded inspectable support, never probability; test derived zero versus unavailable reliability, incompatible schemas and calibration domains, unregistered migration, and duplicated raw-feature influence | `EXP-02`, `EVAL-01` | F8, F13; G4 |
+| `ALG-EXP-03` | [Qualified support](predictive-attention-and-expectation.md#qualified-transition-support) | Eligible activation, compatibility, and compatible typed reliability to \(\alpha_i\); finite factors, explicit unavailable states, state-typed source/target migration lineage, and named feature interactions | Bounded inspectable support, never probability; test derived zero versus unavailable reliability, incompatible schemas and calibration domains, every cross-state migration class, exact rollback, unregistered migration, and duplicated raw-feature influence | `EXP-02`, `EVAL-01` | F8, F13; G4 |
 | `ALG-EXP-04` | [Dependency-budgeted support](predictive-attention-and-expectation.md#dependency-budgeted-support) | Grouped support to \(s_{a,h},Z_a,r^{\mathrm{share}}_{h\mid a}\); one canonical budget per dependency group and family | Duplicates cannot multiply family budget; test cloned and split provenance roots | `EXP-02`, `EVAL-01`, `DATA-01` | F13, F14; G4 |
 | `ALG-EXP-05` | [Effective support count](predictive-attention-and-expectation.md#effective-support-group-count) | Positive group budgets to participation-ratio diagnostics; explicit zero case, canonical finite sums | Count is bounded by positive groups; test concentration and duplication | `EXP-02`, `EVAL-01` | F13-F15; G4 |
 | `ALG-EXP-06` | [Representative medoid](predictive-attention-and-expectation.md#representative-medoid) | Canonical outcome group and registered dissimilarity to one representative; finite limits and total fallback key | Deterministic representative without truth or metric claims; test unavailable and nontransitive distances | `EXP-02`, `PERF-01` | F10, F15; G4 |
@@ -370,6 +372,9 @@ numerical representations, and indexes are checked against `r`; authorization
 and disclosure expiry, current normative validity, and supersession use
 `t_auth` and `p`; temporal relevance receives both times explicitly, but
 `t_context` cannot revive historical instructions as current authority.
+`Q` carries only caller-supplied `t_context`; `t_auth` reaches authorization,
+validity, and later memory-relevance derivations through pinned private
+compile state and is never an input to `encode`.
 Downstream stages receive no ambient store handle or wall clock. One immutable
 `K` pins the identities of every policy evaluator and content-identified
 artifact handle, execution runtime, precision policy, supported platform
@@ -605,7 +610,7 @@ the contract to test rather than proving a model can satisfy it.
 
 | ID | Product requirement | Owning boundary | Required evidence |
 | --- | --- | --- | --- |
-| `V1-R01` | Authentic prompt, zero to three situations, resolved contextual time, explicit request metadata, and separate trusted caller and authorization time | Invocation context and ingress | Origin, count, contextual-time, metadata, absence, invalid-input, and forged-time authorization-isolation tests |
+| `V1-R01` | Authentic prompt, zero to three situations, caller-supplied contextual time, optional declared location, explicit request metadata, and separate private trusted caller and authorization time that do not enter \(Q\) | Invocation context, ingress, and situation encoding | Origin, count, contextual-time/location/metadata presence, deterministic \(Q\), \(B_Q\), locator/content-identity, invalid-input, trusted-time noninterference, and forged-time authorization-isolation tests |
 | `V1-R02` | One deterministic complete result or explicit error with separate transport failure | Orchestrator and adapters | F3, F9, repeatability, prohibited-random-input, failure-injection, and adapter-delivery tests |
 | `V1-R03` | Byte-identical original prompt and exact framing | Ingress and serializer | F1, golden tests, and arbitrary UTF-8 property tests |
 | `V1-R04` | Read-only one-revision compilation | Snapshot and compile capability graph | F3, F4, concurrency, configuration-pinning, and write-detection tests |
@@ -618,7 +623,7 @@ the contract to test rather than proving a model can satisfy it.
 | `V1-R11` | Numerical relevance after ingress with retained exact evidence | Encoding through planning | Schema, reconstruction-limit, provenance, and perturbation tests |
 | `V1-R12` | Coding agents are the first supported domain and claims remain bounded | End-to-end harness and release process | Sealed coding-task outcomes and frozen evidence receipts |
 | `V1-R13` | Memory management remains separate from compile | Compile capability boundary | Absence of management dependencies, persistent-write detection, and explicit rejection of management requests |
-| `V1-R14` | Versioned transition evidence with outcome representation and observation status | Transition schema and memory read boundary | Constructor, provenance, condition, horizon, status, version, and migration fixtures |
+| `V1-R14` | Versioned transition evidence with outcome representation, observation status, and state-typed reliability lineage | Transition schema and memory read boundary | Constructor, provenance, condition, horizon, status, version, every cross-state migration pair, and exact rollback fixtures |
 | `V1-R15` | Focus, expectation, goal, action, answer, fact, and probability remain distinct | Domain types, combined plan, renderer, and validator | Type-boundary, corruption, semantic-fidelity, and leakage tests |
 | `V1-R16` | Zero to a finite number of competing expectations | Expectation kernel | Empty, single, tied, alternative, cardinality, and canonical-order properties |
 | `V1-R17` | Complete expectation qualification | Expectation kernel and combined planner | Condition, horizon, support, counterevidence, uncertainty, exact-slot, and authority-closure reconstruction |
@@ -659,6 +664,8 @@ Implementation evidence must include:
 - known, unknown, omitted, censored, contradicted, and zero-support outcomes;
 - compatible derived-zero reliability versus missing, unknown, inapplicable,
   incompatible, malformed, and explicitly migrated reliability;
+- cross-state reliability migrations whose source and target variants require
+  different metadata, plus rollback to the exact source variant and revision;
 - a split-maxima case in which one transition passes only the coverage minimum
   and another passes only the proximity minimum;
 - every expectation abstention reason and every corresponding malformed-input
@@ -1126,6 +1133,9 @@ The development suite must include:
 - a bare or unavailable reliability value defaulted to a neutral scalar;
 - equal reliability numbers under incompatible schemas or calibration domains,
   including an absent or unregistered migration;
+- an unavailable reliability migration that fabricates a derivation,
+  calibration domain, or numeric value instead of preserving state-typed
+  source metadata;
 - an observed action condition rendered as a recommended action;
 - relative support rendered as probability or confidence;
 - a later observation from a different horizon or condition treated as direct
@@ -1192,9 +1202,10 @@ Every experiment records:
 
 - requirement, hypothesis, and configuration identifiers;
 - source and dataset revision hashes;
-- transition-reliability schema, state or missingness code,
-  compatibility-policy identity, applicable derivation and calibration-domain
-  identities, and migration identity when present for each predictive case;
+- transition-reliability schema, target state or missingness code,
+  compatibility-policy identity, applicable target derivation and
+  calibration-domain identities, and migration identity plus state-typed
+  source metadata when present for each predictive case;
 - semantic-lineage and split identifiers;
 - sampling-frame identity, inclusion probability, and design weight per case;
 - `t_context`, `t_auth`, memory revision, policy revision, and authorized-view
@@ -1227,7 +1238,8 @@ the frozen receipt when adopting a component or claim.
   from compatible co-outcomes, retain known dependency lineages, and bind
   every reliability state to its versioned schema and compatibility policy,
   every derived state to its derivation and calibration domain, and every
-  migrated state to its migration lineage.
+  migrated state to state-typed source metadata, its exact source revision and
+  digest, and its migration lineage.
 - Every focus-only, focus-plus-renderable-abstention, expectation-only,
   combined, and wrong-expectation comparison reuses its frozen shared inputs
   exactly as declared.
@@ -1296,8 +1308,9 @@ fixtures that preserve:
 - historical validity without revival of current instruction authority;
 - provenance-root duplicate suppression and unresolved conflict;
 - transition kind, condition, horizon, observation status, dependency budget,
-  typed reliability and migration, alternative-family, unknown-support,
-  jointly qualifying coverage/proximity, and abstention semantics;
+  typed reliability and every source/target migration pair, exact rollback,
+  alternative-family, unknown-support, jointly qualifying coverage/proximity,
+  and abstention semantics;
 - separate focus and expectation projections from one shared activated-set
   identity;
 - exact-value slot identity and deterministic surface substitution;

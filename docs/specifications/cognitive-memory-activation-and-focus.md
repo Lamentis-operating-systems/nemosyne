@@ -36,8 +36,8 @@ For one compile invocation:
 
 - `P` is the retained original prompt;
 - `S` contains zero to three situation statements;
-- \(\Xi\) contains request metadata and the declared contextual time
-  `t_context`;
+- \(\Xi\) contains caller-supplied request evidence: the declared contextual
+  time `t_context`, optional declared location, and explicit metadata;
 - `I` is the authenticated invocation context;
 - `t_auth` is the trusted authorization time;
 - `M_A^(r,p,t_auth,I)` is the immutable authorized and disclosable view of
@@ -64,6 +64,7 @@ This table owns symbols reused only inside this specification:
 | \(f=(\tau_f,v_f,\kappa_f,\nu_f)\) | One typed numerical facet and its type, payload, transform identity, and presence state |
 | \(F_i,X_i,H_i\) | Memory-unit facets, exact sidecars, and history/transition references |
 | \(F_Q,X_Q,G_Q,Z_Q\) | Query facets, exact values, active goals, and typed absence/quality state |
+| \(B_Q,J_{QA}\) | Query-owned request/situation/configuration binding and its validated join with shared-set lineage |
 | \(c_{i,f},C_i\) | One calibrated direct cue and the complete direct-cue vector |
 | \(k_{\mathrm{hist}},n_i^{\mathrm{hist}},t_{i,k_{\mathrm{hist}}},\delta_{i,k_{\mathrm{hist}}}^{\mathrm{hist}},\beta_{\mathrm{decay}},b_i^{\mathrm{raw}},b_i\) | History-event index and count, event time, dimensionless age, decay exponent, raw base availability, and calibrated availability |
 | \(t_i,x_i,g_i,u_i,s_i\) | Temporal, spatial, goal, procedural, and social relevance channels |
@@ -178,7 +179,7 @@ source of truth.
 Situation encoding produces:
 
 \[
-Q=\operatorname{encode}(P,S,\Xi,t_{\mathrm{auth}};K)
+Q=\operatorname{encode}(P,S,\Xi;K)
 \]
 
 with:
@@ -191,21 +192,28 @@ where:
 
 - `F_Q` contains typed prompt, situation, temporal, spatial, task, social,
   procedural, and risk-related facets;
-- `X_Q` contains exact request-local values and typed prompt, situation, and
-  metadata source bindings;
+- `X_Q` contains exact request-local values, typed prompt, situation, and
+  metadata source bindings, and exactly one canonical query binding
+  \(B_Q=(request\_id,situation\_id,configuration\_id)\);
 - `G_Q` contains explicitly active goal states and their declared priorities;
   and
 - `Z_Q` contains absence, uncertainty, language, and observation-quality
   metadata.
 
-`Q` retains distinct facets for `t_context` and `t_auth`. Contextual time may
-affect relevance. It cannot change authorization, current normative validity,
-expiry, or supersession, which use `t_auth`.
+`Q` retains `t_context` only as caller-supplied, untrusted request evidence.
+The same qualification applies to declared location and metadata. Trusted
+authorization time `t_auth` is neither an encoder input nor a facet, exact
+binding, identifier, or hidden dependency of `Q`. Authorization, current
+normative validity, expiry, and supersession use `t_auth` on their separately
+owned memory path.
 
 Situation encoding does not retrieve memory, assign instruction authority, or
 modify `P`. It does not decide that a facet is a renderable proposition. That
 decision belongs to the focus branch's validated request-proposition
-construction below.
+construction below. `Q` contains no `policy_revision_id`,
+`authorization_view_id`, principal, authorization decision, disclosure view,
+or memory-eligibility result. Those values are not situation facts and cannot
+be supplied to the focus branch through a request-source binding.
 
 ### Eligible memory view
 
@@ -669,16 +677,45 @@ owns the logical sub-boundary:
 This is a logical interface, not a committed public Rust API.
 \(\Lambda_A\) is copied from the validated
 `EligibleActivatedMemorySet`, including when its activated-record collection
-is empty. Construction validates that the request, situation,
-authorization-view, and configuration identities bound by `Q` equal the
-corresponding fields of \(\Lambda_A\). It never reconstructs those identities
-from ambient process state.
+is empty. The interface receives no principal, policy object, authorization
+view, authorization service, or second authorization result.
+
+The canonical join is:
+
+\[
+B_Q=
+(request\_id_Q,situation\_id_Q,configuration\_id_Q),
+\]
+
+\[
+\pi_Q(\Lambda_A)=
+(request\_id_A,situation\_id_A,configuration\_id_A),
+\]
+
+\[
+J_{QA}=
+\operatorname{joinRequestLineage}(B_Q,\Lambda_A)
+\quad\text{iff}\quad
+B_Q=\pi_Q(\Lambda_A).
+\]
+
+The comparison is exact and follows the displayed field order. A missing,
+duplicate, malformed, or non-canonical field in \(B_Q\) is
+`InvalidQueryBinding`; an equality failure is `LineageMismatch`. On success,
+\(J_{QA}\) retains \(B_Q\) and the source-receipt projection from the same
+\(\Lambda_A\). `policy_revision_id` and `authorization_view_id` come
+exclusively from \(\Lambda_A\); they are never read from, compared against, or
+reconstructed from `Q` or ambient process state.
 
 \(\mathcal R_Q\) is a finite canonical `RequestPropositionSet`:
 
 ```text
 RequestPropositionSet
 ├── schema_id
+├── query_binding
+│   ├── request_id
+│   ├── situation_id
+│   └── configuration_id
 ├── source_receipt
 │   ├── request_id
 │   ├── situation_id
@@ -702,12 +739,19 @@ RequestPropositionSet
     └── order_key: RequestPropositionSourceOrderKey
 ```
 
-The five-field `source_receipt` is the exact ordered projection of
-\(\Lambda_A\), not a second lineage authority. Its field order is
+`query_binding` is the exact ordered copy of \(B_Q\). Its field order is
+`request_id`, `situation_id`, then `configuration_id`; it contains no policy
+or authorization-view identity.
+
+The five-field `source_receipt` is created only after the canonical join and
+is the exact ordered projection of \(\Lambda_A\), not a second lineage
+authority. Its field order is
 `request_id`, `situation_id`, `policy_revision_id`,
 `authorization_view_id`, then `configuration_id`. A missing field, mismatch,
 receipt assembled from different calls, or attempt to use a request source
-with another \(\Lambda_A\) is structural failure.
+with another \(\Lambda_A\) is structural failure. The repeated
+request/situation/configuration identities are audit evidence for the checked
+join; they do not authorize data or repeat an authorization decision.
 
 `source_locator` is total by source kind:
 
@@ -750,14 +794,22 @@ Authority is source-kind bounded:
   qualified contextual statement under its registered schema, but it cannot
   establish external truth or instruction authority.
 
-The installed policy maps each source kind and derivation class to one
-authority and allowed-use ceiling. The mapping is authenticated, total over
-the supported schema, and bound by `configuration_id` and
-`authorization_view_id`. A source may be `FocusUse` or excluded; no request
-source is eligible for the expectation branch's observed-transition use.
-Downstream consolidation takes the meet of all essential source ceilings and
-never promotes a caller report into an authenticated instruction or observed
-memory fact.
+The installed source-ceiling artifact maps each source kind and derivation
+class to one authority and allowed-use ceiling. The artifact is authenticated,
+total over the supported schema, content-identified by `configuration_id`, and
+compatible with the `policy_revision_id` copied from \(\Lambda_A\).
+`authorization_view_id` remains an opaque shared-set lineage identity; the
+focus branch neither receives nor opens the corresponding view.
+
+Applying this mapping is a pure authority-lowering classification over
+request-local sources. It does not determine memory readability, admit a
+record, expand disclosure, or repeat authorization. A source may be
+`FocusUse` or excluded; no request source is eligible for the expectation
+branch's observed-transition use. A missing, unauthenticated, or
+policy-incompatible mapping is `AuthorityMappingUnavailable`; there is no
+fallback authorization path. Downstream consolidation takes the meet of all
+essential source ceilings and never promotes a caller report into an
+authenticated instruction or observed memory fact.
 
 For each canonical source entry \(r_k^Q\), the pinned request-support
 derivation computes:
@@ -802,6 +854,7 @@ support is aggregated by `max`.
 
 `RequestPropositionError` has closed internal reason codes for:
 
+- `InvalidQueryBinding`;
 - `LineageMismatch`;
 - `InvalidSourceLocator`;
 - `UnknownSourceKind`;
@@ -985,10 +1038,12 @@ lineage metadata only: it contains no raw evidence, diagnostic prose, or
 independent semantic truth.
 
 The `RequestPropositionSet` receipt must equal its five-field projection from
-this same \(\Lambda_A\). Request-only focus therefore retains the same memory,
-policy, authorization, retrieval, activation, and configuration lineage as the
-empty activated-memory set used by the call. It does not replace
-\(\Lambda_A\) with a shorter receipt.
+this same \(\Lambda_A\), and its three-field `query_binding` must equal
+\(\pi_Q(\Lambda_A)\). Request-only focus therefore retains the same memory,
+policy, authorization, retrieval, activation, and configuration lineage as
+the empty activated-memory set used by the call. It does not replace
+\(\Lambda_A\) with a shorter receipt, import an authorization-view identity
+into `Q`, or perform authorization again.
 
 `provenance_roots` and dependency groups contain only persistent-memory
 provenance. They are empty for a request-only candidate; request attribution
@@ -1142,7 +1197,9 @@ A conforming experiment requires:
 - the accepted local, read-only V1 product boundary;
 - a pinned immutable request, compiler configuration, and authorized memory
   revision;
-- valid trusted `t_auth` distinct from caller-controlled contextual time;
+- valid trusted `t_auth` for the separate authorization and memory-validity
+  path, distinct from caller-controlled contextual time and absent from
+  situation encoding;
 - typed numerical schemas with explicit dimensions, metrics, normalization,
   absence semantics, and artifact identities;
 - a pinned numerical execution contract covering dtype, backend, elementary
@@ -1177,8 +1234,11 @@ A conforming experiment requires:
 - Every vector comparison uses compatible typed spaces and pinned transforms.
 - Every evidence and inhibition value has a traceable derivation and source.
 - Every request-derived focus source is bound to exact validated prompt,
-  situation, or metadata evidence and to the matching \(\Lambda_A\)
-  projection.
+  situation, or metadata evidence, the exact three-field \(B_Q\), and a
+  successful canonical join with \(\Lambda_A\). Policy and
+  authorization-view identity originate only in \(\Lambda_A\).
+- Focus construction has no direct authorization-view input and cannot
+  retrieve, reopen, repeat, or widen the shared-set authorization decision.
 - Association and graph reachability do not establish truth, causation,
   authority, or confidence.
 - Hard policy and integrity failures are never represented as soft inhibition.
@@ -1325,6 +1385,8 @@ The shared `EligibleActivatedMemorySet` contains zero activated records but a
 complete \(\Lambda_A\). The resulting `FocusCandidateSet` contains exactly one
 request-only candidate with:
 
+- a three-field \(B_Q\) exactly equal to \(\pi_Q(\Lambda_A)\) under the
+  canonical join;
 - the roles `CurrentSituation` and `RelevantBackground` in canonical role
   order;
 - activation equal to that source's \(q_k\);
@@ -1408,6 +1470,13 @@ success measures.
 
 Verification must establish:
 
+- deterministic \(Q=\operatorname{encode}(P,S,\Xi;K)\): identical prompt,
+  ordered zero-to-three situation statements, contextual-time, location, and
+  metadata presence states, and pinned encoder/configuration inputs produce
+  identical facets, \(B_Q\), locators, and source-buffer content identities;
+- changing only `t_auth`, principal, policy, or authorization-view state cannot
+  change `Q`, while attempting to place any such field in request evidence is
+  rejected before encoding;
 - eligibility noninterference: changing only ineligible records cannot change
   any content-bearing result;
 - facet-type safety: incompatible spaces are rejected before comparison;
@@ -1418,6 +1487,9 @@ Verification must establish:
 - deterministic canonical ordering;
 - request-proposition source-locator validity, receipt equality, authority
   ceilings, order-key correctness, and permutation invariance;
+- exact \(B_Q=\pi_Q(\Lambda_A)\) joining, absence of policy and
+  authorization-view fields from `Q`, and absence of a direct authorization
+  dependency or repeated authorization call in focus construction;
 - equivalence between derived activation inputs and the existing kernel's
   public contract;
 - proposition support completeness and authority non-amplification;
@@ -1441,7 +1513,8 @@ A curated, disjoint evaluation corpus must test:
 - prompt-, situation-, and metadata-source authority tests proving that
   caller-reported data cannot become an instruction or observed fact;
 - request/source-receipt mismatch, invalid UTF-8 range, duplicate source key,
-  unknown derivation, non-finite \(q_k\), and unsupported exact-slot cases;
+  invalid query binding, query/shared-set lineage mismatch, unknown
+  derivation, non-finite \(q_k\), and unsupported exact-slot cases;
 - parameter sensitivity and monotonicity where the mathematics requires it;
 - perturbation of time, location, participant, goal, risk, and procedure
   facets independently;

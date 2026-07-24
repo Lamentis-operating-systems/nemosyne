@@ -31,11 +31,13 @@ The architecture has four maturity labels:
 ### Compile inputs and result
 
 A compile request contains the original prompt `P`, zero to three situation
-statements `S`, and request metadata \(\Xi\), including a declared contextual
-time `t_context`. An authenticated invocation context `I` identifies the trusted
-local principal and caller and supplies a trusted authorization time `t_auth`
-outside the untrusted request payload. A pinned compiler configuration and
-policy resolve the finite attention budget `B`.
+statements `S`, and caller-supplied request evidence \(\Xi\), containing a
+declared contextual time `t_context`, optional declared location, and explicit
+metadata. The compiler authenticates untrusted call claims and derives a
+private invocation context `I` that identifies the trusted local principal and
+caller and supplies a trusted authorization time `t_auth` outside the
+untrusted request payload. A pinned compiler configuration and policy resolve
+the finite attention budget `B`.
 
 The request is evaluated against one immutable logical memory revision `M^r`
 and one immutable, content-identified compiler configuration `K`.
@@ -62,7 +64,6 @@ flowchart TD
     D --> K["Activation ranking"]
     K --> S["Eligible activated-memory set"]
     Q --> F["Focus planner"]
-    P --> F
     S --> F["Focus planner"]
     S --> E["Deterministic expectation kernel"]
     F --> J["Focus-and-expectation plan validation and selection"]
@@ -78,19 +79,20 @@ stage, or a synchronous implementation.
 
 ```mermaid
 sequenceDiagram
-    participant Caller as Trusted local caller
+    participant Caller as Local caller
     participant Compiler as Compiler
     participant Store as Local memory
     participant Focus as Focus branch
     participant Expect as Expectation branch
     participant Renderer as Renderer and validator
-    Caller->>Compiler: compile(invocation, request, cancellation)
+    Caller->>Compiler: compile(claims, request, cancellation)
+    Compiler->>Compiler: Authenticate claims and derive private invocation context
     Compiler->>Compiler: Validate and retain original prompt bytes
     Compiler->>Store: Open authorized immutable revision
     Store-->>Compiler: Revision, policy, exact data, and numerical views
     Compiler->>Compiler: Encode situation, retrieve, derive signals, activate
     par Shared eligible set
-        Compiler->>Focus: Q, authorization receipt projection, configuration, and immutable focus projection
+        Compiler->>Focus: Q, K, and complete shared set carrying Lambda_A
         Focus-->>Compiler: FocusCandidateSet
     and
         Compiler->>Expect: Immutable transition projection
@@ -293,13 +295,30 @@ target schema declares and verifies backward compatibility.
 
 ### Situation encoding
 
-Situation encoding converts `P`, `S`, \(\Xi\), and `t_auth` into a versioned
-numerical query state `Q`. The query contains separate facets for the declared
-contextual time and trusted authorization time so relevance can use temporal
-context without granting the caller control over authorization or expiry. The
-query state contains typed vectors, scalars, identifiers, presence masks, and
-numerical relations corresponding to available memory facets, while retaining
-source references and exact values outside lossy representations.
+Situation encoding converts `P`, `S`, \(\Xi\), and the pinned configuration
+identity into a versioned numerical query state `Q`. Its exact lineage binding
+is
+\(B_Q=(request\_id,situation\_id,configuration\_id)\). `Q` contains only
+request-local prompt, situation, declared contextual-time, location, metadata,
+language, and configuration facts represented as typed vectors, scalars,
+identifiers, presence masks, and numerical relations. It retains validated
+source-byte locators, source-buffer content identities, and exact values
+outside lossy representations. It contains no principal, trusted authorization
+time, policy revision, authorization-view identity, disclosure decision, or
+authorization result.
+
+Normatively:
+
+\[
+Q=\operatorname{encode}(P,S,\Xi;K).
+\]
+
+The selected encoder and every transform it invokes are pinned inputs within
+`K`. `t_auth`, `I`, policy state, and authorization-view state are not explicit
+or implicit inputs to this function. Holding `P`, ordered `S`, \(\Xi\), and
+`K` fixed must therefore produce identical `Q`, \(B_Q\), source locators, and
+source-buffer content identities even when private authorization state or
+trusted authorization time differs.
 
 The encoder contract must define:
 
@@ -391,17 +410,21 @@ diagnostics. It is the only branch point.
 
 The focus planner and expectation kernel consume immutable projections of that
 same set before final focus pruning. The focus planner additionally consumes
-the validated numerical request-local situation \(Q\), the matching
-authorization-receipt projection \(\Lambda_A\), and the pinned configuration
-\(K\):
+the validated numerical request-local situation \(Q\) and the pinned
+configuration \(K\). The complete shared set carries \(\Lambda_A\);
+`policy_revision_id` and `authorization_view_id` originate exclusively there.
+The focus branch has no principal, policy object, `AuthorizationView`,
+authorization-service, authorization-receipt-projection, or policy-store
+input:
 
 - the focus planner first derives the ephemeral canonical
   `RequestPropositionSet` from prompt, situation-statement, and allowed
-  request-metadata evidence in \(Q\), checks that every entry is bound to the
-  exact `(request_id, situation_id, policy_revision_id,
-  authorization_view_id, configuration_id)` projection of \(\Lambda_A\), and
-  then consolidates request-supported and memory-supported compatible
-  propositions into bounded focus candidates;
+  request-metadata evidence in \(Q\), checks the exact
+  \(B_Q=\pi_Q(\Lambda_A)\) join, creates the five-field
+  `(request_id, situation_id, policy_revision_id,
+  authorization_view_id, configuration_id)` source receipt solely from that
+  same \(\Lambda_A\), and then consolidates request-supported and
+  memory-supported compatible propositions into bounded focus candidates;
 - the expectation kernel evaluates eligible direct observations and explicitly
   permitted registered derivations, retains competing outcome groups and
   counterevidence, and may abstain; and
@@ -413,9 +436,12 @@ coverage, and abstention are owned only by
 [`predictive-attention-and-expectation.md`](predictive-attention-and-expectation.md).
 `RequestPropositionSet` is focus-only ephemeral state: it is neither persistent
 memory nor expectation evidence, and it cannot raise its source authority or
-allowed-use ceiling. Situation encoding validates exact source-byte locators
-into \(X_Q\); focus derivation consumes those bindings and never rereads or
-reparses raw request text. The focus derivation, including
+allowed-use ceiling. The pinned source-ceiling mapping is a pure
+authority-lowering artifact lookup compatible with the policy revision in
+\(\Lambda_A\); it does not authorize memory or disclosure. Situation encoding
+validates exact source-byte locators into \(X_Q\); focus derivation consumes
+those bindings and never rereads or reparses raw request text, reopens an
+authorization view, or repeats authorization. The focus derivation, including
 `deriveRequestPropositions(Q, Lambda_A, K)`, is owned by
 [`cognitive-memory-activation-and-focus.md`](cognitive-memory-activation-and-focus.md).
 An empty eligible memory set therefore does not force an empty
@@ -551,31 +577,205 @@ application adapter share the same compile orchestrator and error taxonomy.
 The proposed stable entry point is:
 
 ```rust
+pub struct InstallationLocator { /* private untrusted selection fields */ }
+
+impl InstallationLocator {
+    pub fn new(
+        schema: InstallationLocatorSchemaId,
+        scope: InstallationScopeTag,
+        installation_id: InstallationId,
+    ) -> Result<Self, InstallationLocatorError>;
+}
+
+pub struct PromptOriginPresentation { /* private bounded opaque bytes */ }
+
+impl PromptOriginPresentation {
+    pub fn new(
+        route: PromptOriginRouteTag,
+        opaque_presentation: Vec<u8>,
+    ) -> Result<Self, PromptOriginPresentationError>;
+}
+
 pub struct Compiler { /* private immutable configuration and handles */ }
 
 impl Compiler {
     pub fn open(
-        installation: &InstallationConfig,
+        locator: &InstallationLocator,
     ) -> Result<Self, OpenError>;
 
     pub fn compile(
         &self,
-        invocation: &InvocationContext,
+        claims: &CompileCallClaims,
         request: &CompileRequest,
         cancellation: &CancellationToken,
     ) -> Result<CompiledPrompt, CompileError>;
 }
 ```
 
-This is a target contract, not implemented Rustdoc. `Compiler::open` verifies
-the authenticated artifact manifest, opens the local memory installation, and
-retains only installation-stable trust roots, configuration registries, and
-handles. `compile` validates the request-specific invocation context and obtains
-one immutable memory, policy, configuration, and artifact revision for that
-call. An invocation context is never retained by `Compiler` or reused across
-requests.
+This is a target contract, not implemented Rustdoc. The locator schema and
+scope tags are closed, versioned public values; the installation identity is a
+bounded canonical public value. They are stable selectors, not credentials.
+Every selector, tag, and identity appearing in these public signatures is
+itself constructible by an external crate through a documented validated
+public boundary; no test-only helper, crate-private conversion, or
+implementation-owned value is required to reach `Compiler::open` or
+`Compiler::compile`.
+`InstallationLocator::new` validates only the known schema and scope tags and
+the identity's syntax, canonical form, and absolute size. It does not discover
+an installation, authenticate a principal, or prove that the selected
+installation exists.
+
+An `InstallationLocator` cannot contain a filesystem path, URL, manifest,
+trust root, registry object, credential, principal, executable identity,
+platform resource handle, or channel handle. `Compiler::open` resolves the
+untrusted locator itself through the platform installation resolver selected
+by `SEC-00` and the frozen runtime topology. The resolver derives its effective
+principal from compiler-created operating-system handles, consults only the
+authenticated installation registry, verifies the selected manifest against a
+compiler-, package-, or operating-system-owned bootstrap root, and opens only
+the registered canonical memory and artifact locations. It never falls back to
+an environment variable, current directory, caller path, caller manifest, or
+caller trust material. A syntactically valid locator that is absent, outside
+the effective principal's installation scope, or not verifiable fails with one
+typed `OpenError` and creates no compiler.
+
+After successful resolution, `Compiler::open` constructs the selected
+compiler-owned `LocalPlatformAuthenticator` from the verified installation
+registries and compiler-owned platform handles. `compile` accepts only bounded
+untrusted call claims. It authenticates the current call, derives one
+crate-private `InvocationContext`, and obtains one immutable memory, policy,
+configuration, and artifact revision for that call. The private context-taking
+compile core is not exported. An invocation context is never supplied by the
+caller, retained by `Compiler`, or reused across requests.
 The compiler can serve sequential or concurrent read-only requests only when
 its adopted storage and model runtime prove safe sharing.
+
+The public claims are logically:
+
+```rust
+pub struct CompileCallClaims {
+    prompt_origin: PromptOriginPresentation,
+    requested_configuration: Option<InstalledConfigurationId>,
+    requested_disclosure_ceiling: Option<DisclosureCeilingId>,
+}
+
+impl CompileCallClaims {
+    pub fn new(/* typed fields above */)
+        -> Result<Self, CompileCallClaimsError>;
+}
+```
+
+All fields are private. The public `PromptOriginRouteTag` is a closed,
+versioned declared-route value whose version selects the presentation schema.
+`PromptOriginPresentation::new` accepts only that route tag and one owned,
+bounded opaque byte sequence. It validates the known schema and route tag,
+required presence, intrinsic envelope syntax, canonical byte representation,
+and absolute byte limit. It neither authenticates the presentation nor accepts
+a platform resource handle. The exact bytes remain untrusted until
+`LocalPlatformAuthenticator` combines them with compiler-owned operating-system
+or peer handles, channel or executable identity, trusted clock, and
+authenticated installed registries.
+
+The optional installed-configuration and disclosure identities are requests
+for an installed configuration and an equal-or-narrower disclosure ceiling;
+neither grants authority. `CompileCallClaims` contains no principal, caller
+verdict, trusted time, policy decision, authorization-view identity,
+capability, platform handle, trust root, registry, or already-authenticated
+boolean.
+
+The public acquisition boundary has three closed intrinsic error types,
+distinct from `OpenError`, `CompileRequestError`, and `CompileError`:
+
+- `InstallationLocatorError` has
+  `UnknownLocatorSchema`, `UnknownInstallationScopeTag`,
+  `MalformedInstallationId`, `NoncanonicalInstallationId`, and
+  `InstallationIdLimitExceeded`;
+- `PromptOriginPresentationError` has
+  `UnknownPresentationSchema`, `UnknownOriginRouteTag`,
+  `MissingOriginPresentation`, `MalformedOriginPresentation`,
+  `NoncanonicalOriginPresentation`, and
+  `OriginPresentationLimitExceeded`; and
+- `CompileCallClaimsError` has `InvalidRequestedConfigurationId` and
+  `InvalidRequestedDisclosureCeilingId`.
+
+These construction failures all map to CLI exit `2`, are never retried
+automatically, and never imply that installation resolution or authentication
+was attempted. A syntactically valid but absent or unverifiable locator reaches
+`Compiler::open`. A syntactically valid but forged, expired, unverifiable, or
+unauthorized presentation reaches `Compiler::compile`. Those boundaries return
+the appropriate typed `OpenError` or `CompileError`, respectively.
+
+For each public call, `Compiler::compile` performs this fixed sequence:
+
+1. check cancellation before trust or persistence work;
+2. give the claims and the compiler-owned platform handles to
+   `LocalPlatformAuthenticator`;
+3. derive and validate a fresh private `InvocationContext`;
+4. resolve the requested configuration and any narrower disclosure request
+   through authenticated installed registries;
+5. pin authorization time, policy, configuration, memory, and artifact
+   revisions; and
+6. invoke the private context-taking compile core with the same cancellation
+   token.
+
+The authenticator may trust only sources selected by `SEC-00` and supported by
+the frozen runtime topology: operating-system effective-user or peer
+credentials obtained from compiler-owned handles, selected executable or
+code-signing identity, an unforgeable compiler-owned channel/capability binding
+for the origin presentation, the compiler-owned authorization clock, and the
+authenticated installed manifest and policy registries resolved at open.
+Locator fields, presentation bytes, claim fields, request metadata,
+`contextual_time`, environment variables, current directory, CLI strings, and
+process-global mutable application state are never trusted authority sources.
+A runtime topology that cannot obtain its selected trusted sources fails at
+open or authentication; it does not fall back to caller claims.
+
+An in-process library cannot distinguish mutually hostile modules within its
+own process. Under an in-process topology, the authenticated host process is
+the caller trust boundary and all linked crates share that process authority.
+Per-caller isolation requires the selected local helper/service topology and
+its authenticated peer channel. This limitation does not expose
+`InvocationContext` or permit a library caller to raise the host process's
+installed authority.
+
+Cancellation before or during authentication returns the typed cancelled
+`ResourceFailure` and creates no usable context. The same token is propagated
+through the private compile core. Authentication and registry access obey the
+pinned deadline and resource ceilings; an adapter never retries automatically.
+
+The public-call boundary is accepted only with downstream and adversarial
+evidence:
+
+- a separate external test crate imports only documented public items,
+  constructs `InstallationLocator`, `PromptOriginPresentation`,
+  `CompileCallClaims`, `CompileRequest`, and `CancellationToken`, opens a
+  compiler, calls `compile`, cancels before authentication and during the
+  private core, and observes only `CompiledPrompt` or one typed public error;
+- compile-fail privacy tests prove downstream code cannot import, name,
+  construct, destructure, or retain `InvocationContext`, call the private
+  context-taking core, mutate public values after construction, or supply a
+  filesystem path, manifest, trust root, registry, credential, platform
+  handle, channel handle, principal, trusted time, policy, authorization view,
+  capability, or authenticated verdict;
+- acquisition tests cover every closed constructor reason and prove that a
+  syntactically valid absent locator fails at open rather than construction;
+- forgery tests vary every caller-controlled locator field, origin route,
+  opaque presentation byte, configuration request, and disclosure request and
+  prove that none can increase the authority derived from compiler-owned
+  trusted sources; malformed representations fail construction, while
+  syntactically valid but unauthenticated locators or presentations fail at
+  their typed open or compile boundary; and
+- no-fallback tests vary process environment, current directory, and
+  caller-visible paths and prove that installation or trust resolution is
+  unchanged; and
+- topology tests exercise both the accepted in-process host-principal boundary
+  and, if selected, the helper/service peer-credential boundary. They reject a
+  topology that cannot provide the trust source named by its authenticated
+  installation manifest.
+
+The CLI invokes this same public path. Its golden tests compare the library and
+CLI mappings for the same typed failures; no transport-only test substitutes
+for the external-crate privacy and forgery suite.
 
 The request is logically:
 
@@ -656,14 +856,15 @@ language from the original prompt or return `UnsupportedLanguage`; it never
 silently falls back. Explicit selection affects generated attention only and
 never translates or rewrites the retained prompt.
 
-`InvocationContext` is constructed only by the platform-authenticated
-invocation adapter owned by `nemosyne-compiler` and `API-01`. Its constructors
-are not available to request or transport code. The adapter resolves the
-principal and caller from the selected platform trust mechanism, verifies
-prompt-origin evidence, reads the trusted authorization clock, and resolves the
-disclosure policy, installed configuration identity, and capability limits
-through the installation's authenticated registries. It returns either one
-validated request-local context or a typed trust/configuration error.
+`InvocationContext` is a crate-private value constructed only by the
+platform-authenticated invocation adapter owned by `nemosyne-compiler` and
+`API-01`. The type, constructors, and private context-taking compile core are
+not publicly nameable. The adapter resolves the principal and caller from the
+selected platform trust mechanism, verifies prompt-origin evidence, reads the
+trusted authorization clock, and resolves the disclosure policy, installed
+configuration identity, and capability limits through the installation's
+authenticated registries. It returns either one validated request-local
+context or a typed trust/configuration error.
 
 The selected identity resolves only through the installation's authenticated
 manifest; caller input can transport an identifier but cannot name an
@@ -719,7 +920,24 @@ zero is canonicalized exactly as at the library boundary. Invalid UTF-8 from a
 file or standard input is an adapter input error before a Rust
 `CompileRequest` exists. These adapter checks are followed by the same
 `CompileRequest::new` intrinsic validation used by every caller. The CLI does
-not duplicate installed compatibility, trust, or authorization logic.
+not duplicate installation discovery, installed compatibility, trust, or
+authorization logic. For V1 it constructs the public `InstallationLocator`
+from the closed current-user installation scope and the package-defined
+canonical installation identity, then gives that untrusted locator to
+`Compiler::open`. Supporting caller selection among multiple installations
+would require an `OD-03` compatibility decision. No CLI option accepts an
+installation path, manifest, registry, trust root, credential, or platform
+handle.
+
+The CLI constructs `PromptOriginPresentation` from the registered versioned CLI
+origin-route tag and the bounded opaque presentation bytes available from its
+selected launch or authenticated local channel. It then constructs
+`CompileCallClaims` with that presentation, the transported
+`--configuration` identity, and no wider disclosure request. It does not
+authenticate the presentation and cannot pass the underlying launch, peer, or
+operating-system handle through the public API. No CLI option can set
+principal, caller verdict, authorization time, policy, authorization-view
+identity, or capability.
 Configuration supplies limits when
 `--attention-budget` or `--configuration` is absent; it never guesses
 contextual time or location. `--configuration` selects an installed,
@@ -743,7 +961,7 @@ output; exit `10` makes that output invalid and callers must discard it.
 | Exit | Stable class |
 | ---: | --- |
 | `0` | Complete compiled prompt delivered |
-| `2` | CLI usage, intrinsic `CompileRequestError`, or unsupported requested language |
+| `2` | CLI usage, intrinsic public-input construction error, or unsupported requested language |
 | `3` | Prompt-origin, principal, authorization, or disclosure failure |
 | `4` | Memory, snapshot, or persistence failure |
 | `5` | Request/configuration incompatibility, schema, or artifact failure |
@@ -756,7 +974,15 @@ output; exit `10` makes that output invalid and callers must discard it.
 
 Specific typed errors remain available through the library `source()` chain.
 An adapter maps a typed error to exactly one stable exit class. The mapping is
-versioned and tested.
+versioned and tested. `InstallationLocatorError`,
+`PromptOriginPresentationError`, and `CompileCallClaimsError` map to exit `2`.
+A well-formed locator rejected by `Compiler::open` maps through its
+`OpenError`; authenticated prompt-origin rejection maps to `PromptOrigin` and
+exit `3`; failure to derive the trusted principal, authorization clock, policy,
+or disclosure view maps to `AuthorizationUnavailable` and exit `3`; and an
+unknown or incompatible requested installed configuration maps to
+`RequestIncompatible` or `ArtifactUnavailable` as specified below and exit
+`5`. Cancellation at any authentication or compile stage maps to exit `8`.
 
 ```text
 $ printf 'Fix the failing login test.\n' |
@@ -830,8 +1056,8 @@ flowchart TD
 | `nemosyne-core` | Dependency-light validated domain types and deterministic activation, expectation, and plan algorithms | Filesystem, database, network, model runtime, CLI, or telemetry |
 | `nemosyne-memory` | Local storage, immutable revisions, authorization views, migrations, indexes, backup, recovery, and provisioning | Rendering, downstream model calls, or semantic planning |
 | `nemosyne-renderer` | Plan adapter, local lexicalizer runtime, exact slots, and independent faithfulness validation | Memory retrieval, hypothesis generation, authority policy, or action selection |
-| `nemosyne-compiler` | Public callable API, the sole platform-authenticated invocation adapter, ingress, artifact preflight, situation encoding, retrieval orchestration, signal derivation, stage errors, and exact serialization | Persistent writes during compile or adapter-specific terminal behavior |
-| `nemosyne-cli` | Argument, byte-stream, prompt-origin-material, and requested installed-identity transport; API invocation, exit mapping, and one buffered stdout delivery attempt | Trust or configuration resolution, `InvocationContext` construction, duplicate compile logic, or claims of transport atomicity |
+| `nemosyne-compiler` | `InstallationLocator`, `PromptOriginPresentation`, `CompileCallClaims`, the public callable API, compiler-owned installation resolution and bootstrap trust, the sole `LocalPlatformAuthenticator`, the crate-private `InvocationContext` and context-taking core, ingress, artifact preflight, authenticated installed-configuration resolution, situation encoding, retrieval orchestration, signal derivation, stage errors, and exact serialization | Caller-supplied paths, trust roots, registries, credentials, or platform handles; persistent writes during compile; public trusted-context construction; or adapter-specific terminal behavior |
+| `nemosyne-cli` | Argument and byte-stream transport; construction of the public untrusted installation locator, origin presentation, bounded call claims, request, and requested installed identity; public API invocation, exit mapping, and one buffered stdout delivery attempt | Installation or trust resolution, platform-handle transport, presentation authentication, `InvocationContext` construction, private-core access, duplicate compile logic, or claims of transport atomicity |
 | `nemosyne-admin` | Privileged initialization, revision publication, backup, restore, migration, export, deletion, and later correction command transport under explicit management capabilities | Compile transport, implicit writes, or a shared unprivileged invocation context |
 | Evaluation crates | Offline corpora, reports, baselines, calibration, and receipts | Runtime compile dependencies |
 
@@ -1228,7 +1454,7 @@ one stable class, its typed source chain, retryability, and CLI mapping:
 
 | Open class | Representative causes | Retryable without state change | CLI exit |
 | --- | --- | :---: | ---: |
-| `InvalidInstallation` | Malformed installation identity, unsupported installation schema, or missing mandatory configuration | No | `5` |
+| `InvalidInstallation` | A well-formed locator names no registered installation in its closed scope, the installed installation schema is unsupported, or mandatory configuration is missing | No | `5` |
 | `ManifestUnavailable` | Missing trust root, invalid manifest, digest mismatch, or unavailable required artifact | Only after an external installation or update repairs it | `5` |
 | `MemoryOpenFailure` | Uninitialized, locked, unreadable, incompatible, or corrupt memory installation | Locked I/O may be; schema or corruption is not | `4` |
 | `PolicyOpenFailure` | Missing or invalid installed policy evaluator or policy schema | Only after an authorized installation repair | `5` |
@@ -1267,14 +1493,17 @@ class and an inspectable underlying stage or cause.
 
 Invalid UTF-8 exists only at a byte-oriented adapter boundary because the
 library accepts a valid Rust `String`; it is a CLI input failure mapped to exit
-`2`, not a `CompileError`. `CompileRequestError` is likewise produced before
-`Compiler::compile` and maps to exit `2`; `RequestIncompatible` is produced
-only after a valid request is checked against the pinned compiler
-configuration. Adapter delivery errors are separate from `OpenError`,
-`CompileRequestError`, and `CompileError`. A `TransportFailure` means compilation
-succeeded but an adapter could not deliver the complete text. It remains an
-unsuccessful invocation. CLI standard-output failure is one possible
-adapter-specific mapping.
+`2`, not a `CompileError`. `InstallationLocatorError` and
+`PromptOriginPresentationError` are produced before `Compiler::open` or
+`Compiler::compile`; `CompileCallClaimsError` and `CompileRequestError` are
+likewise produced before `Compiler::compile`. All four intrinsic construction
+errors map to exit `2`. `RequestIncompatible` is produced only after valid
+claims and a valid request are checked against the pinned compiler
+configuration. Adapter delivery errors are separate from `OpenError`, the
+construction errors, and `CompileError`. A `TransportFailure` means
+compilation succeeded but an adapter could not deliver the complete text. It
+remains an unsuccessful invocation. CLI standard-output failure is one
+possible adapter-specific mapping.
 
 Classification is deterministic. An internal invariant violation takes its
 dedicated variant; an attempted prohibited capability is `PolicyViolation`; an
@@ -1286,6 +1515,31 @@ variant. A valid request unsupported by an otherwise valid selected
 configuration is `RequestIncompatible`; a malformed request never reaches this
 classification. The adapter does not inspect error-message text or nested I/O
 causes to choose an exit.
+
+The closed `RequestPropositionError` source reasons map totally and by variant,
+never by message text. The current focused contract contains twelve reasons:
+
+| `RequestPropositionError` reason | Public `CompileError` | CLI exit | Retryability and required disposition |
+| --- | --- | ---: | --- |
+| `InvalidQueryBinding` | `InternalInvariantViolation` | `70` | Not retryable for the same binary and pinned state; `Q` violated its validated three-field binding |
+| `LineageMismatch` | `InternalInvariantViolation` | `70` | Not retryable for the same binary and pinned state; the exact \(B_Q=\pi_Q(\Lambda_A)\) join failed |
+| `InvalidSourceLocator` | `InternalInvariantViolation` | `70` | Not retryable for the same binary and pinned state; focus received a locator that situation encoding was required to validate |
+| `UnknownSourceKind` | `ArtifactUnavailable` | `5` | Retry only after an authorized schema or artifact repair installs a compatible source-kind registry |
+| `UnknownDerivation` | `ArtifactUnavailable` | `5` | Retry only after an authorized artifact repair installs the named compatible derivation |
+| `InvalidPropositionMeaning` | `PlanningFailure` | `6` | Not retryable for identical request, configuration, artifacts, and revision; return the typed source without a partial focus set |
+| `AuthorityMappingUnavailable` | `ArtifactUnavailable` | `5` | Retry only after an authorized repair supplies an authenticated mapping compatible with the policy revision in \(\Lambda_A\) |
+| `InvalidExactBinding` | `PlanningFailure` | `6` | Not retryable for identical request, configuration, artifacts, and revision; exact-value support is rejected rather than guessed |
+| `InvalidSupportScore` | `RepresentationFailure` | `6` | Not retryable for identical input and artifacts; the numerical derivation must be repaired or replaced |
+| `DuplicateSourceIdentity` | `PlanningFailure` | `6` | Not retryable for identical request, configuration, artifacts, and revision; duplicate support is rejected |
+| `DuplicateSourceOrderKey` | `PlanningFailure` | `6` | Not retryable for identical request, configuration, artifacts, and revision; canonical order ambiguity is rejected |
+| `RequestPropositionLimitExceeded` | `ResourceFailure` | `8` | Not retryable for the identical request and configuration; a caller may submit a narrower request or an authorized installation may select a different bounded configuration |
+
+Focus construction never maps one of these reasons to
+`AuthorizationUnavailable`: it receives no authorization service or view and
+performs no authorization. Authority mapping is a pure lowering lookup; failure
+of that authenticated artifact is `ArtifactUnavailable`. The error instance
+retains the original reason as its typed `source()`, and the retryability value
+above is deterministic from the variant and relevant pinned identities.
 
 Planning-stage causes map as follows:
 
@@ -1495,6 +1749,11 @@ A conforming implementation requires:
 Architecture conformance requires:
 
 - request and serializer boundary tests;
+- deterministic situation-encoding tests over prompt, ordered zero-to-three
+  situation statements, caller-supplied contextual time, optional location,
+  explicit metadata, and pinned encoder/configuration identity; perturbing
+  only principal, `t_auth`, policy, or authorization-view state must not
+  change `Q`, \(B_Q\), locators, or content identities;
 - prompt-buffer aliasing or copy-path tests proving byte preservation;
 - authorization-before-retrieval tests;
 - memory-snapshot model tests with concurrent revision publication;
