@@ -2,8 +2,22 @@
 
 set -euo pipefail
 
-repository_root="$(git rev-parse --show-toplevel)"
+repository_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 cd "$repository_root"
+
+while IFS= read -r environment_name; do
+  if [[ "$environment_name" == GIT_* ]]; then
+    unset "$environment_name"
+  fi
+done < <(compgen -e)
+export GIT_CONFIG_COUNT=1
+export GIT_CONFIG_GLOBAL=/dev/null
+export GIT_CONFIG_KEY_0=core.worktree
+export GIT_CONFIG_NOSYSTEM=1
+export GIT_CONFIG_VALUE_0="$repository_root"
+export GIT_NO_REPLACE_OBJECTS=1
+export GIT_OPTIONAL_LOCKS=0
+export GIT_TERMINAL_PROMPT=0
 
 documentation_root="${DOCUMENTATION_ROOT:-docs}"
 failures=0
@@ -362,6 +376,183 @@ validate_decision_history() {
   done < <(git diff --name-status "$base_sha" "$head_sha" -- docs/decisions)
 }
 
+extract_trusted_delivery_checker() {
+  local base_sha="$1"
+  local destination="$2"
+
+  if ! git --no-replace-objects show \
+    "$base_sha:scripts/check-v1-delivery-program.py" \
+    >"$destination"; then
+    fail "cannot read the trusted DOC-00 comparator from $base_sha"
+    return 1
+  fi
+}
+
+run_trusted_delivery_checker() {
+  local trusted_checker="$1"
+  shift
+
+  NEMOSYNE_REPOSITORY_ROOT="$repository_root" \
+    python3 -I -S "$trusted_checker" "$@"
+}
+
+protected_delivery_digest_at() {
+  local trusted_checker="$1"
+  local commit="$2"
+  local constant="$3"
+  local digest
+
+  if ! digest="$(
+    run_trusted_delivery_checker \
+      "$trusted_checker" \
+      --protected-digest-at \
+      "$commit" \
+      "$constant" 2>/dev/null
+  )"; then
+    return 1
+  fi
+
+  printf '%s' "$digest"
+}
+
+validate_protected_digest_rebaseline() {
+  local base_sha="$1"
+  local head_sha="$2"
+  local governing_decision='docs/decisions/0030-protect-doc-00-history-and-governance.md'
+  local constant
+  local base_digest
+  local head_digest
+  local digest_changed=false
+  local base_status
+  local head_status
+  local replacement
+  local replacement_path
+  local replacement_status
+  local trusted_checker
+
+  # Decision 0030 and these digests are introduced together. The stricter
+  # replacement rule begins once that accepted baseline exists.
+  if ! git cat-file -e "$base_sha:$governing_decision" 2>/dev/null; then
+    return
+  fi
+
+  trusted_checker="$(
+    mktemp "${TMPDIR:-/tmp}/nemosyne-doc00-digest-checker.XXXXXX"
+  )"
+  if ! extract_trusted_delivery_checker "$base_sha" "$trusted_checker"; then
+    rm -f "$trusted_checker"
+    return
+  fi
+
+  for constant in \
+    EXPECTED_PROTECTED_CONFORMANCE_SHA256 \
+    EXPECTED_PROTECTED_FINDING_SHA256
+  do
+    if ! base_digest="$(
+      protected_delivery_digest_at \
+        "$trusted_checker" \
+        "$base_sha" \
+        "$constant"
+    )"; then
+      fail "cannot read a unique protected DOC-00 digest binding from $base_sha"
+      rm -f "$trusted_checker"
+      return
+    fi
+    if ! head_digest="$(
+      protected_delivery_digest_at \
+        "$trusted_checker" \
+        "$head_sha" \
+        "$constant"
+    )"; then
+      fail "cannot read a unique protected DOC-00 digest binding from $head_sha"
+      rm -f "$trusted_checker"
+      return
+    fi
+    if [[ "$base_digest" != "$head_digest" ]]; then
+      digest_changed=true
+    fi
+  done
+  rm -f "$trusted_checker"
+
+  if [[ "$digest_changed" != true ]]; then
+    return
+  fi
+
+  base_status="$(
+    git show "$base_sha:$governing_decision" 2>/dev/null |
+      sed -n '3s/^Status: //p' || true
+  )"
+  head_status="$(
+    git show "$head_sha:$governing_decision" 2>/dev/null |
+      sed -n '3s/^Status: //p' || true
+  )"
+  replacement="$(
+    git show "$head_sha:$governing_decision" 2>/dev/null |
+      sed -n '5s/^Superseded by: //p' || true
+  )"
+  replacement_path="docs/decisions/$replacement"
+  replacement_status=''
+  if [[ -n "$replacement" ]] &&
+    git cat-file -e "$head_sha:$replacement_path" 2>/dev/null; then
+    replacement_status="$(
+      git show "$head_sha:$replacement_path" |
+        sed -n '3s/^Status: //p'
+    )"
+  fi
+
+  if [[ "$base_status" != 'Accepted' ||
+    "$head_status" != 'Superseded' ||
+    -z "$replacement" ||
+    "$replacement" == "$(basename "$governing_decision")" ||
+    "$replacement_status" != 'Accepted' ]] ||
+    git cat-file -e "$base_sha:$replacement_path" 2>/dev/null; then
+    fail "protected DOC-00 digest rebaseline requires Decision 0030 to be superseded by a newly added Accepted replacement decision"
+  fi
+}
+
+validate_delivery_append_only_history() {
+  local base_sha="$1"
+  local head_sha="$2"
+  local delivery_program='docs/specifications/v1-delivery-program.md'
+  local governing_decision='docs/decisions/0030-protect-doc-00-history-and-governance.md'
+  local trusted_checker=''
+  local output
+
+  if ! git cat-file -e "$base_sha:$delivery_program" 2>/dev/null ||
+    ! git cat-file -e "$head_sha:$delivery_program" 2>/dev/null; then
+    return
+  fi
+
+  if git cat-file -e "$base_sha:$governing_decision" 2>/dev/null; then
+    trusted_checker="$(
+      mktemp "${TMPDIR:-/tmp}/nemosyne-doc00-append-checker.XXXXXX"
+    )"
+    if ! extract_trusted_delivery_checker "$base_sha" "$trusted_checker"; then
+      rm -f "$trusted_checker"
+      return
+    fi
+  else
+    trusted_checker='scripts/check-v1-delivery-program.py'
+  fi
+
+  if ! output="$(
+    run_trusted_delivery_checker "$trusted_checker" \
+      --check-append-only \
+      "$base_sha" \
+      "$head_sha" 2>&1
+  )"; then
+    if [[ "$trusted_checker" != 'scripts/check-v1-delivery-program.py' ]]; then
+      rm -f "$trusted_checker"
+    fi
+    output="${output#V1 delivery-program check failed: }"
+    fail "$output"
+    return
+  fi
+  if [[ "$trusted_checker" != 'scripts/check-v1-delivery-program.py' ]]; then
+    rm -f "$trusted_checker"
+  fi
+}
+
 validate_specification_history() {
   local base_sha="$1"
   local head_sha="$2"
@@ -604,7 +795,9 @@ if [[ "$#" -ne 0 ]]; then
           scripts/classify-documentation-change.sh|\
           scripts/check-documentation.sh|\
           scripts/test-documentation-change-policy.sh|\
-          scripts/test-documentation-check.sh)
+          scripts/test-documentation-check.sh|\
+          scripts/check-v1-delivery-program.py|\
+          scripts/test-v1-delivery-program-check.sh)
           governance_changed=true
           ;;
         .github/workflows/*.yml|.github/workflows/*.yaml) governance_changed=true ;;
@@ -631,7 +824,9 @@ if [[ "$#" -ne 0 ]]; then
 
     if [[ -n "$comparison_base" ]]; then
       validate_decision_history "$comparison_base" "$head_sha"
+      validate_protected_digest_rebaseline "$comparison_base" "$head_sha"
       validate_specification_history "$comparison_base" "$head_sha"
+      validate_delivery_append_only_history "$comparison_base" "$head_sha"
     fi
 
     case "$impact" in

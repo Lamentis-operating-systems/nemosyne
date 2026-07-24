@@ -113,11 +113,14 @@ language and post-substitution budget stored in `L`. Let \(V_{\mathrm{ctx}}\)
 be an opaque `ValidationContext<'plan>` whose lifetime is tied to the borrowed
 plan used to construct it. That Rust lifetime prevents the context from
 outliving the borrow and prevents unchecked detachment into an owned value; it
-does not encode referent identity. The enforceable candidate-to-context binding
-is the triple of the sealed deterministic `PlanContentId` derived from
-`PlanCanonicalEnvelopeV1` exactly as defined by the planning specification,
-the sealed `RendererConfigurationId`, and the private exact canonical
-\(K_R\)-content commitment.
+does not encode referent identity. The enforceable candidate-to-context
+binding is the complete four-part validation identity
+\((c_L,\beta_L,c_R,\beta_R)\): sealed deterministic `PlanContentId` \(c_L\);
+the private exact `PlanCanonicalEnvelopeV1` byte capsule \(\beta_L\); sealed
+`RendererConfigurationId` \(c_R\); and the private exact canonical-\(K_R\)
+commitment \(\beta_R\). Matching either pair of IDs without its exact-content
+component is insufficient. No caller, model, validator, or digest-only
+comparison may construct or substitute one component.
 That envelope includes all product-relevant plan semantics and authoritative
 exact substitution bytes while excluding the invocation witness, request-local
 instance identities, and receipt-only lineage. The context contains the
@@ -144,24 +147,80 @@ equality. The builder:
 
 1. revalidates the retained request against the sealed
    `AuthenticatedInvocation`;
-2. recomputes \(\widehat B_{\mathrm{in}}^*\) from the retained request and
-   pinned configuration, then invokes the sole constructor
-   \(Q^*=\operatorname{bindQuery}(\mathsf R,\widehat B_{\mathrm{in}}^*;K)\)
-   and requires bit-exact equality of its numerical projection, binding
-   projection, and sealed bound-query content identity with `Q`;
+2. revalidates the retained canonical ingress envelope and its original
+   request/configuration binding against the private integrity projections
+   already sealed into `Q`; it verifies the canonical request bytes,
+   configuration identity, ingress-binding commitment, numerical-projection
+   content identity, and complete bound-query content identity without
+   invoking the semantic encoder or `bindQuery` again;
 3. requires \(B_Q(Q)=\pi_Q(\Lambda_A(L))\);
 4. borrows a fresh compiler-private `PlanningInvocationScope` from the
    independently supplied current invocation and validates the plan's private
    `InvocationInstanceWitness` against it;
 5. checks the plan's configuration, policy, language, and budget against the
    resolved controls; and
-6. recomputes and retains the exact `PlanCanonicalEnvelopeV1` bytes, seals the
+6. performs the context-owned canonical-plan envelope pass, retains the exact
+   `PlanCanonicalEnvelopeV1` bytes, seals the
    `PlanContentId`, recomputes and seals `RendererConfigurationId` from the
    exact authenticated \(K_R\) in the resolved controls, retains its private
    exact canonical-content commitment, and projects the
    validated plan's semantic, relation, qualification, exact-slot, and
    validator-control views into `ValidationContext<'plan>`, erasing the witness
    before returning.
+
+Exactly two full `PlanCanonicalEnvelopeV1` passes are permitted in one compile:
+the context-owned pass above and one independently implemented
+candidate-construction pass at the checked renderer boundary. Both consume the
+same canonical plan, use checked length arithmetic, stream at most the
+authenticated `max_plan_envelope_bytes`, consume at most
+`max_plan_envelope_work_units`, and use at most
+`max_plan_envelope_working_bytes` of logically charged additional memory. The
+logical-memory meter follows the authenticated allocation schedule and is
+independent of allocator availability or ambient memory pressure. The
+authenticated
+`PlanEnvelopeWorkMeterV1` charges fixed integer units for each canonical field
+entered, input byte consumed, schema or length tag emitted, and canonical
+output byte produced. Its version and charge table are part of \(K_R\); it
+never reads elapsed time, thread scheduling, or an ambient resource counter.
+Exceeding a deterministic byte, work-unit, or memory ceiling returns
+`ResourceFailure` with its closed deterministic-ceiling reason and publishes
+neither a context nor candidate. Equal plan content and byte-identical
+authenticated \(K_R\) therefore reach the same deterministic-ceiling
+disposition.
+
+Each pass separately checks the authenticated invocation-local cancellation
+token before the pass, between canonical fields, and before publication, and
+checks its monotonic wall-clock deadline at those same boundaries. Cancellation
+or deadline expiry also returns `ResourceFailure`, but with a distinct external
+interruption reason. These observations belong to the complete attempt domain,
+not to the semantic renderer identity. A renderer attempt is:
+
+```text
+RendererAttemptDomainV1 =
+    exact plan content
+    || exact authenticated renderer configuration
+    || deterministic meter and ceilings
+    || deadline identity and start instant
+    || cancellation-token generation
+    || observed deadline/cancellation event trace
+    || observed resource-admission/allocation-failure event trace
+```
+
+The byte-determinism claim compares successful, uninterrupted executions in
+the same semantic renderer domain. A same-outcome claim compares the complete
+attempt domain, including the identical external-event trace. Changing
+deadline observations, cancellation state, or a later output transport may
+change success into its typed operational failure without constituting renderer
+nondeterminism. Ambient allocation failure is handled in the same external
+class and is not confused with exhaustion of the deterministic logical-memory
+ceiling. No such failure may publish a context, candidate, or partial product
+result.
+
+The second completed pass must equal the first in both \(c_L\) and
+\(\beta_L\). Substitution, the compiler collision join, and validation compare
+retained capsules and must not perform a third full-envelope pass.
+Qualification and performance evidence measure both passes separately and
+together.
 
 The builder has only one plan-content byte sequence and therefore cannot by
 itself observe a same-ID/different-byte collision. It validates canonical
@@ -208,12 +267,18 @@ the raw plan, invocation, planning scope, or witness and cannot outlive `L`.
 invocation capability. The concrete view representation remains open under
 `OD-03` and `OD-04`; the signature names the required logical boundary.
 
-At the crate boundary, `nemosyne-compiler` owns and constructs the private
-context, while `nemosyne-validator` owns only the independent validation
-algorithm and a least-privilege read-only view contract. The compiler projects
-or implements that view and is the sole product call site. The validator has
-no dependency on the compiler crate, no context constructor, and no path for a
-caller-created view or `AcceptedAttention` to re-enter compilation. This
+At the crate boundary, dependency-light `nemosyne-render-domain` owns the
+opaque candidate, token-origin, segmentation, slot-registry, validation-view,
+and \((c_L,\beta_L,c_R,\beta_R)\) handle contracts.
+`nemosyne-compiler` owns and constructs the private context, while
+`nemosyne-validator` owns only the independent validation algorithm over those
+shared read-only domain types. Checked render-domain constructors accept only
+complete validated plan/configuration inputs and reject detached or
+independently supplied identity components; they contain no model runtime.
+The compiler projects or implements the view and is the sole product call
+site. The validator has no dependency on the compiler or renderer
+implementation crate, no raw-plan input, no context constructor, and no path
+for a caller-created view or `AcceptedAttention` to re-enter compilation. This
 logical signature therefore does not authorize a validator-to-compiler
 dependency or a public trusted-context constructor.
 
@@ -227,8 +292,10 @@ dependency or a public trusted-context constructor.
 
 `OriginBindingMismatch` rejects an inconsistent retained-request,
 prompt-origin, or authenticated-invocation binding. `BoundQueryMismatch`
-covers a mismatch in the numerical projection, exact-binding projection,
-canonical envelope, or content identity of the recomputed sealed query.
+covers a mismatch among the retained canonical ingress envelope, its original
+sealed request/configuration binding, the query's sealed numerical or
+exact-binding projections, or its content identities. The builder never
+re-encodes the request and never calls `bindQuery`.
 `PlanCallBindingMismatch` carries no witness value and rejects a plan outside
 the independently anchored current invocation. `PlanControlMismatch` rejects
 configuration, policy, language, or budget disagreement without copying or
@@ -300,7 +367,9 @@ plan's deterministic `PlanContentId`, a private exact
 `PlanCanonicalEnvelopeV1` byte-comparison capsule, and the recomputed
 `RendererConfigurationId` plus private exact
 `RendererConfigurationCommitment` of the authenticated \(K_R\) before any
-candidate bytes can exist. The plan capsule exists only to distinguish
+candidate bytes can exist. This is the second and final bounded full-envelope
+pass described above; it cannot reuse the context capsule as construction
+evidence. The plan capsule exists only to distinguish
 canonical-byte equality from an observed same-identity/different-byte
 collision; it is not model input, semantic content, or a second identity. The
 model runtime cannot construct, replace, or mutate any binding. The value
@@ -377,9 +446,11 @@ substitution plan have different valid `PlanContentId` values.
 `PlanContentIdentityCollision` means the same
 typed identity was observed with different retained canonical plan bytes and
 requires quarantine under the plan-content collision contract.
-`UnknownSlot`, `ForbiddenSlot`, `SlotBindingMismatch`, and
-`SlotOccurrenceMismatch` classify model-output corruption against the complete
-sidecar contract. `ExactSurfaceUnavailable` and `InvalidExactSurface` mean that
+`UnknownSlot` classifies an emitted token absent from `SlotRegistryV1`;
+`ForbiddenSlot` classifies a registered token carrying its unique
+`Forbidden` tag. `SlotBindingMismatch` and `SlotOccurrenceMismatch` classify
+model-output corruption against one registered authorized sidecar entry.
+`ExactSurfaceUnavailable` and `InvalidExactSurface` mean that
 a supposedly valid plan no longer supplies its promised authoritative surface
 or supplies bytes incompatible with its pinned schema, formatter, language, or
 UTF-8 contract. `InvalidExactPlacement` rejects a slot expansion outside its
@@ -938,11 +1009,12 @@ installation identifiers that cannot affect output bytes are excluded.
 
 Every V1-deployable configuration uses greedy or a separately specified
 deterministic constrained decoder and accepts no request-time random tape. For
-one fixed plan, exact sidecar, `RendererConfigurationId`, and byte-identical
-authenticated canonical \(K_R\) content, the complete token trace, segment
-bindings, substituted attention, and validation result must be bit-identical
-across repeated executions. With retained prompt bytes, framing, and serializer
-configuration also fixed, complete product bytes must be bit-identical. Greedy
+successful uninterrupted executions of one fixed plan, exact sidecar,
+`RendererConfigurationId`, byte-identical authenticated canonical \(K_R\)
+content, and identical deterministic ceilings, the complete token trace,
+segment bindings, substituted attention, and validation result must be
+bit-identical. With retained prompt bytes, framing, and serializer configuration
+also fixed, successful complete product bytes must be bit-identical. Greedy
 decoding alone does not prove those properties. Any different byte-affecting
 runtime, backend, kernel, quantization,
 device-feature, or execution-control identity creates a different \(K_R\), a
@@ -955,6 +1027,20 @@ random source to the callable contract, lineage, and receipts.
 ### Slot substitution
 
 The model emits fixed slot-token identities rather than exact slot bytes.
+`SlotRegistryV1` is the authenticated closed registry of every reserved slot
+token identity for one \(K_R\). Each registry entry is tagged exactly one of:
+
+- `Authorized`, with exactly one sidecar entry, owner/locator, permitted
+  proposition-role binding set, occurrence interval, and exact-surface schema;
+  or
+- `Forbidden`, with a registered prohibition reason and no exact surface.
+
+An emitted token identity absent from `SlotRegistryV1` is `UnknownSlot`. An
+identity present with the `Forbidden` tag is `ForbiddenSlot`. The predicates
+are therefore disjoint: sidecar absence alone does not classify a registered
+forbidden token as unknown, and an unregistered token cannot be forbidden.
+Registry construction rejects duplicate identities, a forbidden entry with a
+surface, or an authorized entry without exactly one valid sidecar binding.
 Substitution is a total deterministic operation only when:
 
 - every emitted slot exists in the pinned sidecar;
@@ -982,8 +1068,8 @@ repair it. The closed source classifications are:
 | candidate and exact authenticated supplied \(K_R\) have different renderer-configuration identities, or equal IDs with different exact canonical configuration bytes | `RendererConfigurationMismatch` |
 | candidate and supplied plan have different valid content identities | `PlanIdentityMismatch` |
 | equal typed identity is associated with different retained canonical plan bytes | `PlanContentIdentityCollision` |
-| emitted slot has no sidecar entry | `UnknownSlot` |
-| emitted slot is control-only or otherwise prohibited | `ForbiddenSlot` |
+| emitted token identity is absent from `SlotRegistryV1` | `UnknownSlot` |
+| emitted token identity is present in `SlotRegistryV1` with the unique `Forbidden` tag | `ForbiddenSlot` |
 | slot proposition/role does not belong to the permitted binding set | `SlotBindingMismatch` |
 | observed count is outside its finite occurrence interval | `SlotOccurrenceMismatch` |
 | promised authoritative surface is missing | `ExactSurfaceUnavailable` |
@@ -991,12 +1077,26 @@ repair it. The closed source classifications are:
 | expansion violates its registered grammar or type-specific placement | `InvalidExactPlacement` |
 | exact post-expansion candidate bytes exceed the resolved budget or declared conservative bound | `RendererCostBoundViolation` |
 
-The comparison order is fixed: renderer-configuration identity, plan identity
-and collision checks, complete slot inventory/count/binding checks,
-exact-surface integrity checks, deterministic expansion, placement/UTF-8
-verification, then exact budget verification. The first failing class in that
-order is returned. This precedence is part of the observable deterministic
-source contract and prevents input order from changing failure classification.
+The exact error precedence is the eleven-row table order above, numbered
+`1` through `11`. A lower rank always wins when several invalid conditions are
+present. Within one rank, the reported
+`RendererFailureEvidenceKeyV1` is the lexicographically smallest complete
+typed canonical offending key: configuration identities and commitments for
+rank 1; plan identities for rank 2; plan identity plus the two capsule
+commitments for rank 3; `RendererSlotId` for ranks 4 through 7; exact owner,
+locator, and surface identity for ranks 8 and 9; proposition key, grammar
+position, and slot identity for rank 10; and measured byte count plus resolved
+ceiling identity for rank 11. No message text, scan position, map iteration
+order, or first observed offender participates.
+
+The implementation completes all checks needed for one rank, selects its
+canonical smallest evidence key, and returns before a later rank. Exact-surface
+integrity precedes expansion; deterministic expansion precedes placement and
+UTF-8 verification; exact budget verification is last. This precedence is
+part of the observable deterministic source contract and makes classification
+and evidence identical under every input permutation. Multi-invalid
+permutation fixtures cover all adjacent ranks and multiple offenders within
+each rank.
 
 ### Segmentation and proposition bindings
 
@@ -1242,12 +1342,29 @@ parameters. Trainable parameters are:
 
 - per-facet projectors;
 - scalar MLP;
-- role, rank, relation, authority, and disposition embeddings;
-- latent queries and two resampler blocks;
+- role, rank, relation, authority, disposition, slot-identity, value-type, and
+  binding-role embeddings;
+- item-projection normalization;
+- latent queries and every attention, feed-forward, and normalization
+  parameter in the two resampler blocks;
 - soft-prefix projection and normalization;
+- output-language embedding, projection, and normalization;
 - appended exact-slot input rows and their tied or separately appended output
   rows; and
 - proposition-attribution head.
+
+This list is exhaustive for Phase A. Every learned tensor that can influence
+renderer output belongs to exactly one of two disjoint artifacts:
+
+- \((\phi_s,r_{\phi_s})\) owns every bridge parameter in the list except the
+  appended vocabulary rows and contains no model vocabulary row; and
+- \((e_s,r_{e_s})\) owns only the derived model plus the appended exact-slot
+  input rows and, when untied, output rows. Every original model row remains
+  frozen and byte-identical to the pinned base revision.
+
+Any tensor absent from both sets is frozen and has no optimizer state. A tensor
+present in both sets, assigned to the wrong set, or absent from the applicable
+canonical tensor inventory invalidates the artifact composition.
 
 This phase tests whether the plan representation can be translated into the
 existing model space. Its result must be evaluated independently. Training
@@ -1519,20 +1636,28 @@ conformance tests demonstrate:
 `K_R` binds at least:
 
 - attention-plan schema and facet vocabulary;
-- every facet-projector identity;
-- scalar normalization and numerical MLP;
+- the complete immutable trained-bridge checkpoint
+  \((\phi_s,r_{\phi_s})\), including every per-facet projector, numerical MLP,
+  categorical embedding, item normalization, latent query, resampler
+  attention/feed-forward/normalization tensor, soft-prefix
+  projection/normalization tensor, output-language
+  embedding/projection/normalization tensor, and proposition-attribution
+  tensor;
+- the bridge checkpoint's canonical tensor-name inventory, shape and dtype for
+  every tensor, and Phase-A trainability/freeze mask;
+- scalar normalization and numerical MLP schema;
 - role, rank, relation, authority, and disposition vocabularies;
 - slot identity, value-type, and binding-role vocabularies;
 - query count, adapter width, head count, and resampler depth;
-- soft-prefix projector and normalization;
 - base model checkpoint;
 - derived model checkpoint containing the deterministic vocabulary extension,
-  original-row freeze mask, and appended slot rows;
-- LoRA checkpoint, when present;
+  original-row freeze mask, appended slot rows, and its canonical tensor-name,
+  shape, dtype, and trainability/freeze inventory;
+- LoRA checkpoint, when present, with a canonical inventory proving that it
+  contains only the permitted low-rank updates;
 - official tokenizer base revision, derived tokenizer revision, deterministic
   augmentation receipt, and fixed control template;
 - slot-token vocabulary and deterministic substitution implementation;
-- attribution head;
 - deterministic decoding, tie, and stop configuration;
 - output language policy;
 - structural-validator, literal-grammar, semantic-verifier, calibration,
@@ -1545,6 +1670,17 @@ conformance tests demonstrate:
   cache behavior wherever any can affect output bytes;
 - byte-affecting device/accelerator architecture, instruction/feature set, and
   driver/runtime execution identity.
+
+The bridge descriptors above are validation metadata and never substitute for
+the complete content-identified artifacts. The qualification tuple's
+\((e_s,r_{e_s})\), \((\phi_s,r_{\phi_s})\), and optional
+\((\Delta_s,r_{\Delta_s})\) are exactly the disjoint trained artifacts bound
+into \(K_R\). Replacing, adding, deleting, renaming, reshaping, retyping,
+moving between owners, or changing any learned tensor produces a different
+\(K_R\), a different `RendererConfigurationId`, and a separately qualified
+renderer configuration. Qualification evidence for one composite cannot be
+reused for a partial, overlapping, reconstructed, differently partitioned, or
+otherwise different composite.
 
 The qualification manifest may group evidence by target platform class, but
 that grouping metadata is outside \(\operatorname{CE}_{v1}(K_R)\). Changing
@@ -1793,13 +1929,13 @@ Rendering begins only when:
 - No network operation occurs during compilation.
 - Changing any bound artifact identity creates a different renderer
   configuration and requires separate evidence.
-- Holding the plan, exact sidecar, `RendererConfigurationId`, and
-  authenticated canonical \(K_R\) content byte-identical requires
+- Holding the plan, exact sidecar, `RendererConfigurationId`, authenticated
+  canonical \(K_R\) content, and deterministic ceilings byte-identical requires
   bit-identical token traces, bindings, substituted attention, and validation
-  result. Holding retained prompt bytes, framing, and serializer configuration
-  fixed as well requires bit-identical product bytes. Every byte-affecting
-  execution choice belongs to \(K_R\); a target platform class cannot mask
-  execution drift.
+  result for successful uninterrupted executions. Holding retained prompt
+  bytes, framing, and serializer configuration fixed as well requires
+  bit-identical successful product bytes. Every byte-affecting execution choice
+  belongs to \(K_R\); a target platform class cannot mask execution drift.
 
 ## Edge cases
 
@@ -1967,7 +2103,9 @@ seed cohorts, precision pairing, and promotion rule used by these roles.
 
 The latent-resampler study additionally varies:
 
-- query count: `8`, `16`, `32`, and `64`;
+- selectable query count: `8`, `16`, and `32`;
+- diagnostic stress-only query count: `64`, which may diagnose capacity or
+  scaling but cannot enter a selectable cohort or set a release threshold;
 - adapter width: `256`, `512`, and `1024`;
 - resampler depth: `1`, `2`, and `4`; and
 - bridge-only versus bridge-plus-LoRA training.
@@ -2011,10 +2149,19 @@ Executable tests cover:
   return `RendererConfigurationMismatch`; the collision-like latter case
   quarantines and produces no partial candidate, verdict, or product bytes;
 - repeated-execution fixtures requiring bit-identical token traces, segment
-  bindings, substituted attention, and validator verdicts under one fixed plan,
-  exact sidecar, `RendererConfigurationId`, and byte-identical authenticated
-  canonical \(K_R\) content, plus bit-identical product bytes when retained
-  prompt, framing, and serializer configuration are also fixed;
+  bindings, substituted attention, and validator verdicts for successful,
+  uninterrupted runs under one fixed plan, exact sidecar,
+  `RendererConfigurationId`, byte-identical authenticated canonical \(K_R\)
+  content, and identical deterministic meter and ceilings, plus bit-identical
+  product bytes when retained prompt, framing, and serializer configuration are
+  also fixed;
+- deterministic-ceiling fixtures requiring one identical typed ceiling failure
+  for the same plan, \(K_R\), work meter, and finite byte/work/memory limits;
+  separate deadline, cancellation, and resource-admission fault-injection
+  fixtures bind the complete observed event trace, require the corresponding
+  typed operational failure and no partial publication, and do not treat a
+  changed external event trace as semantic renderer nondeterminism; compiler
+  and CLI integration fixtures own the equivalent later transport cases;
   perturbing each byte-affecting runtime, backend, kernel, quantization,
   device-feature, driver, deterministic-control, or cache field creates a
   distinct configuration identity and separate qualification, while changing
@@ -2269,3 +2416,5 @@ The candidate is replaced or narrowed when:
   plans](../decisions/0015-render-qualified-focus-and-expectation-plans.md).
 - [Decision 0016: Adopt sealed compile-integrity
   boundaries](../decisions/0016-adopt-sealed-compile-integrity-boundaries.md).
+- [Decision 0023: Bind complete renderer training
+  state](../decisions/0023-bind-complete-renderer-training-state.md).

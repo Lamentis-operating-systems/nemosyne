@@ -61,9 +61,11 @@ flowchart TD
     IV["Compile invocation"] --> IR["Intrinsic request validation and exact retention"]
     IR --> ID["Configuration-independent prompt/request identity derivation"]
     ID --> AU["Prompt-origin authentication and sealed AuthenticatedInvocation"]
-    AU --> RC["Policy, configuration, language, budget, and disclosure resolution"]
+    AU --> CA["Acquire active-pair-bound compile admission"]
+    CA --> RC["Inside admitted scope: policy, configuration, language, budget, and disclosure resolution"]
     RC --> AP["Authenticated immutable artifact preflight"]
     AU --> SC["Private signal-context projection"]
+    CA --> SC
     AP --> SC
     AP --> IB["Sealed complete-request ingress binding"]
     IB --> Q["Sealed BoundQuery Q with private numerical and exact-binding projections"]
@@ -99,6 +101,7 @@ flowchart TD
     SLOT --> VAL["Independent faithfulness and policy validation"]
     VCTX --> VAL
     VAL --> OUT["Exact compiled-text serialization"]
+    OUT --> CLOSE["Close every handle and snapshot, remove durable admission record, consume ticket, then return CompiledPrompt"]
 ```
 
 These are logical boundaries. They do not imply one process, one crate per
@@ -115,15 +118,19 @@ sequenceDiagram
     participant Renderer as Renderer
     participant Validator as Independent validator
     Caller->>Compiler: open(InstallationLocator)
+    Compiler->>Store: RegisterOperationalRuntimeV1 with authenticated bootstrap evidence
+    Store-->>Compiler: Opaque RuntimeRegistrationTicketV1
     Caller->>Compiler: compile(CompileCallClaims, CompileRequest, CancellationToken)
     Compiler->>Compiler: Retain complete valid request; derive prompt/request identities
     Compiler->>Auth: Complete request + claims + both compiler-derived identities
     Auth->>Auth: Authenticate with compiler-owned handles, registries, and clock
     Auth-->>Compiler: One sealed AuthenticatedInvocation
-    Compiler->>Compiler: Resolve/pin K, policy, language, budget, disclosure
-    Compiler->>Compiler: Preflight artifacts; project and validate minimized signal context from sealed invocation
+    Compiler->>Store: Acquire compile admission for authenticated executing program
+    Store-->>Compiler: Ticket bound to active pair, installation, registry, runtime generation, and epoch
+    Compiler->>Compiler: Inside admitted scope, resolve/pin K, policy, language, budget, disclosure
+    Compiler->>Compiler: Inside admitted scope, preflight artifacts; project and validate minimized signal context
     Compiler->>Compiler: SIT-01 constructs sealed complete-request binding
-    Compiler->>Store: Open authorized immutable revision
+    Compiler->>Store: Open ticket-bound authorized immutable revision
     Store-->>Compiler: Revision, policy, exact data, and numerical views
     Compiler->>Compiler: Encode situation, retrieve, derive signals, activate
     par Shared eligible set
@@ -141,7 +148,12 @@ sequenceDiagram
     Compiler->>Validator: SubstitutedAttention + shared &AuthenticatedRendererConfiguration K_R + least-privilege ValidationView projected by private context
     Validator-->>Compiler: AcceptedAttention or typed validation failure
     Compiler->>Compiler: Concatenate framing, attention, and retained prompt
+    Compiler->>Store: Close snapshot and pinned handles; terminalize record and consume ticket
     Compiler-->>Caller: CompiledPrompt bytes or one typed error
+    Caller->>Compiler: close()
+    Compiler->>Store: Conditional close of exact runtime registration
+    Store-->>Compiler: Removed, already retired, or typed close failure
+    Compiler-->>Caller: Close success or CompilerCloseError
 ```
 
 Every logical component in this data flow is a **proposed boundary** unless
@@ -149,7 +161,7 @@ the table below states otherwise.
 
 | Boundary | Maturity |
 | --- | --- |
-| Product input, result, read-only behavior, and local trust boundary | Decision 0014 retains the boundary selected by superseded Decision 0011 |
+| Product input, result, semantically read-only behavior, and local trust boundary | Decision 0014 retains the boundary selected by superseded Decision 0011 and completed by Decision 0031 |
 | Exact framing and prompt-byte preservation | Required property from the product contract |
 | Numerical memory, transition records, shared activated set, parallel focus and expectation, and combined plan | Accepted implementation direction from Decision 0014 |
 | Deterministic lexicalizer baseline, vector-prefix candidate, exact slots, local qualification, and non-thinking generation | Accepted implementation direction from Decision 0015 |
@@ -160,16 +172,23 @@ the table below states otherwise.
 
 ### Configuration and artifact preflight
 
-`Compiler::open` has already authenticated the installation bootstrap trust,
-registries, and handles required to evaluate a call. The per-call boundary
+`Compiler::open` has authenticated only the installation bootstrap trust,
+platform resolver, executing-program identity, operational coordinator, and
+one opaque runtime-registration ticket. It retains no active-pair-dependent
+registry, manifest, configuration, artifact, policy, or memory handle. The
+per-call boundary
 first intrinsically validates and retains the complete immutable request,
 derives only its configuration-independent prompt and request-presentation
 identities, and authenticates their exact binding to the untrusted
 presentation. That authentication produces the private local principal,
-caller context, and trusted authorization time. Only then does the compiler
-resolve the requested installed configuration and disclosure narrowing,
-applicable policy, output language, effective attention budget, and immutable
-artifact handles. Before persistent memory access, artifact preflight:
+caller context, and trusted authorization time. It then acquires
+`IF-COMPILE-ADMISSION` against its authenticated executing-program identity.
+No active-pair-dependent configuration, registry, policy, or artifact handle
+may be resolved or pinned before admission. Only inside that scope does the
+compiler resolve the requested installed configuration and disclosure
+narrowing, applicable policy, output language, effective attention budget, and
+immutable artifact handles. Before persistent memory access, artifact
+preflight:
 
 - verifies an authenticated artifact manifest against a pinned installation
   trust root held outside the mutable artifact bundle;
@@ -180,10 +199,13 @@ artifact handles. Before persistent memory access, artifact preflight:
   supersession policy evaluators; and
 - verifies that every artifact is present, compatible, and integrity-checked.
 
-The authenticated manifest establishes which identities are authorized;
-content digests then establish that the opened bytes have those identities.
-An unsigned self-consistent manifest is insufficient. No artifact may be
-downloaded or replaced during compilation. Trust-root rotation, installation,
+Every resolved identity and handle must match the ticket-bound active pair,
+installation manifest, configuration-registry revision, and
+runtime-registration generation. The authenticated manifest establishes which
+identities are authorized; content digests then establish that the opened
+bytes have those identities. An unsigned self-consistent manifest is
+insufficient. No artifact may be downloaded or replaced during compilation.
+Trust-root rotation, installation,
 and update occur through a separately authenticated management path. A version
 label without provenance, content identity, and an immutable handle is
 insufficient because the underlying file could change during a call.
@@ -253,8 +275,16 @@ supersession are also resolved at \(t_{\mathrm{auth}}\). They do not use
 \(t_{\mathrm{context}}\) or reread the wall clock.
 
 Every derived artifact is bound to the authoritative record version, encoder
-or transform version, and revision for which it is valid. A stale derived
-artifact cannot be combined silently with a newer authoritative revision.
+or transform version, and revision for which it is valid. Predictive facets
+use the separately content-identified, acyclic `TransitionFacetArtifact`
+contract selected by Decision 0024; an authoritative transition record never
+binds back to that derived artifact. Its dependency-light constructor validates
+canonical fields and derives identity but does not prove source existence.
+Only the authenticated memory-management operation may verify the exact source
+version in the target revision and atomically publish the artifact; ordinary
+encoder and compiler code has no such capability. Runtime reads expose only
+the published read-only view. A stale, unverified, or partially published
+derived artifact cannot be combined silently with an authoritative revision.
 
 A concurrent management operation may publish `M^(r+1)`, but an in-flight
 compile using `M^r` never observes it. Re-encoding, re-indexing, consolidation,
@@ -274,11 +304,12 @@ superseded Decision 0012 and extends it with transition records.
 
 The **authoritative exact plane** preserves immutable record-version and
 canonical-proposition identities, provenance, validity, authority,
-authorization, supersession, source-dependency groups, conflicts, and
-loss-sensitive values. Its representation is numerical in the broad machine
-sense: typed identifiers, enums, booleans, scalars, timestamps, coordinates,
-relations, and byte-preserving payloads. It is lossless for every claim the
-compiler may emit and never depends on inversion of an embedding.
+authorization, supersession, source-dependency groups, transition
+reliability, conflicts, and loss-sensitive values. Its representation is
+numerical in the broad machine sense: typed identifiers, enums, booleans,
+scalars, timestamps, coordinates, relations, and byte-preserving payloads. It
+is lossless for every claim the compiler may emit and never depends on
+inversion of an embedding.
 
 The **derived numerical plane** contains versioned, rebuildable typed facet
 vectors, calibrated scalars, numerical relations, and search indexes. It is
@@ -703,8 +734,11 @@ phases, and required simple baselines.
 Its internal result is an opaque `RenderedAttention<'plan>` value whose
 lifetime is tied to the borrowed source plan. The Rust lifetime prevents the
 candidate from outliving that borrow and prevents unchecked detachment; it does
-not encode referent identity. The enforceable binding is the deterministic
-`PlanContentId` derived from `PlanCanonicalEnvelopeV1`, the complete canonical
+not encode referent identity. The enforceable binding is the complete tuple
+\((c_L,\beta_L,c_R,\beta_R)\): deterministic
+`PlanContentId` \(c_L\), private exact `PlanCanonicalEnvelopeV1` capsule
+\(\beta_L\), sealed `RendererConfigurationId` \(c_R\), and private exact
+canonical-\(K_R\) commitment \(\beta_R\). The plan envelope is the complete canonical
 product-relevant plan content defined by the planning specification. The
 envelope includes every semantic item, relation, control, selected structural
 projection, exact-surface identity, and formatted substitution bytes, while
@@ -780,7 +814,10 @@ associated with different retained canonical plan bytes is
 plan-identity and renderer-configuration path before any slot access.
 
 A model-based renderer remains a fallible, untrusted transformation even when
-it runs locally. Qwen3 is the first integration family, but the model
+it runs locally. Its accepted product text remains untrusted downstream data;
+headers cannot enforce model authority separation, and no security decision
+may rely on a downstream model respecting them. Qwen3 is the first integration
+family, but the model
 qualification specification owns the candidate slate, selection rule, resource
 protocol, and release evidence. A deterministic template renderer remains a
 mandatory baseline and may be a separately qualified renderer configuration
@@ -905,7 +942,17 @@ impl CancellationToken {
     pub fn is_cancelled(&self) -> bool;
 }
 
-pub struct Compiler { /* private immutable configuration and handles */ }
+pub struct Compiler { /* private bootstrap capabilities and runtime ticket */ }
+
+pub struct CompiledPrompt { /* private owned complete UTF-8 bytes */ }
+
+impl CompiledPrompt {
+    pub fn as_bytes(&self) -> &[u8];
+    pub fn as_str(&self) -> &str;
+    pub fn into_bytes(self) -> Vec<u8>;
+    pub fn len(&self) -> usize;
+    pub fn is_empty(&self) -> bool;
+}
 
 impl Compiler {
     pub fn open(
@@ -918,8 +965,54 @@ impl Compiler {
         request: &CompileRequest,
         cancellation: &CancellationToken,
     ) -> Result<CompiledPrompt, CompileError>;
+
+    pub fn close(self) -> Result<(), CompilerCloseError>;
 }
 ```
+
+`CompiledPrompt` exclusively owns one complete compiled byte buffer. Its
+constructor is private to the successful serializer, and valid instances are
+always complete UTF-8 under the product framing contract; `as_str` is
+therefore infallible and performs no validation, allocation, or normalization.
+`as_bytes`, `as_str`, and `len` borrow without copying. `into_bytes` transfers
+the owned buffer without copying. `is_empty` is included with `len` and is
+always false for a valid framed V1 result. The type deliberately does not
+implement `Clone`, conversion from caller bytes, mutable byte access, or
+partial-range ownership. A caller that needs a second copy must request that
+copy explicitly from `as_bytes`.
+
+`Compiler::close` consumes the compiler and conditionally removes its exact
+runtime-registration record only after all calls, admission records, handles,
+and snapshots owned by that runtime are gone. Its closed source errors are
+`ActiveCompileWork`, `RuntimeRegistrationBindingMismatch`,
+`CoordinationStateUnavailable`, and `DurableRemovalOutcomeUnknown`. The first
+two are internal-invariant failures; the latter two are coordination failures.
+If an authenticated lifecycle handoff has already retired the ticket's complete
+registration generation, close is idempotent success; absence from the still-
+current generation is not equivalent and remains a binding/integrity failure.
+The CLI invokes `close` after compile and before starting stdout delivery,
+mapping them to exit `70` or `4` respectively and exposing no stdout bytes.
+For the CLI's single invocation, close failure takes precedence over both a
+provisional compile success and a compile error: it suppresses success bytes,
+selects the close error's one source/exit, and retains the earlier compile
+disposition only in bounded request-local diagnostics. If close succeeds, the
+original compile result or error keeps its normal mapping.
+Library callers receive close failure separately from any already returned
+`CompiledPrompt`. `Drop` performs only a non-panicking best-effort conditional
+removal; failure leaves the bounded record visible or unavailable for startup
+reconciliation and never silently fabricates successful removal.
+
+Close evaluates one complete snapshot in this fixed order: coordination-state
+availability; an authenticated exact-generation retirement receipt; current
+generation and record presence; record binding digest; record state sequence;
+absence of active compile work; then the crash-atomic removal result. An exact
+retirement receipt yields idempotent success. Missing-current-record,
+generation, digest, or sequence disagreement maps to
+`RuntimeRegistrationBindingMismatch`; live work maps to `ActiveCompileWork`;
+unavailable coordination and an unknown durable removal outcome map to their
+same-named coordination variants. The first applicable source wins. This order,
+combined with the ticket's private expected generation, digest, and state
+sequence, prevents a stale close from removing a replacement record.
 
 This is a target contract, not implemented Rustdoc. The locator schema and
 scope tags are closed, versioned public values; the installation identity is a
@@ -939,40 +1032,56 @@ trust root, registry object, credential, principal, executable identity,
 platform resource handle, or channel handle. `Compiler::open` resolves the
 untrusted locator itself through the platform installation resolver selected
 by `SEC-00` and the frozen runtime topology. The resolver derives its effective
-principal from compiler-created operating-system handles, consults only the
-authenticated installation registry, verifies the selected manifest against a
-compiler-, package-, or operating-system-owned bootstrap root, and opens only
-the registered canonical memory and artifact locations. It never falls back to
+principal from compiler-created operating-system handles and resolves only the
+authenticated bootstrap scope, trust material, operational coordinator, and
+executing-program evidence needed for the atomic operational-registration
+command. The coordinator validates the current active installation internally;
+`Compiler::open` neither opens nor retains its active manifest, configuration
+registry, memory location, artifact location, policy, or pair-dependent
+handle. It never falls back to
 an environment variable, current directory, caller path, caller manifest, or
 caller trust material. A syntactically valid locator that is absent, outside
 the effective principal's installation scope, or not verifiable fails with one
 typed `OpenError` and creates no compiler.
 
-After successful resolution, `Compiler::open` constructs the selected
-compiler-owned `LocalPlatformAuthenticator` from the verified installation
-registries, compiler-owned platform handles, and compiler-owned trusted clock.
+Before operational runtime registration, `Compiler::open` completes every
+fallible bootstrap, platform-handle, trusted-clock, authenticator, allocation,
+and capacity-independent construction step. The atomic registration is its
+last fallible step. Success returns the opaque runtime ticket, after which
+constructing `Compiler` is an infallible move of the already constructed
+`LocalPlatformAuthenticator`, bootstrap capabilities, platform handles,
+trusted clock, and ticket. Thus no post-registration `OpenError` can orphan a
+record without a `Compiler::close` path.
 `compile` accepts only bounded untrusted call claims, one intrinsically valid
 but untrusted request, and one read-only cancellation token. It authenticates
 the current call and constructs one sealed crate-private
 `AuthenticatedInvocation`. That aggregate owns one fresh opaque
-runtime-instance brand and inseparably contains the `InvocationContext`,
+call-instance brand and inseparably contains the `InvocationContext`,
 `AuthenticatedPrompt`, authenticated call binding, and trusted authorization
 time. Only aggregate-bound borrowed projections exist; no downstream
-constructor accepts those fields independently. The compiler then obtains one
-immutable memory, policy, configuration, and artifact revision for that call.
+constructor accepts those fields independently. Only after per-call admission
+does the compiler freshly resolve and obtain one immutable memory, policy,
+configuration, and artifact revision for that call; none was retained by
+`Compiler::open`.
 The private aggregate-taking compile core is not exported. An authenticated
 invocation or any of its projections is never supplied by the caller, retained
 by `Compiler`, or reused across requests.
 The brand is a private generative capability or lifetime identity. Equality
-means membership in the same runtime instance, not byte, digest, random-number,
-or numerical-feature equality. It is never serialized, persisted, rendered,
+means membership in the same authenticated call instance, not byte, digest,
+random-number, or numerical-feature equality. It is never serialized, persisted, rendered,
 hashed into content identity, or passed to semantic computation. Its
 allocation may differ across otherwise identical calls without violating
 product determinism because every semantic and byte-producing projection
 erases it first. `SEC-00` and `OD-04` must select and verify the concrete
 private lifetime or shared-object representation.
-The compiler can serve sequential or concurrent read-only requests only when
-its adopted storage and model runtime prove safe sharing.
+This per-call brand is distinct from the longer-lived
+`compiler_runtime_instance_id`, `RuntimeRegistrationTicketV1` private runtime
+brand, and `CompileAdmissionTicketV1` private runtime brand. The runtime
+identities prove registered-process membership; the call-instance brand proves
+membership in exactly one authenticated invocation.
+The compiler can serve sequential or concurrent semantically read-only requests
+only when its adopted storage, admission coordinator, and model runtime prove
+safe sharing.
 
 `CancellationSource` and `CancellationToken` form the complete public logical
 cancellation boundary. An external crate can create a source, derive any
@@ -1103,21 +1212,27 @@ For each public call, `Compiler::compile` performs this fixed sequence:
    compiler-internal prompt content identity and
    `request_presentation_identity`;
 3. give the same complete retained request, the claims, both compiler-derived
-   identities, and only compiler-owned platform handles, authenticated
-   registries, and trusted clock to `LocalPlatformAuthenticator`;
+   identities, and only compiler-owned platform handles, bootstrap trust,
+   opaque runtime-registration ticket, and trusted clock to
+   `LocalPlatformAuthenticator`;
 4. authenticate freshness and the exact presentation-to-prompt/request
    binding, then construct one sealed private `AuthenticatedInvocation` whose
    inseparable projections are `InvocationContext`, `AuthenticatedPrompt`,
    the exact request-local authenticated call binding, and `t_auth`; allocate
-   its fresh opaque runtime-instance brand without granting configuration or
+   its fresh opaque call-instance brand without granting configuration or
    disclosure authority;
-5. invoke the sole `resolveAndPinControls` stage to resolve the requested
+5. acquire exactly one `CompileAdmissionTicketV1` from
+   `IF-COMPILE-ADMISSION` against the authenticated executing program and
+   invocation; if admission fails, resolve or pin no active-pair-dependent
+   control, policy, artifact, runtime, or memory handle;
+6. inside that admitted scope, invoke the sole `resolveAndPinControls` stage to
+   resolve the requested
    configuration and disclosure narrowing, policy revision, output language,
    and effective attention budget through authenticated installed registries;
-6. pin the returned call-control tuple, preflight its immutable artifacts, and
+7. pin the returned call-control tuple, preflight its immutable artifacts, and
    acquire the compatible immutable memory revision; `t_auth` remains the
    exact value already produced by step 4;
-7. pass only the sealed `AuthenticatedInvocation` and preflighted context and
+8. pass only the sealed `AuthenticatedInvocation` and preflighted context and
    social-identity schemas in `K` to the sole projector; place one reference
    to its opaque call brand in the immutable `SignalDerivationContext`, copy
    trusted time plus the typed authenticated social subject from the same
@@ -1131,22 +1246,29 @@ For each public call, `Compiler::compile` performs this fixed sequence:
    trusted-time, or authenticated-binding fields are unrepresentable, and no
    request field, caller claim, ambient clock, policy, authorization,
    disclosure, or store capability enters the context or validated values;
-8. construct one sealed \(\widehat B_{\mathrm{in}}\) from the retained
+9. construct one sealed \(\widehat B_{\mathrm{in}}\) from the retained
    canonical request content and authenticated pinned configuration, then
    independently project it into situation encoding and shared-set
    construction; and
-9. invoke the private context-taking compile core with the same retained
+10. invoke the private context-taking compile core with the same retained
    complete request, sealed `AuthenticatedInvocation`, pinned controls and
    snapshot, and cancellation token; the core may borrow narrow aggregate
    projections but accepts no independently constructible authenticated
-   prompt or call-binding tuple.
+   prompt or call-binding tuple; then, on every success, error, cancellation,
+   or panic-unwind path, close every bound handle and snapshot before
+   terminalizing the record and consuming that call's
+   `CompileAdmissionTicketV1`. Abrupt process loss
+   returns no result; startup reconciliation terminalizes the durable record or
+   keeps it conservatively generation-fenced until the old runtime cannot
+   survive.
 
-The authenticator may trust only sources selected by `SEC-00` and supported by
-the frozen runtime topology: operating-system effective-user or peer
-credentials obtained from compiler-owned handles, selected executable or
+The authenticator may trust only bootstrap sources selected by `SEC-00` and
+supported by the frozen runtime topology: operating-system effective-user or
+peer credentials obtained from compiler-owned handles, selected executable or
 code-signing identity, an unforgeable compiler-owned channel/capability binding
 for the origin presentation, the compiler-owned authorization clock, and the
-authenticated installed manifest and policy registries resolved at open.
+opaque runtime-registration ticket. It receives no active manifest,
+configuration registry, policy registry, artifact, runtime, or memory handle.
 Locator fields, presentation bytes, claim fields, request metadata,
 `contextual_time`, environment variables, current directory, CLI strings, and
 process-global mutable application state are never trusted authority sources.
@@ -1242,6 +1364,16 @@ nonfinite coordinates, an invalid time or offset under the request's declared
 time schema, a syntactically malformed language tag or metadata record, and a
 zero, overflowing, or otherwise unrepresentable budget ceiling.
 
+Every `whitespace-only` predicate above uses the exact product-owned
+`WhitespaceSetV1`: U+0009 through U+000D, U+0020, U+0085, U+00A0, U+1680,
+U+2000 through U+200A, U+2028, U+2029, U+202F, U+205F, and U+3000. U+200B is
+not whitespace. Empty and nonempty-whitespace-only inputs are distinct closed
+constructor reasons. `CompileRequest::new` and the validated constructors for
+location labels and metadata values are the sole semantic classifiers; the CLI
+does not maintain a second character table. Boundary fixtures cover every
+included range endpoint, the adjacent excluded code points, U+200B, empty
+input, and mixed non-whitespace input.
+
 It also owns
 `CompileRequestError::AbsoluteInputLimitExceeded { field, observed_lower_bound,
 limit }`. `AbsoluteIngressLimitsV1` is a context-independent versioned public
@@ -1262,11 +1394,13 @@ remain responsible for allocations they perform before calling the API.
 
 `Compiler::compile` separately checks the already valid request against its
 pinned authenticated configuration. Unsupported request schema versions,
-configured byte or item ceilings, unavailable declared languages, incompatible
-time, location, metadata, encoder, or renderer schemas, and request ceilings
-outside the installed capability envelope are compile compatibility failures.
-They preserve a distinct typed source and must never be relabeled as malformed
-request construction.
+configured byte or item ceilings, incompatible time, location, metadata,
+encoder, or renderer schemas, and request ceilings outside the installed
+capability envelope are `RequestIncompatible` or `ArtifactUnavailable`
+according to the failure taxonomy. An absent, undetermined, or unsupported
+resolved output language is exclusively `UnsupportedLanguage`. Each preserves
+its distinct typed source and must never be relabeled as malformed request
+construction or planning failure.
 `String` denotes the exact valid UTF-8 bytes received by the API; no
 normalization is permitted. Reading getters borrow values. No public mutable
 field, unchecked public constructor, global singleton, unsafe Rust, or ambient
@@ -1304,7 +1438,11 @@ schema. When supplied, it selects that declared supported output language.
 When absent, the pinned language resolver must resolve exactly one supported
 language from the original prompt or return `UnsupportedLanguage`; it never
 silently falls back. Explicit selection affects generated attention only and
-never translates or rewrites the retained prompt.
+never translates or rewrites the retained prompt. This compatibility boundary
+is the sole owner of unsupported-language classification. It seals one
+`ResolvedOutputLanguage` before planning; planning, rendering, validation, and
+serialization consume that value and cannot perform a second support lookup or
+return a planning-layer unsupported-language variant.
 
 `AuthenticatedInvocation` is a sealed crate-private aggregate constructed
 only by the compiler-owned `LocalPlatformAuthenticator` in `nemosyne-compiler` and
@@ -1313,16 +1451,19 @@ call-binding, and trusted-time projections cannot be constructed, returned, or
 passed as an independent tuple. The aggregate type, constructors, and private
 context-taking compile core are
 not publicly nameable. Only the authenticator receives compiler-owned
-operating-system or peer handles, authenticated installation and policy
-registries, and the trusted authorization clock. It resolves the principal and
-caller from the selected platform trust mechanism, authenticates the exact
-prompt/request binding, and returns one validated request-local sealed
-aggregate or a typed trust error. It does not select configuration, policy,
-disclosure, language, or budget. The compiler resolves those controls only
-after successful authentication, using the authenticated registries, the
-bound complete request and claims, and narrow borrows from the sealed
-aggregate; that separate stage returns typed configuration, policy, or compatibility
-errors.
+operating-system or peer handles, bootstrap trust, the opaque
+runtime-registration ticket, and the trusted authorization clock. It resolves
+the principal and caller from the selected platform trust mechanism,
+authenticates the exact prompt/request binding, and returns one validated
+request-local sealed aggregate or a typed trust error. It does not receive or
+select an active manifest, configuration, policy, disclosure, language, or
+budget. After successful authentication, the compiler first acquires
+`CompileAdmissionTicketV1`; only inside that admitted scope does it resolve and
+authenticate the current installed manifest and configuration/policy
+registries, then resolve controls from those pinned registries, the bound
+complete request and claims, and narrow borrows from the sealed aggregate.
+That separate stage returns typed admission, installation, configuration,
+policy, or compatibility errors.
 
 The selected identity resolves only through the installation's authenticated
 manifest; caller input can transport an identifier but cannot name an
@@ -1337,12 +1478,21 @@ maximum authorized by the selected configuration and invocation context, but
 cannot increase it. The effective budget is the minimum of every applicable
 authorized ceiling.
 
-`CompiledPrompt` exposes only the complete compiled bytes. It does not expose a
+`CompiledPrompt` exposes only the complete compiled bytes through the
+ownership-preserving API above. It does not expose a
 configuration fingerprint, scores, memory, plan, or diagnostics as a second
 product result. A separate privileged receipt or diagnostic API may expose
 authorized configuration and evidence identities later; it cannot change
 compile semantics, share the product return channel, or disclose unauthorized
 evidence.
+
+The compiled bytes are untrusted downstream text. Compiler-internal types and
+validation prevent semantic authority from being raised inside the product
+pipeline, but the textual headers cannot force a downstream model to maintain
+that separation. A caller must grant the complete string no more authority
+than the authenticated original prompt, and no authorization, disclosure,
+tool-permission, or other security decision may rely on the downstream model
+respecting the headers.
 
 ### CLI contract
 
@@ -1435,16 +1585,33 @@ invalid; callers must discard it. “No partial result” therefore means zero
 stdout before successful compilation and validation plus no success status for
 a failed transport, not physical atomicity of an external stream.
 
+The V1 CLI installs its closed signal policy before `Compiler::open`. On Unix
+it handles only `SIGINT` and `SIGTERM`; on Windows it handles console
+`CTRL_C_EVENT` and `CTRL_BREAK_EVENT`. The first and every later handled event
+call the same idempotent `CancellationSource::cancel`; there is no
+second-signal force-exit path and no reset. If cancellation is observed before
+the first stdout byte, the command emits no stdout and exits `8`. If a handled
+event is observed after stdout delivery begins, the adapter stops at its next
+delivery boundary and follows the existing invalid-prefix transport rule with
+exit `10`. Unhandled signals, Unix `SIGKILL`, abrupt process termination,
+Windows console-close/logoff/shutdown events, and host power loss remain
+operating-system behavior outside graceful-cancellation guarantees. The CLI
+does not claim cleanup or a stable application exit code for those events.
+Signal identity and count are diagnostic-only and cannot alter authority,
+limits, retryability, or compile semantics. Platform tests inject each handled
+event before open, at every compile stage, at the final pre-return race, and
+during delivery.
+
 | Exit | Stable class |
 | ---: | --- |
 | `0` | Complete compiled prompt delivered |
 | `2` | CLI usage, intrinsic public-input construction error, or unsupported requested language |
 | `3` | Prompt-origin, principal, authorization, or disclosure failure |
-| `4` | Memory, snapshot, or persistence failure |
+| `4` | Compile admission, memory, snapshot, or persistence failure |
 | `5` | Request/configuration incompatibility, schema, or artifact failure |
 | `6` | Retrieval, representation, signal, activation, expectation, or planning failure |
 | `7` | Renderer, exact-slot, or faithfulness failure |
-| `8` | Resource limit, deadline, or cancellation |
+| `8` | Resource limit, active-admission ceiling, deadline, or cancellation |
 | `9` | Prohibited capability or policy violation |
 | `10` | Output transport failure after successful compilation |
 | `70` | Internal invariant violation |
@@ -1459,7 +1626,12 @@ exit `3`; failure to derive the trusted principal, authorization clock, policy,
 or disclosure view maps to `AuthorizationUnavailable` and exit `3`; and an
 unknown or incompatible requested installed configuration maps to
 `RequestIncompatible` or `ArtifactUnavailable` as specified below and exit
-`5`. Cancellation at any authentication or compile stage maps to exit `8`.
+`5`. Compile-admission rejection maps through `AdmissionUnavailable` to exit
+`4`, except `ActiveAdmissionLimitReached`, which maps through `ResourceFailure`
+to exit `8`. Admission finalization failure maps through
+`AdmissionFinalizationFailure` to exit `4` or through
+`InternalInvariantViolation` to exit `70` according to its closed source.
+Cancellation at any authentication or compile stage maps to exit `8`.
 
 ```text
 $ printf 'Fix the failing login test.\n' |
@@ -1511,7 +1683,10 @@ The configuration has two non-overloaded authenticated projections:
   planning, language resolution, or plan-cost interpretation and yields
   `SemanticConfigurationId`; and
 - \(K_R=\pi_{\mathrm{renderer}}(K)\) contains every field that can change
-  renderer or validator bytes and yields `RendererConfigurationId`.
+  renderer or validator bytes, including the complete qualified disjoint
+  content-identified composition of derived-model slot rows, trained bridge,
+  and optional LoRA artifacts and revisions, and yields
+  `RendererConfigurationId`.
 
 Fields that affect both domains appear by value in both projections. \(K_S\)
 excludes renderer-only and validator-execution fields, serializer/transport
@@ -1531,11 +1706,25 @@ measurement grouping metadata outside that identity: it cannot replace, merge,
 or hide different exact execution identities. Non-byte-affecting hostnames,
 hardware serials, and installation identifiers are excluded. With one plan,
 exact sidecar, `RendererConfigurationId`, and exact canonical \(K_R\) content
-fixed, renderer and validator outputs must be bit-identical; with retained
-prompt bytes, framing, and
-serializer configuration also fixed, complete product bytes must be
-bit-identical. Same-identity drift invalidates and quarantines the configuration
-rather than becoming accepted platform variance.
+fixed, every successful uninterrupted renderer and validator execution under
+the same deterministic byte, work-unit, and logical-memory ceilings must be
+bit-identical. With retained prompt bytes, framing, and serializer configuration
+also fixed, every successful uninterrupted compile produces bit-identical
+product bytes. Same-identity drift within that semantic execution domain
+invalidates and quarantines the configuration rather than becoming accepted
+platform variance.
+
+Wall-clock observations, cancellation transitions, ambient allocation failure,
+and output-transport behavior are operational attempt inputs, not semantic or
+byte-producing configuration. A same-operational-outcome comparison additionally
+binds the deadline identity and start instant, cancellation-source generation,
+observed external-event trace, ambient resource-admission result, and transport
+behavior. Different external observations may turn the same semantic compile
+into a typed deadline, cancellation, resource, or transport failure without
+violating byte determinism. Deterministic byte, work-unit, and logical-memory
+ceilings remain in the authenticated configuration and must produce the same
+typed ceiling disposition for the same semantic domain. Every failure path
+returns no partial product result.
 
 A V1-deployable configuration permits no stochastic compile stage. Training
 and downstream evaluation may use frozen seeds or random tapes, but those do
@@ -1560,12 +1749,19 @@ flowchart TD
     COMP --> CORE["nemosyne-core"]
     COMP --> MEM
     COMP --> REN["nemosyne-renderer"]
+    COMP --> RDOM["nemosyne-render-domain"]
     COMP --> VAL["nemosyne-validator"]
+    COMP --> OBS["nemosyne-observability"]
     REN --> ART
+    REN --> RDOM
     VAL --> ART
+    VAL --> RDOM
+    RDOM --> ART
+    RDOM --> CORE
     MEM --> CORE
     REN --> CORE
     VAL --> CORE
+    OBS --> CORE
     EVAL["nemosyne-evaluation"] --> CORE
     CORPUS["nemosyne-evaluation-corpus"] --> EVAL
 ```
@@ -1574,10 +1770,12 @@ flowchart TD
 | --- | --- | --- |
 | `nemosyne-core` | Dependency-light validated domain types and deterministic activation, expectation, and plan algorithms | Filesystem, database, network, model runtime, CLI, or telemetry |
 | `nemosyne-artifacts` | Shared sealed immutable authenticated artifact/configuration domain values, including `AuthenticatedRendererConfiguration`, injective canonical envelopes, and typed content identities | Installation selection, trust-root ownership, update authority, compiler orchestration, filesystem or network access, rendering, or validation verdicts |
-| `nemosyne-memory` | Local storage, immutable revisions, authorization views, migrations, indexes, backup, recovery, and provisioning | Rendering, downstream model calls, or semantic planning |
+| `nemosyne-memory` | Local storage, immutable revisions, authorization views, migrations, indexes, authenticated derived-artifact registry/publication, backup, recovery, and provisioning | Rendering, downstream model calls, semantic planning, or encoder mathematics |
+| `nemosyne-render-domain` | Dependency-light opaque renderer-domain values and read-only contracts: candidate/token-origin and segmentation values, witness-free validation views, authenticated renderer-configuration identity/commitment handles, exact plan/config validation identity \((c_L,\beta_L,c_R,\beta_R)\), slot-registry views, and closed renderer/validator error evidence | Model or lexicalizer runtime, compiler orchestration, raw-plan access, filesystem/network access, trust-root resolution, public unchecked construction, or an accepted product verdict |
 | `nemosyne-renderer` | Plan adapter, local lexicalizer runtime, plan- and renderer-configuration-bound candidate construction, deterministic exact substitution, and substitution-owned exact cost enforcement | Memory retrieval, hypothesis generation, authority policy, action selection, validation-context construction, or final faithfulness verdicts |
-| `nemosyne-validator` | Independent structural, semantic, exact-slot, and faithfulness validation over shared opaque candidate and witness-free validation-view contracts | Validation-context construction, compiler-private invocation or plan witnesses, renderer implementation internals, lexical generation, memory retrieval, hypothesis generation, authority policy, or action selection |
-| `nemosyne-compiler` | `InstallationLocator`, `PromptOriginPresentation`, `CompileCallClaims`, `CancellationSource`, `CancellationToken`, the public callable API, compiler-owned installation resolution and bootstrap trust, the sole `LocalPlatformAuthenticator`, the sealed crate-private `AuthenticatedInvocation` and aggregate-taking core, private signal scope/context projection and validation, ingress, artifact preflight, authenticated installed-configuration resolution, situation encoding, retrieval orchestration, signal derivation, compiler-private post-plan `ValidationContext<'plan>` construction and witness erasure, the private exact-byte pre-validator collision join, stage errors, and exact serialization | Caller-supplied paths, trust roots, registries, credentials, or platform handles; persistent writes during compile; public trusted-context or separable authentication-projection construction; or adapter-specific terminal behavior |
+| `nemosyne-validator` | Independent structural, semantic, exact-slot, and faithfulness validation over `nemosyne-render-domain` opaque candidates and witness-free validation-view contracts | Raw `FocusExpectationPlan`, validation-context construction, compiler-private invocation or plan witnesses, renderer implementation internals, lexical generation, memory retrieval, hypothesis generation, authority policy, or action selection |
+| `nemosyne-observability` | Runtime-owned bounded and redacted `RuntimeDiagnosticEventV1` schema, deterministic event construction, and request-local nonpersistent delivery | Offline evaluation schemas, corpora, calibration, raw prompt/memory/candidate/exact-slot bytes, product output decoration, semantic decisions, persistent compile-side sinks, or a dependency on `nemosyne-evaluation` |
+| `nemosyne-compiler` | `InstallationLocator`, `PromptOriginPresentation`, `CompileCallClaims`, `CancellationSource`, `CancellationToken`, the public callable API, compiler-owned installation resolution and bootstrap trust, the sole `LocalPlatformAuthenticator`, the sealed crate-private `AuthenticatedInvocation` and aggregate-taking core, private signal scope/context projection and validation, ingress, artifact preflight, authenticated installed-configuration resolution, situation encoding, retrieval orchestration, signal derivation, compiler-private post-plan `ValidationContext<'plan>` construction and witness erasure, the private exact-byte pre-validator collision join, stage errors, and exact serialization | Caller-supplied paths, trust roots, registries, credentials, or platform handles; semantic, content-bearing, or unallowlisted persistent writes during compile; public trusted-context or separable authentication-projection construction; or adapter-specific terminal behavior |
 | `nemosyne-cli` | Argument and byte-stream transport; construction of the public untrusted installation locator, origin presentation, bounded call claims, request, cancellation source and token, and requested installed identity; public API invocation, exit mapping, and one buffered stdout delivery attempt | Installation or trust resolution, platform-handle transport, presentation authentication, `InvocationContext` or `AuthenticatedPrompt` construction, private-core access, duplicate compile logic, or claims of transport atomicity |
 | `nemosyne-admin` | Privileged initialization, revision publication, backup, restore, migration, export, deletion, and later correction command transport under explicit management capabilities | Compile transport, implicit writes, or a shared unprivileged invocation context |
 | Evaluation crates | Offline corpora, reports, baselines, calibration, and receipts | Runtime compile dependencies |
@@ -1590,8 +1788,9 @@ forbidden.
 
 The separate validator boundary must not create a
 `compiler ↔ validator` dependency cycle. `nemosyne-validator` owns a
-least-privilege read-only validation-view contract over shared opaque candidate
-and domain types. `nemosyne-compiler` owns the private
+least-privilege validation algorithm over shared opaque candidate and
+read-only view types owned by `nemosyne-render-domain`.
+`nemosyne-compiler` owns the private
 `ValidationContext<'plan>`, implements or projects exactly that view, invokes
 the validator, and accepts no externally supplied context or
 `AcceptedAttention`. The validator never depends on the compiler crate and
@@ -1602,6 +1801,47 @@ compiler's private product path. The concrete trait, sealed adapter, or equivale
 representation remains an implementation decision under `OD-03` and `OD-04`;
 the ownership, one-way dependency, and no-external-injection properties do
 not.
+
+`nemosyne-render-domain` constructors are checked and accept only opaque
+validated plan/configuration inputs, complete token-origin/segmentation data,
+and the full \((c_L,\beta_L,c_R,\beta_R)\) identity. They reject missing,
+detached, mutable, or independently supplied identity components. Public
+callers cannot construct authenticated configuration handles or a product-path
+plan, and `nemosyne-compiler` accepts no externally constructed candidate,
+view, or accepted verdict, so a structurally valid test value cannot re-enter
+the product path. The shared crate contains no renderer implementation and the
+validator never depends on `nemosyne-renderer`.
+
+Before any production deterministic-lexicalizer source is added, one focused
+accepted decision must select its versioned grammar/template artifact,
+language morphology boundary, exact slot-placement rules, complete cost
+function, error contract, and compatibility/migration policy. Until that
+decision and its Proposed specification are reviewable, the lexicalizer
+remains an unresolved pre-selection obligation rather than an implementation
+task.
+
+Runtime diagnostics have an independent ownership boundary.
+`RuntimeDiagnosticEventV1` contains only a closed event code, stage code,
+monotonic duration bucket where authorized, declared bounded counters, and
+allowlisted opaque content identities or commitments. Its constructor enforces
+an authenticated maximum event byte length and rejects raw prompt, situation,
+memory, exact-surface, candidate, plan-prose, or model-output bytes. The
+runtime schema and sinks do not import an offline evidence type. During
+`Compiler::compile`, construction and delivery are request-local and
+nonpersistent; no diagnostic event, reference, queue, spool, counter, or
+delivery acknowledgement is a durable compile-side transition. A future
+persistent diagnostic store requires a separate accepted decision and a
+separately authorized post-call operation after compile admission has
+terminalized. It cannot be invoked by the compile path or become evidence that
+the call returned.
+`nemosyne-evaluation` may later depend on or losslessly wrap this schema when
+ingesting authorized exported diagnostics, but neither
+`nemosyne-observability` nor any compile-path crate may depend on evaluation
+code. Diagnostic enablement, construction, request-local delivery, disablement,
+or failure cannot alter success-versus-error class, typed error source,
+retryability, product bytes, admission terminalization/fencing, or any other
+compile behavior. In particular, diagnostics can neither suppress a valid
+compiled result nor convert a failed compile into success.
 
 Public Rust items have complete Rustdoc. Domain fields are private; validated
 constructors reject invalid states; getters borrow; IDs use canonical numeric
@@ -1678,32 +1918,424 @@ The logical store must provide:
 - logical deletion, physical erasure policy, retention, and audit state; and
 - deterministic recovery or explicit irrecoverable-corruption failure.
 
-Compile opens only read capabilities. Provision, import, observation capture,
-correction, consolidation, migration, backup, deletion, and repair use a
-separate management capability and command path. At least one explicit
-provisioning path must create an empty valid revision before shipment; a
-compile-only binary with no valid installation path is not a usable product.
-The proposed `nemosyne-admin` adapter is the sole command-transport owner for
-that path. It constructs a management-specific authenticated principal and
-capability set, calls validated operations owned by `nemosyne-memory`, and
-cannot invoke compile by reusing those write capabilities. The compile CLI
-cannot dispatch management operations. Each management command requires its
-own focused contract before implementation; naming the adapter does not make
-all listed commands V1 prerequisites.
+Clean provisioning creates `Operational` with one fresh empty
+runtime-registration generation; it does not fabricate a registered runtime.
+Every ordinary compiler-process start must first register through the
+`MEM-03`-owned operational-registration boundary:
+
+```text
+RegisterOperationalRuntimeV1 {
+    store_id,
+    bootstrap_scope_id,
+    authenticated_executing_program_id,
+    compiler_runtime_instance_id,
+    registration_request_sequence,
+}
+
+RuntimeRegistrationRecordV1 {
+    runtime_registration_id,
+    binding_digest,
+    store_id,
+    active_pair_id,
+    installation_manifest_id,
+    configuration_registry_revision,
+    executing_program_id,
+    runtime_registration_generation,
+    compiler_runtime_instance_id,
+    registration_sequence,
+    record_state_sequence,
+    recovery_disposition,
+}
+
+RuntimeRegistrationRecoveryDispositionV1 =
+    Live
+  | RecoveryFenced {
+        fence_generation,
+        fence_reason,
+    }
+
+RuntimeRegistrationTicketV1 {
+    runtime_registration_id,
+    private_runtime_brand,
+    private_expected_runtime_registration_generation,
+    private_expected_binding_digest,
+    private_expected_record_state_sequence,
+}
+
+OperationalRuntimeRegistrationErrorV1 =
+    CoordinationStateUnavailable
+  | LifecycleNotOperational
+  | StartupReconciliationIncomplete
+  | ExecutingProgramMismatch
+  | ActivePairBindingMismatch
+  | InstallationManifestBindingMismatch
+  | ConfigurationRegistryBindingMismatch
+  | RuntimeRegistrationGenerationMismatch
+  | RuntimeRegistrationReplayRejected
+  | RuntimeRegistrationLimitReached
+
+CloseOperationalRuntimeRegistrationV1 {
+    runtime_registration_id,
+    expected_runtime_registration_generation,
+    expected_binding_digest,
+    expected_record_state_sequence,
+}
+
+FenceOperationalRuntimeRegistrationV1 {
+    runtime_registration_id,
+    expected_runtime_registration_generation,
+    expected_binding_digest,
+    expected_record_state_sequence,
+    next_fence_generation,
+    fence_reason,
+}
+
+RetireRuntimeRegistrationGenerationV1 {
+    expected_runtime_registration_generation,
+    expected_generation_binding_digest,
+    expected_lifecycle_state_sequence,
+}
+
+RuntimeRegistrationTransitionResultV1 =
+    Removed {
+        next_lifecycle_state_sequence,
+    }
+  | RecoveryFenced {
+        next_record_state_sequence,
+    }
+  | GenerationRetired {
+        retirement_receipt_id,
+        next_lifecycle_state_sequence,
+    }
+  | AlreadyRetired {
+        retirement_receipt_id,
+    }
+
+RuntimeRegistrationTransitionErrorV1 =
+    CoordinationStateUnavailable
+  | ActiveRecordMissing
+  | RuntimeRegistrationGenerationMismatch
+  | GenerationBindingDigestMismatch
+  | LifecycleStateSequenceMismatch
+  | BindingDigestMismatch
+  | RecordStateSequenceMismatch
+  | ActiveCompileWork
+  | DurableTransitionOutcomeUnknown
+```
+
+Only the compiler-owned bootstrap installation resolver may mint the
+non-serializable one-shot registration request. It authenticates the executing
+program and local process identity from compiler-created platform handles; it
+grants no compile, memory, or management authority. One atomic coordinator
+operation loads the current `Operational` state, validates the executing
+program against that exact active installation, and either installs one
+content-free record in the current generation and returns an opaque runtime
+ticket or changes no state. The compiler receives no active-pair, registry,
+manifest, configuration, artifact, policy, or memory handle from this
+operation. The returned ticket is the only long-lived pair-related value, is
+opaque, and must be revalidated by every later compile admission.
+
+Registration checks one complete coordinator snapshot in this fixed order:
+coordination-state availability, `Operational` lifecycle, completed startup
+reconciliation, executing program, active pair, installation manifest,
+configuration registry, current runtime-registration generation, replay, then
+the registration ceiling. The first applicable
+`OperationalRuntimeRegistrationErrorV1` source wins. Registration computes the
+record binding digest from the complete canonical content-free binding and
+initializes `record_state_sequence` exactly once; neither value depends on
+semantic content.
+
+Registration and lifecycle closure share one linearization boundary. A
+registration that wins is either retired by the later generation switch or may
+seek compile admission; closure that wins returns
+`LifecycleNotOperational`. A clean `Compiler::close` removes its registration
+only after every admission record and bound resource for that runtime is gone.
+Abrupt loss leaves a content-free registration record; startup marks it
+recovery-fenced and removes it only after topology-specific liveness proof, or
+an update/recovery handoff retires its complete generation. A configured
+registration ceiling bounds current-generation records. Close, recovery fence,
+and whole-generation retirement are conditional crash-atomic transitions that
+must match the expected generation, binding digest, and state sequence.
+Fencing advances the per-record sequence; close removes only the exact matched
+record; generation retirement matches the lifecycle sequence and generation
+binding, removes every record plus the retired generation from the live
+registry, and leaves no per-runtime terminal row. The live registry therefore
+contains only the current generation. Operational state retains at most the
+single content-free retirement receipt referenced by the current or pending
+lifecycle handoff; completing that handoff replaces or clears it under the
+fixed lifecycle-state bound. Longer-lived audit evidence is external release
+evidence, not runtime-registration state.
+Registration replay,
+stale generation, cross-store/pair/install/registry/program/runtime binding,
+and removal with live admission all fail closed. Before accepting an ordinary
+registration, startup has reconciled the lifecycle state and every surviving
+admission record; it never infers safety from elapsed time.
+
+`CoordinationStateUnavailable`, `LifecycleNotOperational`, and
+`StartupReconciliationIncomplete` map to
+`OpenError::RuntimeRegistrationUnavailable` and CLI exit `4`.
+Binding and replay variants map to `OpenError::InvalidInstallation` and exit
+`5`; `RuntimeRegistrationLimitReached` maps to
+`OpenError::OpenResourceFailure` and exit `8`. No source is retried
+automatically. The caller may issue a new `Compiler::open` only after an
+external lifecycle, installation, startup-reconciliation, or capacity change.
+Close and fence transitions check, in this fixed order, coordination-state
+availability, an exact authenticated retirement receipt for close, generation,
+active-record presence, binding digest, record state sequence, active compile
+work, then durable transition outcome. Generation retirement checks
+coordination-state availability, an exact already-retired receipt, lifecycle
+state sequence, generation, generation binding digest, absence of active work,
+then durable transition outcome. `AlreadyRetired` is a success only for the
+exact expected generation and retirement receipt. The first applicable source
+wins; every other missing or mismatched source fails closed and cannot be
+inferred from elapsed time.
+
+Compile opens only semantic read capabilities, but every compile first crosses
+the `MEM-03`-owned durable read-admission barrier through
+`IF-COMPILE-ADMISSION`. After authenticating the invocation and before
+resolving or pinning any active-pair-dependent configuration, policy, artifact,
+or `MEM-02` snapshot, `API-01` acquires one
+`CompileAdmissionTicketV1`:
+
+```text
+CompileAdmissionBindingV1 {
+    store_id,
+    barrier_generation,
+    writer_epoch,
+    active_pair_id,
+    installation_manifest_id,
+    configuration_registry_revision,
+    executing_program_id,
+    runtime_registration_generation,
+    compiler_runtime_instance_id,
+    admission_sequence,
+    cancellation_registration_id,
+    drain_policy_id,
+}
+
+CompileAdmissionRecordV1 {
+    binding,
+    recovery_disposition,
+    record_state_sequence,
+}
+
+CompileAdmissionRecoveryDispositionV1 =
+    Live
+  | RecoveryFenced {
+        fence_generation,
+        fence_reason,
+    }
+
+CompileAdmissionTerminalDispositionV1 =
+    ReturnedSuccess
+  | ReturnedCompileError
+  | Cancelled
+  | PanicUnwind
+  | RestartReconciled
+  | RecoveryFenceProvenDead
+
+TerminalizeCompileAdmissionV1 {
+    admission_record_id,
+    expected_binding_digest,
+    disposition,
+    expected_record_state_sequence,
+}
+
+CompileAdmissionTicketV1 {
+    admission_record_id,
+    private_runtime_brand,
+    private_authenticated_call_brand_ref,
+}
+
+CompileAdmissionErrorV1 =
+    LifecycleGateClosed
+  | ExecutingProgramMismatch
+  | ActivePairBindingMismatch
+  | InstallationManifestBindingMismatch
+  | ConfigurationRegistryBindingMismatch
+  | RuntimeRegistrationGenerationMismatch
+  | InvocationReplayRejected
+  | CoordinationStateUnavailable
+  | ActiveAdmissionLimitReached
+
+CompileAdmissionTerminalizationErrorV1 =
+    ActiveRecordMissing
+  | BindingDigestMismatch
+  | RecordStateSequenceMismatch
+  | BoundResourcesStillLive
+  | CoordinationStateUnavailable
+  | DurableRemovalOutcomeUnknown
+```
+
+The opaque runtime ticket is non-cloneable and non-serializable. Its private
+brands are never persisted. The authenticated-call brand reference binds the
+runtime scope to the exact sealed invocation and cannot be reconstructed from
+content. `compiler_runtime_instance_id` comes only from the exact runtime-
+registration record. `admission_sequence` is a checked monotonic store-local
+coordination counter; `admission_record_id` is the domain-separated typed
+identity of `(store_id, barrier_generation, admission_sequence)`; and
+`cancellation_registration_id` is a domain-separated operational identity
+minted from that record identity and a closed cancellation-slot tag. None
+depends on prompt, situation, metadata, memory, semantic features, or output.
+`MEM-03` durably stores only the corresponding active content-free binding,
+recovery disposition, and per-record state sequence so restart can reconstruct
+exclusion without making concurrent admission records conflict on one global
+sequence. Terminalization is one checked crash-atomic removal of that active
+record; it advances the lifecycle state sequence but retains no
+per-invocation terminal row. The configured active-admission ceiling therefore
+bounds registry cardinality. Admission beyond that ceiling rejects with
+`ActiveAdmissionLimitReached`, creates no record, and maps to
+`CompileError::ResourceFailure` and CLI exit `8`.
+A crash before removal commits leaves the active record visible to startup
+reconciliation; a crash after commit leaves no record and cannot hide surviving
+work because every bound handle and snapshot had already closed.
+Neither the binding nor record contains prompt bytes, situation
+statements, request
+metadata payloads, memory content, derived semantic values, product output, or
+write, management, update, purge, or recovery authority. They are operational
+coordination state, unavailable to retrieval, scoring, planning, rendering,
+learning, semantic logging, indexing, caching, or artifact mutation.
+
+Admission evaluates the source reasons in this fixed order without changing
+state: coordination-state availability, lifecycle gate, executing program,
+active pair, installation manifest, configuration registry, runtime
+registration generation, invocation replay, then active-admission ceiling.
+The first eight closed reasons map to
+`CompileError::AdmissionUnavailable` and CLI exit `4`;
+`ActiveAdmissionLimitReached` maps to `CompileError::ResourceFailure` and CLI
+exit `8`. Rejection creates no record and leaves operational coordination state
+unchanged. `LifecycleGateClosed` may be retried only after an externally
+observed lifecycle state change, and `ActiveAdmissionLimitReached` only after
+the active registry is observed below its ceiling. Binding mismatch, replay,
+and unavailable or unreconstructible coordination state are not automatically
+retried by the compiler or CLI.
+Pair-dependent configuration resolution, artifact preflight, and `MEM-02`
+snapshot creation for a normal compile are reachable only inside the
+`MEM-03`-admitted scope. The sole other snapshot authority is the opaque
+attempt-bound `TerminalVerificationCompileProbeScopeV1` while
+`UpdateTerminalVerificationPending` owns the store; it binds the exact update,
+probe contract, registered runtime, terminal pair, installation, registry,
+writer/barrier generations, runtime-registration generation, and in-flight
+probe execution. It cannot escape the probe driver or be converted into a
+normal admission ticket. A normal compile's handles and snapshot bind the exact
+ticket record, store, epoch, memory revision, policy revision, derived
+manifest, and snapshot handle; the probe equivalents bind the exact
+verification scope and execution record. `API-01` cannot open a raw revision
+snapshot directly. Every pinned handle must match its authorized scope.
+`API-01` holds the ticket through the last handle, snapshot, and compile stage
+and crash-atomically removes its active record on every success,
+error, cancellation, and panic-unwind path. A cancellation request is not
+drainage; the active record remains until every handle and snapshot is closed
+and removal is durable.
+
+Terminalization checks, in order, coordination-state availability, exact active
+record presence, binding digest, per-record state sequence, and absence of
+bound live resources before attempting removal. `BindingDigestMismatch`,
+`RecordStateSequenceMismatch`, and `BoundResourcesStillLive` map to
+`CompileError::InternalInvariantViolation` and CLI exit `70`.
+`ActiveRecordMissing`, `CoordinationStateUnavailable`, and
+`DurableRemovalOutcomeUnknown` map to
+`CompileError::AdmissionFinalizationFailure` and CLI exit `4`. Any
+terminalization failure suppresses a provisional compiled result and takes
+precedence over a provisional compile-core error: the call returns no product
+bytes, normal admission remains closed for the affected store, and only startup
+reconciliation or separately authorized repair may resolve the coordination
+state. A panic or abrupt process loss returns no result and leaves either the
+visible active record or an unavailable coordination state for that same
+fail-closed recovery path. The compiler and CLI never retry the complete
+compile automatically.
+
+Before startup can open any admission, every surviving `Live` record is either
+reattached to its exact provably surviving runtime scope or crash-atomically
+advanced to `RecoveryFenced` under a new fence generation. `RecoveryFenced` is
+the conservative fenced disposition: it grants no semantic work, keeps normal
+admission and every exclusive lifecycle operation closed, and remains in the
+bounded active registry until topology-specific evidence proves that its holder
+and snapshots cannot survive, at which point terminalization removes it. Lack
+of such evidence may leave the store unavailable indefinitely; it never permits
+an implicit timeout release. Ticket
+acquisition and admission closure linearize at one durable boundary: either
+acquisition wins and the ticket is in the update's captured set, or closure
+wins and acquisition fails before any snapshot exists. Startup begins closed,
+reconstructs durable update/recovery/purge state, and opens a new barrier
+generation only after reconciliation. A prior runtime ticket may be retired
+only when topology-specific evidence proves that its holder and snapshots
+cannot survive; ambiguous liveness remains blocked. Active-pair switch or
+rollback atomically advances the writer and barrier generations, retires every
+old runtime-registration generation, and installs a fresh empty generation
+before terminal verification begins. An old runtime, including one whose
+program ID later becomes active again after rollback, must re-register against
+the current installation manifest through the attempt-bound verification
+scope. Normal admission does not reopen until exact registration, both required
+update probes, and the access-resumption handoff are durable. The update lease
+cannot be retired on the success path until every captured ticket and snapshot
+is terminal and that complete handoff succeeds. On verification failure, it
+remains live until the crash-atomic quarantine handoff transfers exclusion to
+`QuarantineIdle`, retires the lease, and preserves closed normal admission.
+
+For the read-only product and proof contract, persistent state is partitioned
+as follows:
+
+```text
+PersistentCompilerStateV1 {
+    semantic_product_state,
+    operational_coordination_state,
+}
+
+semantic_product_state =
+    memory
+  + provenance
+  + policy
+  + derived representations
+  + indexes and caches
+  + installed artifacts
+  + semantic diagnostics
+  + every value available to semantic computation or product output
+
+operational_coordination_state =
+    lifecycle state
+  + barrier and writer generations
+  + runtime-registration state
+  + content-free compile-admission records
+```
+
+Compile preserves `semantic_product_state` byte- and identity-equally. Its only
+durable writes are creation, terminalization, restart reconciliation, or
+generation-fenced abandonment of its one content-free admission record through
+the closed transition relation in proof obligation F4. Any content-bearing
+access log, semantic telemetry, cache publication, re-indexing, consolidation,
+artifact mutation, or other persistent compile-side transition violates the
+contract.
+
+Provision, import, observation capture, correction, consolidation, migration,
+backup, deletion, and repair use a separate management capability and command
+path. At least one explicit provisioning path must create an empty valid
+revision before shipment; a compile-only binary with no valid installation
+path is not a usable product. The proposed `nemosyne-admin` adapter is the sole
+command-transport owner for that path. It constructs a management-specific
+authenticated principal and capability set, calls validated operations owned
+by `nemosyne-memory`, and cannot invoke compile by reusing those write
+capabilities. The compile CLI cannot dispatch management operations. Each
+management command requires its own focused contract before implementation;
+naming the adapter does not make all listed commands V1 prerequisites.
 
 ```mermaid
 sequenceDiagram
     participant W as Management writer
+    participant A as Admission barrier
     participant DB as Local memory store
     participant C as Compiler
     W->>DB: Begin validated revision transaction
     W->>DB: Write authoritative records and derived manifests
     W->>DB: Verify integrity and publish r+1 atomically
-    C->>DB: Open read-only snapshot r+1
+    C->>A: Acquire ticket at writer epoch e
+    A-->>C: Narrow read-admission capability; no write or management authority
+    C->>DB: Open read-only snapshot r+1 with ticket/e
     DB-->>C: Immutable revision and policy handles
     W->>DB: Publish later revision r+2
     C->>C: Complete entirely against r+1
     C-->>DB: Close snapshot without writes
+    C-->>A: Terminalize record and consume ticket on every returning terminal path
 ```
 
 Migration never edits the only known-good database in place without a
@@ -1802,9 +2434,11 @@ Every stage receives:
 
 Cancellation is checked before persistent access, between bounded retrieval
 batches, during quadratic medoid or validation work, before model inference,
-and before serialization. Cancellation returns no product bytes and performs
-no persistent write. A renderer process that cannot be safely interrupted is
-terminated or isolated according to its runtime contract.
+and before serialization. Cancellation returns no product bytes, preserves
+semantic product state, and permits only terminalization or conservative
+generation fencing of the already-created content-free admission record. A
+renderer process that cannot be safely interrupted is terminated or isolated
+according to its runtime contract.
 
 Degradation is explicit and deterministic:
 
@@ -1843,12 +2477,16 @@ flowchart LR
         API["Compiler::compile"]
         AUTH["LocalPlatformAuthenticator"]
         AI["sealed crate-private AuthenticatedInvocation"]
+        ADMIT["CompileAdmissionTicketV1"]
+        CTRL["admitted active-control resolution"]
         SC["private signal scope and context"]
         SV["same-instance and schema validation"]
         CORE["private compile core"]
         OPEN --> API
         API -->|complete retained request + claims + compiler-derived prompt-content and request-presentation identities| AUTH
         AUTH --> AI
+        AI --> ADMIT
+        ADMIT --> CTRL
         AI --> SC
         SC --> SV
         SV -->|validated signal values only| CORE
@@ -1862,7 +2500,9 @@ flowchart LR
     CT --> API
 
     OS["Compiler-owned OS or peer handles"] --> AUTH
-    REG["Authenticated installation and policy registries"] --> AUTH
+    RT["Opaque runtime-registration ticket"] --> AUTH
+    REG["Authenticated installation and policy registries"] -->|resolve and pin only after admission| CTRL
+    CTRL --> CORE
     CLOCK["Compiler-owned trusted clock"] --> AUTH
     DB[("Local private memory store")] -->|authorized immutable view| CORE
     ART["Authenticated local artifacts"] -->|pinned read-only handles| CORE
@@ -1969,6 +2609,7 @@ enter activation without being one of the \(n_r\) direct candidates.
 | Activation ranking | [Activation-kernel complexity](situation-conditioned-activation.md#computational-complexity) | \(O(n_{\mathrm{act}})\) ranking output/workspace under \(n_{\mathrm{act}}\leq n_g\); one separate explanation returns \(O(c_e+c_j)\) contribution output | activation-candidate/channel scaling, graph-expansion boundary, and permutation identity |
 | Expectation kernel | [Predictive-attention complexity](predictive-attention-and-expectation.md#computational-complexity) | Bounded frame, group, provenance, medoid, and assessment state defined there | transitions, frames, groups, dependencies, medoid limits |
 | Combined planning | [Planning complexity](focus-and-expectation-planning.md#canonical-unified-selection) and `ALG-PLAN-05` | Streaming oracle workspace and hard closure/member limits defined there | closure/member scales, cost calls, oracle-equivalence, limit rejection |
+| Post-plan integrity and candidate binding | Exactly two full canonical `PlanCanonicalEnvelopeV1` passes: one in `buildValidationContext` and one in checked candidate construction; each is \(O(b_{\mathrm{plan}})\) under authenticated byte/time/space ceilings, checked arithmetic, and field-boundary cancellation; no encoder or `bindQuery` rerun and no third envelope pass | At most two retained bounded exact capsules plus one bounded streaming-pass workspace; cancellation or any ceiling failure returns no context/candidate | both pass times and bytes separately and combined, peak retained/workspace bytes, cancellation at every field boundary, equal-content equality, collision, and proof of exactly two passes |
 | Deterministic lexicalizer baseline | This section requires its selected template/grammar artifact to freeze an exact bound over \(m_p\), slots, language morphology, and output ceiling; unresolved before lexicalizer selection | Selected artifact must bound grammar, output, substitution, and validation buffers | items, slots, language, output length |
 | Vector-prefix renderer candidate | [Renderer complexity](vector-to-attention-renderer.md#computational-complexity), including explicit unresolved model/verifier functions before artifact selection | Model weights, KV cache, prefix, output, exact sidecar, and verifier state defined there | cold/warm load, prefix items, output tokens, precision, peak unified memory |
 | Substitution and independent validation | [Renderer complexity](vector-to-attention-renderer.md#computational-complexity) | Isolated exact sidecar, segment map, validator, and verifier state | output units, bindings, slots, adversarial validator cases |
@@ -2010,6 +2651,1306 @@ still provides migration and rollback evidence for every version it claims to
 support. Deprecation includes replacement, warning window, last supported
 reader, migration path, rollback limit, and removal decision.
 
+This section is the canonical owner of release-state, rollback-eligibility,
+installation, uninstall, purge, and supply-chain admission semantics. The
+delivery program assigns work packages and receipts to these transitions; it
+does not redefine the states or their predicates.
+
+The closed release-state transition graph is:
+
+| From | Admission condition | To and required evidence | Failure state |
+| --- | --- | --- | --- |
+| `Unfrozen` | Accepted G0–G8 evidence, a frozen G9 protocol, and authenticated target, support, compatibility, canonical `SupportedUpdateTupleSetV1`, and closed `RollbackDispositionV1` identities | `CandidateFrozen` with one immutable `IF-RELEASE-CANDIDATE` | `Stopped`; no release identity exists |
+| `CandidateFrozen` | Independent exact-byte verification without rebuild or retuning | `CandidateVerified` with `IF-RCV-RECEIPT` | `CandidateRejected`; every fix requires a new candidate identity |
+| `CandidateVerified` | The frozen G9 finalization rule binds the exact verified candidate before sealed outcome access | `RunManifestFrozen` with one signed immutable `IF-G9-RUN-MANIFEST` | `CandidateRejected`; access-before-signature, join failure, or mutation retires the attempt |
+| `RunManifestFrozen` | The unchanged signed run manifest executes exactly once | `CandidateEvaluated` with permanent `IF-G9-RECEIPT` | `CandidateRejected`; the exposed sealed root is retired |
+| `CandidateEvaluated` | G0–G9 pass and every G10-readiness, limitation, support, lifecycle, vulnerability, supported-update tuple/coverage manifest, cell-applicable positive update-success and interruption-recovery, and selected recovery-disposition input is complete. Authenticated `NoShippedPredecessor` with an empty tuple set requires clean-install and initial-publication recovery evidence instead | `Authorized` with `IF-SHIP-AUTHORIZATION`, or `Stopped` with a stop receipt | `Stopped`; missing, quarantined, ambiguous, or inconclusive required evidence cannot be waived |
+| `Authorized` | Before any distribution effect, `REL-03` atomically derives a least-privilege recovery capability and acquires a bounded `PublicationAuthorizationLeaseV1` whose issue linearizes with authorization revocation and expiry | `Publishing` with an append-only distribution-attempt record binding the authorization, lease/status epoch, recovery capability, and exact frozen branch | `Stopped`; stale, mismatched, expired, revoked, or mutated authorization cannot enter `Publishing` and requires a new candidate or authorization |
+| `Publishing` | Every effect consumes one bounded effect-specific permit issued atomically from the live authorization lease; distributed bytes, channel metadata, clean retrieval and installation, support, vulnerability, and selected recovery endpoints verify; every issued permit is terminal; final authorization comparison, lease consumption, recovery-capability retirement, state transition, and receipt share one linearization point | `Shipped` with `IF-SHIPMENT` binding the authorization, lease, terminal permit ledger, retired recovery capability, and winning terminal consume | Any failed permit, lease loss, expiry, revocation, terminal comparison, uncertain permit, or publication verification stops distribution and enters durable `PublicationRecoveryPending`, binding the authorization, failed status epoch, activated recovery capability, frozen branch, surface cell, conservative exposure state, and progress |
+| `PublicationRecoveryPending` | Resume the same frozen branch implementation through the matching live recovery capability and state epoch and stop new distribution immediately. An inventory cutoff or terminal recovery result requires every issued permit to carry an acknowledged `EffectCommitted`, `AbortedBeforeCommit`, or `CommitFenced` receipt; conservative exposure classification alone never makes a permit terminal. No new publication attempt or G10 success is admitted | With `EligiblePredecessor`, `PublicationRolledBack` only after verified predecessor restoration and either complete no-exposure evidence or `ExactPredecessorRestored` for every exposed installation. Any `LocallyQuarantined` installation, or a failed rollback, requires complete `PartialPublicationQuarantined`. With `NoShippedPredecessor`, complete `PartialPublicationQuarantined` without claiming rollback. Each terminal transition atomically consumes the recovery capability and advances the state epoch | Remains `PublicationRecoveryPending`; restart reconstructs and resumes the existing attempt, and incomplete permit fencing, inventory, exposure resolution, notification, mitigation, capability retirement, or containment is never terminal evidence |
+| `Shipped` | A separately identified later release completes this graph, or an authenticated lifecycle transition is authorized | `Superseded`, `Withdrawn`, or `EndOfLife` with retained evidence and channel status | The previously shipped evidence remains immutable |
+| `Superseded` | An authenticated withdrawal or support-expiry transition binds the exact release, effective time, reason, channel status, support disposition, replacement or recovery guidance, and retained notification evidence | `Withdrawn` or `EndOfLife` without changing prior shipment evidence | The release remains `Superseded`; missing or invalid lifecycle evidence cannot change channel or support status |
+
+`CandidateRejected`, `Stopped`, `PublicationRolledBack`, and
+`PartialPublicationQuarantined` are terminal for one attempt.
+`PublicationRecoveryPending` is not terminal until the selected recovery
+contract reaches one of those closed outcomes. A predecessor-rollback failure
+is only a durable phase marker inside that same pending attempt; it switches
+the frozen branch to containment and cannot itself emit terminal evidence. A
+quarantined partial publication is never represented as a successful rollback
+and never becomes a rollback target. `Superseded` remains installable or
+restore-readable only for the support window authenticated by its manifest.
+
+Every candidate binds exactly one closed `RollbackDispositionV1`:
+
+```text
+EligiblePredecessor {
+    release_id,
+    support_identity,
+    compatibility_identity,
+    rollback_procedure_identity,
+    publication_recovery_contract_id,
+}
+
+NoShippedPredecessor {
+    product_domain,
+    channel,
+    platform_domain,
+    support_domain,
+    complete_channel_history_commitment,
+    initial_publication_recovery_identity,
+    publication_recovery_contract_id,
+}
+```
+
+An `EligiblePredecessor` target is eligible only when it:
+
+- is currently supported;
+- has previously passed this graph through `Shipped`;
+- is neither `Withdrawn` nor `EndOfLife`; and
+- is compatible with the current memory revision, or follows an independently
+  verified backup-and-restore transition before rollback.
+
+`NoShippedPredecessor` is valid only when authenticated complete channel
+history proves that no Nemosyne release previously reached `Shipped` in the
+same product, channel, platform, and support domain. If any prior shipped
+release exists but none is eligible, candidate freeze stops. The
+initial-release recovery path stops distribution, withdraws candidate
+endpoints, inventories affected channels, preserves authoritative user memory,
+notifies affected users or operators, and quarantines the partial publication.
+It never emits `PublicationRolledBack`. The exact disposition and its
+branch-specific evidence are part of the immutable candidate identity.
+
+The selected disposition binds one branch-matching implementation plus:
+
+```text
+PublicationRecoveryContractV1 {
+    rollback_disposition_id,
+    implementation_artifact_id,
+    mechanism_manifest_id,
+    fault_boundary_manifest_id,
+    surface_coverage_manifest_id,
+}
+
+PublicationRecoveryMechanismManifestV1 {
+    implementation_artifact_id,
+    ordered_step_ids,
+    state_transition_ids,
+    durable_or_external_effect_ids,
+    authorization_lease_operation_ids,
+    effect_permit_operation_ids,
+    recovery_capability_handoff_ids,
+    distribution_and_endpoint_operation_ids,
+    exposure_and_installation_operation_ids,
+    memory_preservation_check_ids,
+    notification_and_quarantine_operation_ids,
+}
+
+PublicationRecoveryFaultBoundaryManifestV1 {
+    mechanism_manifest_id,
+    nonempty_boundary_ids,
+    coalesced_atomic_primitive_evidence_ids,
+}
+
+PublicationSurfaceCoverageManifestV1 {
+    nonempty_cells,
+    exposure_disposition_manifest_id,
+}
+
+PublicationAuthorizationLeaseV1 {
+    lease_id,
+    ship_authorization_id,
+    ship_authorization_digest,
+    candidate_id,
+    recovery_disposition_id,
+    publication_attempt_id,
+    authorization_status_epoch,
+    allowed_surface_and_effect_set_id,
+    issued_at,
+    expires_at,
+}
+
+DistributionEffectPermitV1 {
+    permit_id,
+    publication_authorization_lease_id,
+    surface_cell_id,
+    effect_id,
+    status_epoch,
+    execution_adapter_id,
+    effect_commit_generation,
+    expires_at,
+}
+
+PublicationPermitLedgerV1 {
+    publication_attempt_id,
+    permit_set_commitment,
+    permits: {
+        permit_id,
+        surface_cell_id,
+        effect_id,
+        state,
+        terminal_effect_or_fence_receipt_id_or_none,
+    }[],
+}
+
+permit state =
+    Issued
+  | EffectCommitted
+  | AbortedBeforeCommit
+  | CommitFenced
+
+PublicationRecoveryCapabilityV1 {
+    capability_id,
+    publication_attempt_id,
+    publication_recovery_contract_id,
+    authorization_status_epoch,
+    recovery_state_epoch,
+    allowed_stop_rollback_inventory_notification_mitigation_quarantine_set_id,
+}
+
+PublicationExposureDispositionV1 =
+    NoExternalInstallExposure {
+        complete_inventory_commitment,
+        distribution_stop_linearization_id,
+    }
+  | AffectedInstallationsResolved {
+        complete_inventory_commitment,
+        exact_one_installation_disposition_manifest_id,
+    }
+
+AffectedInstallationDispositionV1 =
+    ExactPredecessorRestored {
+        installation_commitment,
+        local_recovery_receipt,
+    }
+  | LocallyQuarantined {
+        installation_commitment,
+        local_quarantine_receipt,
+    }
+
+LocalPredecessorRestorationReceiptV1 {
+    publication_attempt_id,
+    installation_commitment,
+    candidate_id,
+    exact_predecessor_id,
+    local_store_id,
+    authoritative_memory_revision_id,
+    lifecycle_transaction_id,
+    admission_drain_receipt_id,
+    retired_runtime_generation_set_id,
+    terminal_handoff_id,
+    terminal_pair_id,
+}
+
+LocalInstallationQuarantineReceiptV1 {
+    publication_attempt_id,
+    installation_commitment,
+    candidate_id,
+    local_store_id,
+    authoritative_memory_revision_id,
+    lifecycle_transaction_id,
+    admission_drain_receipt_id,
+    retired_runtime_generation_set_id,
+    quarantine_basis_id,
+    notification_and_mitigation_receipt_id,
+    terminal_handoff_id,
+}
+```
+
+Lease issue, renewal, revocation, expiry, effect-permit issue, and terminal
+consumption use one durable authority-owned state machine and permit ledger.
+Revocation or expiry that wins the linearization point prevents every later
+permit. A permit that wins first is non-revocable only for its one declared
+effect and bounded lifetime, but the effect can commit only through its bound
+execution adapter and `effect_commit_generation`. The adapter records
+`EffectCommitted` atomically with effect submission or records
+`AbortedBeforeCommit`; recovery may instead advance the surface commit
+generation and record `CommitFenced` only after the surface or adapter
+acknowledges that the old generation can never commit. Expiry, process loss,
+timeout, or conservative exposure classification alone is not a fence and
+leaves the permit `Issued`. An external operation without an acknowledged
+commit-or-fence boundary is unsupported. Neither shipment nor recovery may
+take an inventory cutoff while an issued permit remains nonterminal.
+`Shipped` is one atomic
+compare-and-consume against the same lease and authorization-status epoch;
+there is no check/use interval. It additionally requires a terminal permit
+ledger and atomically retires the recovery capability. Before the first
+distribution permit, that capability is durably handed off but remains dormant
+and grants no operation. Lease loss or a failed terminal comparison activates
+it only by atomically entering the same `PublicationRecoveryPending` attempt
+and recovery-state epoch. Every recovery operation must match that live state;
+`Shipped`, `PublicationRolledBack`, and `PartialPublicationQuarantined`
+atomically consume the capability so no post-terminal cleanup authority
+survives.
+
+The surface manifest canonically partitions every advertised product, channel,
+platform, support endpoint, and publication surface. Every cell has an
+exact-one membership predicate and at least one exact fixture. The mechanism
+and fault manifests cover the entry and exit of every effectful distribution
+stop, endpoint or channel mutation, predecessor restoration when applicable,
+channel inventory, byte/status verification, authoritative-memory
+preservation check, authorization-lease and effect-permit operation,
+execution-adapter commit, abort, generation advance, and fence acknowledgment,
+recovery-capability handoff, exposure enablement, download or installation,
+affected-installation restoration or quarantine, incident, notification,
+mitigation, and terminal receipt.
+Coalescing is valid only for one proven atomic durable primitive with no
+intermediate observable state.
+
+`RCV-01` executes each surface cell uninterrupted and at every frozen fault
+boundary. Eligible-predecessor recovery emits `PublicationRolledBack` only
+after the exact predecessor bytes, endpoints, channel status, and required
+memory-compatibility state verify and either complete no-exposure evidence or
+one typed `LocalPredecessorRestorationReceiptV1` for every exposed installation
+exists. If any installation instead reaches `LocallyQuarantined`, the attempt
+can terminate only as `PartialPublicationQuarantined` after complete
+containment; it never claims rollback. First-release recovery and failed
+predecessor rollback likewise terminate only as
+`PartialPublicationQuarantined` after distribution stop, endpoint withdrawal,
+complete inventory, authoritative-memory preservation, notification,
+mitigation, and quarantine verify. Every local disposition binds the exact
+candidate/predecessor branch, store, memory revision, lifecycle transaction,
+admission drain, retired runtime generations, and terminal handoff. Before any
+inventory cutoff, every issued permit has an acknowledged commit, abort, or
+generation-fence receipt. A committed effect with uncertain installation
+outcome enters the inventory as conservative exposure, but that classification
+does not fence an uncommitted permit. Unknown, offline, delayed, incomplete,
+or ambiguous installation exposure is not no-exposure evidence. Interruption
+remains durable `PublicationRecoveryPending`; restart resumes the same branch
+and no new distribution, attempt, or G10 success is admitted. Empty,
+incomplete, unrepresented, multiply matched, or unbound implementation,
+mechanism, boundary, surface, permit, authorization-race, local-lifecycle, or
+exposure evidence blocks candidate freeze or authorization.
+
+Every candidate also binds one finite canonical `SupportedUpdateTupleSetV1`.
+Each tuple identifies one authenticated shipped source release, source program
+identity, source memory schema and migration/compatibility class, platform and
+support domain, exact target candidate, selected update mechanism and
+implementation identity, compatibility identity, one content-identified
+`UpdateMechanismManifestV1`, its mechanically derived nonempty
+`UpdateFaultBoundaryManifestV1`, and one content-identified
+`UpdateCoverageManifestV1`. It also binds the exact
+`QuarantineRecoveryTransactionV1` implementation, one complete nonempty
+`QuarantineRecoveryMechanismManifestV1`, and its complete nonempty
+`QuarantineRecoveryFaultBoundaryManifestV1`, and one finite nonempty
+`QuarantineInputCoverageManifestV1`. It does not enumerate user-specific
+authoritative memory revision IDs.
+
+The coverage manifest partitions only the advertised compatibility domain into
+a finite canonical set of mutually exclusive cells. Each cell declares one
+content-identified membership predicate over compatibility-relevant
+authenticated source properties and at least one exact fixture revision.
+Canonical validation must produce exactly one cell for every claimed source
+state; zero or multiple matches fail as unsupported before target mutation.
+Every advertised tuple has at least one coverage cell; an empty manifest is
+invalid.
+Every verification or runtime execution binds one tuple and cell together with
+the exact authenticated source and target memory revision identities used by
+that attempt. Finite fixtures and the separately verified `MEM-04`
+transformation invariants support only the declared cells and predicates, not
+arbitrary unmodeled content.
+
+The quarantine-input manifest is distinct from update compatibility coverage.
+It is mechanically derived from every update step and fault boundary that can
+emit `UpdateQuarantined` and partitions that finite recovery-input domain into
+canonical exact-one cells. Each cell binds its emitting boundary and failed
+stage, established program-and-memory state, quarantine-record schema, verified
+exact-old-pair backup state, writer epoch, exclusion or lease-handoff state,
+and at least one exact reachable fixture. Zero or multiple matches, an
+unreachable cell, or an unrepresented quarantine-emitting boundary fails
+candidate freeze and recovery admission.
+
+`NoShippedPredecessor` requires an empty tuple set, therefore has no
+tuple-scoped update or quarantine-recovery manifests, and uses clean-install
+plus initial-publication recovery evidence.
+`EligiblePredecessor` requires at least the selected predecessor-to-target
+tuple. After any release exists in the same product, channel, platform, and
+support domain, a later candidate cannot claim an empty tuple set merely to
+avoid update verification.
+
+Every tuple implements one closed `UpdateTransactionV1`. Mechanism selection
+remains `OD-27`, but the following observable states and invariants are
+mandatory:
+
+```text
+UpdatePrepared {
+    current_program_id,
+    current_memory_revision_id,
+    writer_epoch,
+    update_exclusion_lease_id,
+    target_candidate_id,
+    target_memory_revision_id,
+    compatibility_id,
+    update_tuple_id,
+    coverage_cell_id,
+    quiescence_policy_id,
+    backup_id,
+    recovery_plan_id,
+}
+
+UpdateApplying {
+    prepared_transaction_id,
+    stage,
+    old_pair_retained,
+}
+
+UpdateCommitted {
+    transaction_id,
+    active_target_pair,
+    pair_verification_receipt_id,
+    runtime_registration_receipt_id,
+    terminal_verification_receipt_id,
+    terminal_handoff_receipt_id,
+    resumed_access_receipt_id,
+}
+
+UpdateRolledBack {
+    transaction_id,
+    restored_old_pair,
+    failed_stage,
+    pair_verification_receipt_id,
+    runtime_registration_receipt_id,
+    terminal_verification_receipt_id,
+    terminal_handoff_receipt_id,
+    resumed_access_receipt_id,
+}
+
+UpdateQuarantined {
+    transaction_id,
+    established_program_and_memory_ids,
+    backup_id,
+    failed_stage,
+    distribution_stop_id,
+    notification_id,
+    recovery_guidance_id,
+    terminal_verification_failure_receipt_id_or_none,
+}
+```
+
+The selected implementation also binds:
+
+```text
+UpdateMechanismManifestV1 {
+    implementation_artifact_id,
+    ordered_step_ids,
+    state_transition_ids,
+    durable_or_external_effect_ids,
+    active_pair_visibility_ids,
+    active_compile_binding_switch_ids,
+    runtime_generation_retirement_ids,
+    runtime_generation_allocation_ids,
+    terminal_verification_ids,
+    terminal_verification_failure_ids,
+    admission_reopen_ids,
+    lease_operation_ids,
+    concurrency_boundary_ids,
+}
+
+UpdateFaultBoundaryManifestV1 {
+    mechanism_manifest_id,
+    nonempty_boundary_ids,
+    coalesced_atomic_primitive_evidence_ids,
+}
+```
+
+The fault-boundary set is derived from the entry and exit of every executable
+step or transition that can mutate durable state, change externally visible
+state, change active-pair visibility, allocate or retire a runtime generation,
+register a terminal-verification runtime, execute or record a terminal probe,
+operate on the lease, or race with a compile or management writer. Active-pair
+commit or rollback, runtime-generation retirement and allocation, entry to
+terminal verification, each registration/probe result, deterministic
+verification failure, and admission reopening are separate covered boundaries
+unless one proven atomic durable primitive makes their intermediate state
+unobservable. Coalescing is valid only for one proven atomic durable
+primitive with no intermediate observable state. Candidate freeze
+fails when any packaged implementation step or effect is absent, the boundary
+set is empty, or derivation is not reproducible.
+
+Preparation first acquires one durable exclusive `UpdateExclusionLeaseV1`
+through `IF-MEMORY-MANAGEMENT`. The lease binds the store, authoritative
+revision, monotonic writer epoch, update transaction, management principal,
+acquisition time, and expiry or recovery policy. `MEM-03` owns a durable
+admission barrier through which every normal management mutation is serialized.
+Lease acquisition atomically transitions `Operational → UpdateClosing`, closes
+normal management and compile admission, installs the complete durable update
+owner, and captures every already-admitted mutation,
+`CompileAdmissionTicketV1`, handle, and snapshot. It requests cancellation
+where the bounded policy permits but cannot enter `UpdateActive` until every
+captured item is terminal. A cancellation request alone is not drainage.
+Ticket issuance and gate closure share one linearization primitive, so no
+snapshot can appear outside the captured set. No independent writer or raw
+snapshot path may bypass that barrier. Restart reconstructs `UpdateClosing`,
+the complete owner and captured set, barrier generation, and epoch and resumes
+drainage; missing evidence remains blocked. Only after the durable
+`UpdateClosing → UpdateActive` transition does preparation authenticate the
+complete current program-and-memory pair and exact target candidate, validate
+compatibility and exact-one coverage-cell membership, retain the complete old
+program, readable memory revision and required keys, and verify the backup
+before target mutation.
+
+Applying stages and verifies target bytes and any registered source-to-target
+memory transformation without making a mixed pair active. The lease and writer
+epoch are revalidated before backup, transformation, active-pair switch,
+committed verification, and verified rollback. At every successful boundary,
+exactly one complete verified old pair or one complete verified new pair is
+active.
+
+Every frozen fault-manifest boundary must recover to an exact target-pair or
+exact-old-pair candidate and then complete terminal verification before it may
+claim `UpdateCommitted` or `UpdateRolledBack`. If neither pair can be proven
+complete and usable, or if terminal registration or either required probe
+cannot be proven, the terminal result is `UpdateQuarantined`; normal compile and
+authenticated management remain unavailable, and the record makes no
+successful-update or rollback claim. Only `UpdateCommitted` is update success.
+The old pair and backup are retained until the committed target pair passes all
+verification and the retention policy permits release.
+
+An exact commit or rollback candidate first enters one crash-recoverable
+`UpdateActive → UpdateTerminalVerificationPending` handoff. It binds the
+terminal pair, installation manifest, configuration-registry revision,
+candidate outcome, update owner, and exclusion lease; advances the writer and
+barrier generations; retires every captured runtime-registration generation;
+and allocates and installs one fresh empty runtime-registration generation.
+The pending marker and exclusive owner remain active. Normal compile and
+authenticated management admission stay closed.
+
+Only an attempt-bound terminal-verification capability may register one runtime
+against that exact pair, installation, registry, writer/barrier generation, and
+fresh runtime-registration generation. After exact registration, the same
+pending owner executes the two `UpdateTerminalProbeContractV1` operations:
+the exact full compiler probe and authenticated `OpenManagementReadinessView`.
+`MEM-03` owns the narrow scope and `UpdateCompileProbeDriverV1` callback
+contract inside `IF-MEMORY-MANAGEMENT`; `API-01` produces its sole production
+implementation, and
+`MEM-04` consumes it together with the `MEM-03` management-readiness operation.
+Neither is normal caller admission or carries general management capability.
+Both follow the exact in-flight execution, resource-close, restart-fencing,
+semantic-invariance, and receipt contracts below. Each result is durably bound
+to the transaction, request identity, probe contract, and every terminal
+identity.
+
+If registration and both probes succeed, one crash-atomic
+`UpdateTerminalVerificationPending → Operational` handoff records the
+registration, terminal-verification, terminal-handoff, and resumed-access
+receipts; clears the pending marker; retires the exclusion lease; and installs
+the now-registered fresh generation as `Operational`'s current generation.
+Normal compile and authenticated management admission reopen only after this
+handoff is durable. A missing, failed, mismatched, or unreconstructible
+registration or probe instead enters `QuarantineIdle`, records
+`UpdateQuarantined` and its terminal-verification failure, preserves the exact
+recovery basis, and opens no normal admission. Restart resumes the exact pending
+phase or completes the same success or quarantine handoff before admitting any
+normal capability. `RCV-01` covers registration, both probes, every failure,
+and every restart boundary.
+
+The exclusion remains effective through finalization or durable handoff to
+`UpdateQuarantined`. Restart with a pending or quarantined update keeps compile
+and management mutation unavailable. `UpdateQuarantined` is terminal for the
+original update transaction. `MEM-04` owns the separate authenticated recovery
+path. `MEM-03` owns one durable store-lifecycle state:
+
+```text
+StoreExclusiveLifecycleStateV1 {
+    store_id,
+    writer_epoch,
+    barrier_generation,
+    state_sequence,
+    state,
+}
+
+state =
+    Operational {
+        active_pair_id,
+        installation_manifest_id,
+        configuration_registry_revision,
+        current_runtime_registration_generation,
+        prior_terminal_handoff_id_or_none,
+    }
+  | UpdateClosing {
+        update_owner,
+        captured_admission_set_id,
+    }
+  | UpdateActive {
+        update_owner,
+        phase,
+    }
+  | UpdateTerminalVerificationPending {
+        update_owner,
+        verification_owner,
+        opened_handoff,
+        verification_phase,
+    }
+  | QuarantineIdle {
+        quarantine_basis,
+    }
+  | RecoveryActive {
+        quarantine_basis,
+        recovery_owner,
+    }
+  | RecoveryRegistrationPending {
+        quarantine_basis,
+        recovery_owner,
+        registration_owner,
+        restored_handoff,
+    }
+  | PurgeClosing {
+        purge_origin,
+        purge_owner,
+        captured_admission_set_id,
+    }
+  | PurgeActive {
+        purge_origin,
+        purge_owner,
+        phase,
+    }
+  | PurgeOnlyBlocked {
+        purge_origin,
+        blocked_handoff,
+    }
+  | PurgedUninitialized {
+        completed_handoff,
+    }
+
+QuarantineBasisV1 {
+    quarantine_record_id,
+    quarantine_record_digest,
+    exact_old_pair_id,
+    verified_backup_id,
+}
+
+UpdateOwnerV1 {
+    update_transaction_id,
+    update_lease_id,
+    principal_id,
+    target_candidate_id,
+    update_implementation_id,
+    update_mechanism_manifest_id,
+    update_fault_manifest_id,
+    quiescence_policy_id,
+    acquired_writer_epoch,
+    acquired_barrier_generation,
+    acquired_sequence,
+}
+
+UpdatePhaseV1 =
+    Prepared
+  | Applying {
+        current_step_id,
+    }
+
+UpdateTerminalCandidateV1 =
+    Commit {
+        verified_target_pair_id,
+    }
+  | Rollback {
+        verified_exact_old_pair_id,
+        failed_stage_id,
+    }
+
+UpdateTerminalVerificationOwnerV1 {
+    terminal_candidate,
+    terminal_pair_id,
+    terminal_installation_manifest_id,
+    terminal_configuration_registry_revision,
+    terminal_verification_capability_id,
+    terminal_verification_capability_digest,
+    new_runtime_registration_generation,
+}
+
+UpdateTerminalVerificationPhaseV1 =
+    AwaitingRegistration
+  | RuntimeRegistered {
+        runtime_registration_receipt_id,
+    }
+  | CompileProbeRunning {
+        runtime_registration_receipt_id,
+        probe_execution_id,
+    }
+  | CompileProbePassed {
+        runtime_registration_receipt_id,
+        compile_probe_receipt_id,
+    }
+  | ManagementReadinessProbeRunning {
+        runtime_registration_receipt_id,
+        compile_probe_receipt_id,
+        probe_execution_id,
+    }
+  | ProbesPassed {
+        runtime_registration_receipt_id,
+        compile_probe_receipt_id,
+        management_readiness_probe_receipt_id,
+    }
+
+UpdateTerminalVerificationOpenedHandoffV1 {
+    update_transaction_id,
+    terminal_candidate,
+    terminal_pair_id,
+    terminal_installation_manifest_id,
+    terminal_configuration_registry_revision,
+    retained_update_lease_id,
+    retired_runtime_generation_set_id,
+    previous_writer_epoch,
+    next_writer_epoch,
+    previous_barrier_generation,
+    next_barrier_generation,
+    new_empty_runtime_registration_generation,
+    pending_handoff_receipt_id,
+}
+
+UpdateTerminalAccessResumedHandoffV1 {
+    update_transaction_id,
+    terminal_candidate,
+    terminal_pair_id,
+    runtime_registration_receipt_id,
+    terminal_verification_receipt_id,
+    retired_update_lease_id,
+    operational_state_sequence,
+    terminal_handoff_receipt_id,
+    resumed_access_receipt_id,
+}
+
+UpdateTerminalVerificationFailedHandoffV1 {
+    update_transaction_id,
+    terminal_candidate,
+    terminal_pair_id,
+    failed_verification_stage,
+    terminal_verification_failure_receipt_id,
+    retained_quarantine_basis_id,
+    retired_update_lease_id,
+    terminal_quarantine_handoff_receipt_id,
+}
+
+RuntimeRegistrationReceiptV1 {
+    registration_id,
+    store_id,
+    active_pair_id,
+    installation_manifest_id,
+    configuration_registry_revision,
+    writer_epoch,
+    barrier_generation,
+    runtime_registration_generation,
+    registered_runtime_id,
+    attempt_owner_id,
+    attempt_capability_digest,
+    registered_state_sequence,
+}
+
+UpdateTerminalProbeContractV1 {
+    probe_contract_id,
+    schema_version,
+    compile_probe_fixture_id,
+    compile_probe_success_predicate_id,
+    management_readiness_operation_id,
+    management_readiness_success_predicate_id,
+    resource_envelope_id,
+}
+
+TerminalVerificationCompileProbeScopeV1 {
+    probe_contract_id,
+    update_transaction_id,
+    terminal_verification_capability_digest,
+    terminal_pair_id,
+    terminal_installation_manifest_id,
+    terminal_configuration_registry_revision,
+    writer_epoch,
+    barrier_generation,
+    runtime_registration_generation,
+    runtime_registration_receipt_id,
+    probe_execution_id,
+    private_runtime_brand,
+}
+
+UpdateTerminalProbeKindV1 =
+    Compile
+  | ManagementReadiness
+
+UpdateTerminalProbeRecoveryDispositionV1 =
+    Live
+  | RecoveryFenced {
+        fence_generation,
+        fence_reason,
+    }
+
+UpdateTerminalProbeRequestV1 {
+    probe_contract_id,
+    update_transaction_id,
+    probe_kind: UpdateTerminalProbeKindV1,
+    terminal_pair_id,
+    terminal_installation_manifest_id,
+    terminal_configuration_registry_revision,
+    writer_epoch,
+    barrier_generation,
+    runtime_registration_generation,
+    runtime_registration_receipt_id,
+    request_id,
+}
+
+UpdateTerminalProbeExecutionV1 {
+    probe_execution_id,
+    request_id,
+    registered_runtime_id,
+    execution_state_sequence,
+    recovery_disposition: UpdateTerminalProbeRecoveryDispositionV1,
+}
+
+UpdateTerminalProbeResultV1 =
+    Passed {
+        observed_binding_digest,
+        semantic_state_identity_before,
+        semantic_state_identity_after,
+    }
+  | Failed {
+        observed_binding_disposition:
+            UpdateTerminalProbeBindingDispositionV1,
+        semantic_state_disposition:
+            UpdateTerminalProbeSemanticStateDispositionV1,
+        failure_reason:
+            UpdateTerminalProbeFailureReasonV1,
+    }
+
+UpdateTerminalProbeBindingDispositionV1 =
+    Matched {
+        observed_binding_digest,
+    }
+  | Mismatched {
+        observed_binding_digest,
+    }
+  | Unavailable {
+        reason:
+            UpdateTerminalProbeObservationUnavailableReasonV1,
+    }
+
+UpdateTerminalProbeSemanticStateDispositionV1 =
+    Equal {
+        semantic_state_identity_before,
+        semantic_state_identity_after,
+    }
+  | Unequal {
+        semantic_state_identity_before,
+        semantic_state_identity_after,
+    }
+  | Unavailable {
+        reason:
+            UpdateTerminalProbeObservationUnavailableReasonV1,
+    }
+
+UpdateTerminalProbeFailureReasonV1 =
+    CleanupFailed
+  | ResourceEnvelopeExceeded
+  | BindingObservationUnavailable
+  | BindingMismatch
+  | SemanticStateObservationUnavailable
+  | SemanticStateChanged
+  | SuccessPredicateRejected
+  | ProbeOperationFailed
+
+UpdateTerminalProbeObservationUnavailableReasonV1 =
+    ObservationNotReached
+  | ObservationReadFailed
+  | ObservationInvalidated
+
+UpdateTerminalProbeReceiptV1 {
+    request_id,
+    probe_contract_id,
+    probe_kind,
+    result,
+    receipt_id,
+}
+
+UpdateTerminalVerificationReceiptV1 {
+    update_transaction_id,
+    terminal_candidate,
+    terminal_pair_id,
+    runtime_registration_receipt_id,
+    compile_probe_receipt_id,
+    management_readiness_probe_receipt_id,
+    verification_state_sequence,
+}
+
+RecoveryOwnerV1 {
+    recovery_transaction_id,
+    recovery_lease_id,
+    capability_id,
+    capability_digest,
+    principal_id,
+    recovery_implementation_id,
+    recovery_mechanism_manifest_id,
+    recovery_fault_manifest_id,
+    recovery_policy_id,
+    acquired_writer_epoch,
+    acquired_barrier_generation,
+    restored_installation_manifest_id,
+    restored_configuration_registry_revision,
+    captured_runtime_generation_set_id,
+    acquired_sequence,
+    phase,
+}
+
+RecoveryRegistrationOwnerV1 {
+    recovery_transaction_id,
+    recovery_lease_id,
+    registration_capability_id,
+    registration_capability_digest,
+    restored_pair_id,
+    restored_installation_manifest_id,
+    restored_configuration_registry_revision,
+    writer_epoch,
+    barrier_generation,
+    new_runtime_registration_generation,
+    pending_state_sequence,
+}
+
+QuarantineRecoveryRegistrationPendingHandoffV1 {
+    recovery_transaction_id,
+    restored_pair_id,
+    restored_installation_manifest_id,
+    restored_configuration_registry_revision,
+    retired_runtime_generation_set_id,
+    previous_writer_epoch,
+    next_writer_epoch,
+    previous_barrier_generation,
+    next_barrier_generation,
+    new_empty_runtime_registration_generation,
+    pending_registration_handoff_receipt_id,
+}
+
+QuarantineRecoveryAccessResumedHandoffV1 {
+    recovery_transaction_id,
+    restored_pair_id,
+    runtime_registration_receipt_id,
+    retired_recovery_lease_id,
+    operational_state_sequence,
+    terminal_handoff_receipt_id,
+    resumed_access_receipt_id,
+}
+
+PurgeOriginV1 =
+    Operational {
+        authoritative_revision_id,
+        policy_revision_id,
+    }
+  | Quarantined {
+        quarantine_basis,
+    }
+
+PurgeOwnerV1 {
+    purge_transaction_id,
+    purge_lease_id,
+    authorization_id,
+    authorization_digest,
+    confirmation_id,
+    principal_id,
+    purge_scope_digest,
+    purge_implementation_id,
+    purge_mechanism_manifest_id,
+    purge_fault_manifest_id,
+    recovery_policy_id,
+    acquired_writer_epoch,
+    acquired_sequence,
+}
+
+PurgePhaseV1 =
+    Prepared
+  | Applying {
+        current_step_id,
+        destructive_effect_started,
+    }
+  | TerminalHandoffPending {
+        outcome,
+    }
+```
+
+An operational purge revalidates authorization, confirmation, principal,
+store, scope, and epoch, then atomically transitions
+`Operational → PurgeClosing` at the same linearization point as compile-ticket,
+writer, and update admission. `PurgeClosing` closes both admission paths and
+binds the complete captured writer, ticket, and snapshot set. Cancellation
+request is not drainage. Only an empty terminal captured set permits
+`PurgeClosing → PurgeActive`; no destructive effect may precede that
+transition. Thus:
+
+\[
+\operatorname{PurgeActive}\Rightarrow
+\operatorname{GateClosed}\land
+\operatorname{Writers}=\varnothing\land
+\operatorname{Tickets}=\varnothing\land
+\operatorname{Snapshots}=\varnothing .
+\]
+
+Update and purge contend on the same `Operational` transition and cannot own
+the store concurrently. From `QuarantineIdle`, recovery and purge use the same
+rule; the captured admission set is already empty because quarantine blocks
+normal access. Capability or authorization is marked claimed only by the
+successful compare-and-swap that durably installs its owner. A losing
+contender receives `ExclusiveOperationBusy`, creates no lease, changes no
+state, epoch, or data, and does not consume otherwise valid authority.
+
+Restart begins closed and reconstructs the exact state, owner, origin, phase,
+authority, implementation, manifest, scope, basis, epoch, runtime generation,
+registration/probe receipt set, and captured set. `UpdateClosing` and
+`PurgeClosing` resume their exact drainage; `UpdateActive` and `PurgeActive`
+resume the exact manifest phase; `UpdateTerminalVerificationPending` resumes
+only its exact registration/probe phase or completes its already-durable
+success/quarantine handoff; `RecoveryActive` resumes the exact recovery;
+`RecoveryRegistrationPending` resumes only exact-generation registration or
+its already-durable operational/quarantine handoff; and `PurgeOnlyBlocked`
+admits only an exact continuation. Neither pending state exposes normal compile
+or authenticated management access. Missing, unknown, or contradictory durable
+bindings remain blocked. Lease expiry or process loss never silently releases
+ownership.
+
+Every purge exit is one atomic crash-recoverable handoff:
+
+- a no-effect abort before the first declared destructive effect writes
+  `PurgeNoEffectAbortHandoffV1`, retires the lease, consumes the admitted
+  authorization, advances the epoch, and restores byte- and identity-equal
+  `Operational` or `QuarantineIdle`; admission opens after the handoff only for
+  an operational origin, while a quarantined origin preserves closed normal
+  compile and mutation admission;
+- successful purge writes `PurgeCompletedHandoffV1` and its external receipt,
+  verifies the deleted scope, invalidates every targeted recovery basis and
+  capability, consumes authorization, retires the lease, advances the epoch
+  and barrier generation, and enters `PurgedUninitialized`; only authenticated
+  reprovisioning may later create `Operational`; and
+- after a destructive effect, incomplete purge writes
+  `PurgeBlockedHandoffV1` with first and last effect, deleted and remaining
+  material digests, continuation scope, immutable original-owner and
+  implementation/manifest bindings, retired lease, consumed authority, and
+  next epoch, then enters `PurgeOnlyBlocked`. Its sole successor is
+  `PurgeClosing` under a new `BeginPurgeContinuationV1` authority bound to that
+  handoff, the same `PurgeContinuationContractV1`, original owner digest,
+  remaining-material digest, scope, principal, and epoch. Recovery, compile,
+  and normal mutation can never resume from the blocked state.
+
+The lifecycle record, exclusion data, and terminal receipts live outside the
+purged bytes. Every purge binds the exact implementation plus complete
+nonempty mechanically derived `PurgeMechanismManifestV1` and
+`PurgeFaultBoundaryManifestV1`. Any mismatch preserves the current state and
+authority unchanged.
+
+```text
+PurgeMechanismManifestV1 {
+    purge_implementation_artifact_id,
+    ordered_step_ids,
+    durable_or_external_effect_ids,
+    destructive_effect_ids,
+    recovery_material_invalidation_ids,
+    lease_and_epoch_operation_ids,
+    terminal_receipt_ids,
+}
+
+PurgeFaultBoundaryManifestV1 {
+    purge_mechanism_manifest_id,
+    nonempty_boundary_ids,
+    coalesced_atomic_primitive_evidence_ids,
+}
+
+PurgeNoEffectAbortHandoffV1 {
+    purge_transaction_id,
+    retired_purge_lease_id,
+    consumed_authorization_id,
+    no_effect_proof_id,
+    previous_writer_epoch,
+    next_writer_epoch,
+    restored_origin_state_id,
+}
+
+PurgeCompletedHandoffV1 {
+    purge_transaction_id,
+    retired_purge_lease_id,
+    consumed_authorization_id,
+    verified_deleted_scope_digest,
+    purge_receipt_id,
+    previous_writer_epoch,
+    next_writer_epoch,
+    previous_barrier_generation,
+    next_barrier_generation,
+}
+
+PurgeBlockedHandoffV1 {
+    purge_transaction_id,
+    retired_purge_lease_id,
+    consumed_authorization_id,
+    first_destructive_effect_id,
+    last_completed_step_id,
+    deleted_material_digest,
+    remaining_material_digest,
+    continuation_scope_digest,
+    purge_continuation_contract_id,
+    original_purge_owner_digest,
+    terminal_handoff_receipt_id,
+    previous_writer_epoch,
+    next_writer_epoch,
+}
+
+BeginPurgeContinuationV1 {
+    blocked_handoff_receipt_id,
+    purge_continuation_contract_id,
+    expected_original_purge_owner_digest,
+    expected_remaining_material_digest,
+    expected_continuation_scope_digest,
+    expected_writer_epoch,
+    new_authorization_id,
+    new_authorization_digest,
+    new_confirmation_id,
+    principal_id,
+}
+
+PurgeContinuationContractV1 {
+    original_purge_transaction_id,
+    original_purge_owner_digest,
+    purge_implementation_id,
+    purge_mechanism_manifest_id,
+    purge_fault_manifest_id,
+    original_scope_digest,
+}
+
+QuarantineRecoveryPrepared {
+    quarantine_record_id,
+    exact_old_pair_id,
+    verified_backup_id,
+    writer_epoch,
+    recovery_lease_id,
+    recovery_principal_id,
+}
+
+QuarantineRestoreApplying {
+    prepared_recovery_id,
+    stage,
+}
+
+QuarantineRecovered {
+    recovery_transaction_id,
+    restored_exact_old_pair,
+    runtime_registration_receipt_id,
+    terminal_handoff_receipt_id,
+    resumed_access_receipt_id,
+}
+
+QuarantineRecoveryFailed {
+    recovery_transaction_id,
+    failed_stage,
+    retained_quarantine_record_id,
+    terminal_quarantine_handoff_receipt_id,
+    retired_recovery_lease_id,
+    consumed_recovery_capability_id,
+    sealed_writer_epoch,
+}
+
+QuarantineInputCoverageManifestV1 {
+    update_tuple_id,
+    update_implementation_artifact_id,
+    update_fault_boundary_manifest_id,
+    nonempty_exact_one_cells,
+}
+
+QuarantineRecoveryMechanismManifestV1 {
+    recovery_implementation_artifact_id,
+    ordered_step_ids,
+    state_transition_ids,
+    durable_or_external_effect_ids,
+    quarantine_marker_transition_ids,
+    runtime_generation_retirement_ids,
+    runtime_generation_allocation_ids,
+    runtime_registration_ids,
+    lease_operation_ids,
+    access_visibility_ids,
+}
+
+QuarantineRecoveryFaultBoundaryManifestV1 {
+    recovery_mechanism_manifest_id,
+    nonempty_boundary_ids,
+    coalesced_atomic_primitive_evidence_ids,
+}
+```
+
+`UpdateTerminalProbeContractV1` is frozen into the candidate and defines both
+readiness operations, their finite resource envelope, and their closed success
+predicates. For each probe kind, `request_id` is the domain-separated typed
+identity of the probe contract, kind, transaction, exact terminal binding, and
+runtime-registration receipt. Every `receipt_id` is the domain-separated typed
+identity of that exact request, the `Passed` or `Failed` discriminant, and the
+complete canonical result payload. `Passed` binds the observed binding digest
+and equal before/after semantic-state identities. `Failed` binds its closed
+failure reason and explicit binding and semantic-state dispositions: available
+digests and before/after identities remain in the payload, while mismatch,
+inequality, or unavailability is represented by its closed variant. A failed
+receipt cannot omit an observation and later have restart infer it as matched
+or equal. Therefore an implementation cannot choose a different request,
+convert failed evidence into success, or call an arbitrary result successful.
+
+The failure-reason list above is closed for V1. When multiple failure
+conditions apply, the first applicable variant in declaration order is the
+sole `failure_reason`; the two observation dispositions still preserve every
+available binding digest and before/after identity independently of that
+primary reason. Each `Unavailable` uses the first applicable observation reason
+in declaration order. Canonical receipt bytes use the registered
+length-prefixed identity encoding with fixed one-byte discriminants in the
+declaration order shown: result `Passed=0`, `Failed=1`; binding
+`Matched=0`, `Mismatched=1`, `Unavailable=2`; semantic state `Equal=0`,
+`Unequal=1`, `Unavailable=2`; failure and unavailability reasons use their
+zero-based declaration indices. Nested fields are encoded in schema order, and
+no display text, platform error text, or implementation enum layout enters the
+identity.
+
+`MEM-03` owns the dependency-inversion callback contract
+`UpdateCompileProbeDriverV1` inside `IF-MEMORY-MANAGEMENT`. `API-01` is its
+sole production producer, and
+`MEM-04` consumes the injected implementation without importing the compiler
+crate or receiving normal compile authority. The probe driver accepts only the
+opaque attempt-bound `TerminalVerificationCompileProbeScopeV1` and the
+candidate-frozen non-user fixture named by `compile_probe_fixture_id`. It
+reuses the exact registered compiler pipeline, authenticated configuration,
+renderer, validator, and serializer, but obtains the matching immutable
+`MEM-02` handle and snapshot solely through that special verification scope
+while normal `IF-COMPILE-ADMISSION` remains closed. The scope cannot be
+constructed by `API-01`, a public caller, or the CLI and carries no management,
+update, purge, or recovery authority.
+
+The compile probe validates one complete no-partial result against the frozen
+structural and byte-preservation predicate, then discards all product bytes.
+Neither fixture content, output, an output digest, nor semantic-derived
+diagnostic data is persisted in the execution record or receipt. `MEM-04`
+proves the state-machine behavior at G5 with the contract's conformance driver;
+`API-01` proves the sole real producer and the exact-pipeline integration at G8.
+Update support is not release-eligible until `REL-01` binds that production
+driver and `RCV-01` executes it for every supported tuple and fault boundary.
+
+The management-readiness probe invokes only the `MEM-03`-owned authenticated
+`OpenManagementReadinessView` operation through the same interface. That
+operation authenticates the exact terminal principal and binding, opens and
+closes a read-only readiness view, returns no semantic payload, and creates no
+writer, mutation capability, lease, or normal caller admission. Neither
+operation performs a semantic or operational transition other than its
+content-free in-flight execution record and terminal probe receipt.
+
+Before either probe scope opens, the pending verification owner durably
+installs one `UpdateTerminalProbeExecutionV1`. The execution record is removed
+only after every bound handle, snapshot, and view closes and the exact terminal
+receipt is durable. Process loss leaves the pending state closed and the
+execution record visible. If its exact matching terminal receipt is already
+durable, restart must not execute the probe again: after proving that prior
+resources cannot survive, it consumes a matching `Passed` receipt to remove the
+execution record and advance the verification phase, or consumes a matching
+`Failed` receipt to remove the record and enter the deterministic quarantine
+handoff. A missing or mismatched receipt is not inferred. Without a receipt,
+restart must reattach the live execution or conservatively fence it and may
+retry only after topology-specific evidence proves that every old handle,
+snapshot, and view cannot survive. Both probes require byte- and identity-equal
+semantic state before and after the operation. Any attempted mutation, unknown
+operation, mismatched
+request or receipt identity, unequal semantic state, missing result,
+resource-envelope failure, or unresolved prior execution is a failed probe and
+enters the deterministic quarantine handoff.
+
+Every advertised tuple binds its quarantine-input coverage manifest, the exact
+recovery implementation, and both recovery manifests. The input cells are
+mechanically derived from every update boundary capable of quarantine; every
+cell is reachable and fixture-backed, and each admitted runtime quarantine
+record matches exactly one cell. The recovery fault set is mechanically derived from the
+entry and exit of every executable recovery step or transition that can mutate
+durable state, change externally visible state, change the quarantine marker
+or access visibility, or operate on the epoch or lease. Coalescing is valid
+only for one proven atomic durable primitive with no intermediate observable
+state. Candidate freeze fails on an empty manifest, an unbound implementation
+step or effect, or a non-reproducible derivation.
+
+`QuarantineRecovered` requires verified exact-old-pair restoration followed by
+two crash-atomic handoffs. First,
+`RecoveryActive → RecoveryRegistrationPending` binds the restored pair,
+installation manifest, and configuration-registry revision; advances writer and
+barrier generations; retires every captured prior runtime-registration
+generation; records
+`QuarantineRecoveryRegistrationPendingHandoffV1`; and allocates and installs
+its bound empty runtime-registration generation while retaining the recovery
+owner and lease. The quarantine marker becomes a recovery-registration-pending
+marker rather than being cleared. Normal compile and authenticated management
+admission remain closed.
+
+Only the attempt-bound recovery-registration capability may register one
+runtime against the restored pair, installation, configuration registry,
+writer/barrier generations, and exact fresh generation. A stale, foreign,
+duplicate, or mismatched registration changes no admission state. After the
+matching `RuntimeRegistrationReceiptV1` is durable, one
+`RecoveryRegistrationPending → Operational` handoff records
+`QuarantineRecoveryAccessResumedHandoffV1`, clears the pending marker, retires
+the recovery lease and capability, installs that registered generation as the
+operational current generation, and reopens normal compile and authenticated
+management admission. Failure or restart before that handoff remains pending
+or completes the existing fail-closed `QuarantineRecoveryFailed` handback; it
+cannot enter `Operational`.
+
+`RCV-01` verifies every restoration, generation-allocation, registration,
+restart, failure-handback, and access-visibility boundary, then requires
+successful normal compile and authenticated management-access probes against
+the exact terminal binding after `Operational` is durable.
+`QuarantineRecoveryFailed` retains the original quarantine record, exact
+old-pair backup, and future recovery basis. Its crash-recoverable terminal
+handoff atomically re-establishes durable quarantine exclusion, retires the
+dedicated recovery lease, consumes the attempt-bound recovery capability, and
+advances the writer epoch while normal compile and management capabilities
+remain blocked. Until that handoff completes, the state remains
+recovery-in-progress and cannot admit another recovery. A later attempt
+requires a separately authorized capability bound to the new epoch. The
+recovery path cannot select an unverified target and never counts as update
+success. Lease loss, writer-epoch drift, expiry without safe renewal, or
+unreconstructible writer state cannot commit, claim rollback, or claim
+quarantine recovery.
+
+For every advertised tuple and every frozen update-coverage cell, `RCV-01` first
+reconstructs and checks the packaged mechanism and nonempty fault-boundary
+manifests. It then executes at least one uninterrupted transaction that ends
+in `UpdateCommitted` with the exact target pair, a fresh registered runtime
+generation, terminal probes, and access resumed. It
+separately executes every frozen fault-manifest and concurrent-writer boundary
+for that cell; each fault case must end in the same exact committed target pair
+or an exact-old-pair `UpdateRolledBack`, with terminal verification complete,
+the terminal lease released, and access resumed. A rollback fault case proves
+recovery, not positive update success. Crash or interruption at a terminal-
+verification boundary must resume the same pending phase and reach one of those
+two successful terminal outcomes; `UpdateQuarantined` in this ordinary update
+matrix invalidates the candidate.
+
+RCV also runs distinct adversarial terminal-verification rejection fixtures
+with a stale or mismatched registration and a failed compile or management
+probe. Their required result is `UpdateQuarantined` with normal access still
+closed and the recovery basis intact. These negative containment fixtures do
+not satisfy or replace positive or ordinary fault-matrix obligations; failure
+to quarantine them invalidates the candidate.
+
+Separately, for every quarantine-input cell in that tuple, `RCV-01`
+verifies exact-one input membership, the exact recovery implementation, and
+complete nonempty recovery manifests, executes one uninterrupted
+`QuarantineRecoveryTransactionV1`, and injects failure at every frozen recovery
+boundary. Each recovery run either reaches
+`QuarantineRecovered` with the exact old pair, a newly allocated generation,
+registration in that exact generation, and access resumed or reaches
+`QuarantineRecoveryFailed` with the original quarantine and verified recovery
+basis intact while access remains blocked after its terminal quarantine
+handoff retires the recovery lease/capability and advances the epoch. Restart
+at every restoration, registration-pending, registration, terminal-handoff,
+and access-visibility boundary must complete the same result before new
+admission. It also proves recovery-versus-purge acquisition in both orderings,
+restart at every owner/handoff boundary, pre-destructive purge abort,
+post-destructive purge-only blocking, and terminal purge without recovery
+resurrection. Recovery evidence cannot satisfy any per-cell positive or
+update-fault obligation. The authenticated
+`NoShippedPredecessor` branch has no update-quarantine matrix and instead uses
+its separate initial-publication recovery path. Any incomplete or empty update,
+quarantine-input, recovery, or purge manifest, unrepresented cell or
+quarantine-emitting boundary, missing positive, update-fault, recovery-fault,
+resumption, recovery, or purge case, ambiguous membership or pair, lease/epoch
+failure without the required terminal state, or
+`UpdateQuarantined` result in the ordinary positive/interruption update matrix
+blocks authorization. The separately identified negative terminal-verification
+fixtures require quarantine and are retained as containment evidence, never as
+update success or fault recovery. The exact tuple
+set, update, quarantine-input, recovery, purge, and publication-recovery
+mechanism/fault-boundary/coverage manifests, cell memberships, all positive,
+fault, terminal handoff, and recovery results are retained by
+`IF-RCV-RECEIPT` and bound into `IF-SHIP-AUTHORIZATION`.
+
 ```mermaid
 flowchart TD
     S["Accepted contracts and frozen configuration"] --> B["Reproducible build, tests, licenses, and SBOM"]
@@ -2029,20 +3970,66 @@ configuration fingerprint, supported scope, known limitations, install,
 backup, upgrade, rollback, uninstall, and recovery instructions. Compile never
 downloads or updates them.
 
+A release candidate includes the authenticated management and provisioning
+path. Verification on a clean supported machine performs, in order, exact-byte
+installation, authenticated empty-store provisioning, and one offline compile.
+The compiler cannot construct or receive the privileged management adapter used
+for provisioning.
+
+Uninstall removes program artifacts and disposable runtime caches but
+preserves the authoritative user database, backups, and the keys required to
+decrypt them by default. Purge is a separate explicit authorized management
+operation with its own confirmation and receipt. No uninstall flag or package
+manager hook may alias purge. Verification exercises uninstall-plus-reinstall
+recovery and purge as separate scenarios.
+
+Supply-chain admission is fail closed for the exact candidate. Its immutable
+receipt binds the advisory-source identities, scan time and implementation,
+complete transitive dependency inventory, severity and known-exploitability
+policy, every exception's authority and expiry, license policy, and SBOM
+identity. An unresolved prohibited vulnerability, an expired or unauthorized
+exception, an incomplete transitive inventory, or a receipt bound to different
+candidate bytes blocks verification and shipment.
+
 ### Failure taxonomy
 
 A failure to open an installation creates no compiler. `OpenError` preserves
-one stable class, its typed source chain, retryability, and CLI mapping:
+one stable class, its typed source chain, retryability, and CLI mapping. The
+three stage-specific classes are disjoint; the first three cross-cutting classes
+have total precedence over them:
 
 | Open class | Representative causes | Retryable without state change | CLI exit |
 | --- | --- | :---: | ---: |
-| `InvalidInstallation` | A well-formed locator names no registered installation in its closed scope, the installed installation schema is unsupported, or mandatory configuration is missing | No | `5` |
-| `ManifestUnavailable` | Missing trust root, invalid manifest, digest mismatch, or unavailable required artifact | Only after an external installation or update repairs it | `5` |
-| `MemoryOpenFailure` | Uninitialized, locked, unreadable, incompatible, or corrupt memory installation | Locked I/O may be; schema or corruption is not | `4` |
-| `PolicyOpenFailure` | Missing or invalid installed policy evaluator or policy schema | Only after an authorized installation repair | `5` |
-| `OpenResourceFailure` | Declared memory, file-descriptor, or initialization deadline exceeded | Yes when the resource condition is transient | `8` |
-| `OpenPolicyViolation` | Preflight attempts network or a capability outside its installation contract | No | `9` |
-| `OpenInvariantViolation` | Internal state violates a validated constructor or manifest invariant | No | `70` |
+| `OpenInvariantViolation` | Post-validation internal state violates a checked constructor or an invariant of an already authenticated manifest | No | `70` |
+| `OpenPolicyViolation` | Bootstrap resolution or runtime registration attempts network access or a capability outside its installation contract | No | `9` |
+| `OpenResourceFailure` | Declared bootstrap memory, file-descriptor, deterministic work, initialization deadline, or runtime-registration ceiling is exceeded | Yes when the external resource condition is transient | `8` |
+| `InvalidInstallation` | A well-formed locator names no registered installation in its closed scope, or the installed installation-envelope schema is unsupported | No | `5` |
+| `ManifestUnavailable` | Bootstrap trust or the exact active installation manifest needed to authorize the executing program is absent, unauthenticated, digest-invalid, or inconsistent | Only after an external installation or update repairs it | `5` |
+| `RuntimeRegistrationUnavailable` | Operational coordination, startup reconciliation, or lifecycle state cannot admit the exact authenticated runtime registration | Only after the named external coordination or lifecycle condition changes | `4` |
+
+Validation collects every applicable predicate and chooses the first class in
+the table. Within one class, it reports the lexicographically smallest complete
+canonical evidence key:
+
+```text
+OpenErrorEvidenceKeyV1 =
+    domain_tag
+    || open_stage_id
+    || component_or_artifact_id
+    || canonical_locator_bytes
+    || closed_reason_code
+```
+
+All fields use length-prefixed canonical encoding. An absent optional identity
+is encoded by its explicit absence tag, not an empty byte string. Caller,
+filesystem, manifest-entry, and collection iteration order never choose the
+error. Cross-cutting invariant, capability, and resource predicates therefore
+take the first three ranks; the remaining three ranks follow bootstrap
+resolution, active-installation authorization, then atomic operational runtime
+registration. Policy, configuration, artifact, and memory bytes are not opened
+or retained here; failures in their fresh post-admission resolution map to the
+corresponding `CompileError`. An unsupported installation-envelope schema is
+`InvalidInstallation`.
 
 Retryability is a property of the typed error instance, not permission for an
 adapter to retry automatically. The CLI performs one open attempt and maps an
@@ -2056,6 +4043,8 @@ class and an inspectable underlying stage or cause.
 | --- | --- | ---: |
 | `RequestIncompatible` | A valid request uses a schema, shape, size, or budget unsupported by the pinned installed configuration | `5` |
 | `PromptOrigin` | Caller cannot satisfy the authenticated prompt-origin precondition | `3` |
+| `AdmissionUnavailable` | The lifecycle gate is closed, the authenticated runtime binding does not match the active pair, installation, registry, or runtime generation, the invocation is replayed, or coordination state is unavailable before admission | `4` |
+| `AdmissionFinalizationFailure` | An admitted call cannot prove crash-atomic removal of its exact active record after every bound resource closes; no provisional result or compile-core error is returned | `4` |
 | `UnsupportedLanguage` | Language is absent, undetermined, or outside declared support | `2` |
 | `AuthorizationUnavailable` | Caller trust or disclosure view cannot be established | `3` |
 | `MemoryUnavailable` | Uninitialized, locked, unreadable, incompatible, or corrupt memory | `4` |
@@ -2069,8 +4058,8 @@ class and an inspectable underlying stage or cause.
 | `InsufficientAttentionBudget` | Mandatory or otherwise justified nonempty qualified attention cannot fit the resolved budget | `8` |
 | `RendererFailure` | An installed compatible renderer produces malformed or unsupported generation | `7` |
 | `FaithfulnessFailure` | Unsupported claim, lost qualification, escalation, answer leakage, or substitution-owned `RendererCostBoundViolation` during exact substitution | `7` |
-| `ResourceFailure` | A declared memory, deadline, cancellation, or compute budget is exceeded at any stage | `8` |
-| `PolicyViolation` | A compile component attempts prohibited network or persistent write access | `9` |
+| `ResourceFailure` | A declared memory, deadline, cancellation, active-admission, or compute budget is exceeded at any stage | `8` |
+| `PolicyViolation` | A compile component attempts network access or an unallowlisted or content-bearing persistent write | `9` |
 | `InternalInvariantViolation` | Internal state violates a validated constructor or unreachable-state invariant | `70` |
 
 Canonical spreading-graph construction preserves its closed typed source when
@@ -2093,6 +4082,33 @@ between the presentation and either the exact prompt content identity or
 `request_presentation_identity` is `OriginBindingMismatch`; it is not
 reclassified as request syntax, authorization-view availability, or a
 renderer failure.
+
+An acquisition failure preserves exactly one `CompileAdmissionErrorV1` source
+reason. The closed source order and mappings are defined at the admission
+boundary above. `LifecycleGateClosed` is retryable only after an external
+lifecycle state change. `ActiveAdmissionLimitReached` is retryable only after
+the active registry is observed below its configured ceiling and maps to
+`ResourceFailure`, not `AdmissionUnavailable`.
+`ExecutingProgramMismatch`, `ActivePairBindingMismatch`,
+`InstallationManifestBindingMismatch`,
+`ConfigurationRegistryBindingMismatch`,
+`RuntimeRegistrationGenerationMismatch`, and `InvocationReplayRejected` are
+not retried for the same invocation and runtime binding.
+`CoordinationStateUnavailable` remains blocked until separately authorized
+repair or startup reconciliation establishes one exact state. No acquisition
+source creates a ticket record, resolves a pair-dependent handle, or falls
+through to `MemoryUnavailable`, `SnapshotUnavailable`, or message-text
+classification.
+
+A finalization failure preserves exactly one
+`CompileAdmissionTerminalizationErrorV1` source reason.
+`BindingDigestMismatch`, `RecordStateSequenceMismatch`, and
+`BoundResourcesStillLive` map to `InternalInvariantViolation`; the remaining
+three variants map to `AdmissionFinalizationFailure`. This mapping takes
+precedence over every provisional core result or error, exposes no product
+bytes, and is never classified by message text. The affected store remains
+fail closed until exact startup reconciliation or separately authorized repair;
+the CLI does not retry the compile automatically.
 
 Pre-focus `IngressBindingError` is likewise closed and total.
 `InvalidIngressBinding` covers malformed, noncanonical,
@@ -2197,7 +4213,7 @@ source:
 | `ValidationContextError` reason | Public `CompileError` | CLI exit | Required disposition |
 | --- | --- | ---: | --- |
 | `OriginBindingMismatch` | `InternalInvariantViolation` | `70` | Reject a retained request, prompt bytes, or sealed invocation that do not form the authenticated pair; quarantine the call |
-| `BoundQueryMismatch` | `InternalInvariantViolation` | `70` | Reconstruct the expected sealed `BoundQuery` from the retained request and pinned `K`, then reject any numerical projection, exact binding, canonical envelope, or `BoundQueryContentId` mismatch, including a correct \(B_Q\) paired with a stale or foreign \(Q_{\mathrm{num}}\); also require \(B_Q=\pi_Q(\Lambda_A(L))\). A complete equal same-content/configuration `BoundQuery` from a separately valid call is content-equivalent and is not an error |
+| `BoundQueryMismatch` | `InternalInvariantViolation` | `70` | Revalidate the retained canonical ingress envelope and original sealed request/configuration binding against `Q` without rerunning the semantic encoder or `bindQuery`; reject any ingress commitment, sealed numerical/exact projection, canonical content identity, or `BoundQueryContentId` mismatch, including a correct \(B_Q\) paired with stale or foreign \(Q_{\mathrm{num}}\); also require \(B_Q=\pi_Q(\Lambda_A(L))\). A complete equal same-content/configuration `BoundQuery` from a separately valid call is content-equivalent and is not an error |
 | `PlanCallBindingMismatch` | `InternalInvariantViolation` | `70` | Reject a plan whose private `InvocationInstanceWitness` does not belong to the independently supplied current sealed invocation, including a complete plan copied from another valid call with the same \(B_Q\) |
 | `PlanControlMismatch` | `InternalInvariantViolation` | `70` | Reject a plan whose configuration, policy, language, or budget does not equal the already resolved call controls; do not repair or duplicate controls in the validation context |
 | `ValidationArtifactUnavailable` | `ArtifactUnavailable` | `5` | Retry only after an authorized repair installs compatible authenticated validation schemas, limits, and semantic-projection artifacts |
@@ -2292,10 +4308,10 @@ Planning-stage causes map as follows:
 | `SchemaMismatch` | `InternalInvariantViolation` | `70` | Stop; a preflight-validated schema or immutable branch projection no longer matches |
 | `LineageMismatch` | `InternalInvariantViolation` | `70` | Stop; the branch content-lineage join failed |
 | `PlanCallBindingMismatch` | `InternalInvariantViolation` | `70` | Stop; at least one branch invocation witness or eligible-set witness does not match the independently anchored current-call and expected-set planning scope |
-| `UnknownSource` | `InternalInvariantViolation` | `70` | Stop; an item references a source absent from its immutable upstream projection |
-| `SourceProjectionViolation` | `InternalInvariantViolation` | `70` | Stop; a ceiling, qualifier, relation, exact binding, independently rederived exact-slot owner descriptor, or source field differs from its immutable projection |
+| `UnknownSource` | `InternalInvariantViolation` | `70` | Stop; an item references a `SourceId` absent from the authenticated immutable source registry; no projection comparison runs for that item |
 | `AuthorityEscalation` | `InternalInvariantViolation` | `70` | Stop; planning attempted to raise an authority or surface-authority ceiling |
 | `AllowedUseEscalation` | `InternalInvariantViolation` | `70` | Stop; planning attempted to broaden permitted use |
+| `SourceProjectionViolation` | `InternalInvariantViolation` | `70` | Stop only for a known source whose residual qualifier, relation, exact binding, independently rederived exact-slot owner descriptor, or other projected field differs from its immutable canonical projection after authority-ceiling and allowed-use predicates have passed |
 | `InvalidRole` | `PlanningFailure` | `6` | Return the typed planning source; no partial plan |
 | `MissingQualifier` | `PlanningFailure` | `6` | Return the typed planning source; no partial plan |
 | `MissingRelation` | `PlanningFailure` | `6` | Return the typed planning source; no partial plan |
@@ -2307,9 +4323,17 @@ Planning-stage causes map as follows:
 | `CostOverflow` | `InternalInvariantViolation` | `70` | Stop; checked arithmetic left the domain accepted during artifact preflight; never saturate |
 | `PlanningLimitExceeded` | `ResourceFailure` | `8` | Reject before subset enumeration when canonical closure or member ceilings are exceeded |
 | `ConflictingControl` | `PlanningFailure` | `6` | Reject mutually inconsistent validated planning controls; no partial plan |
-| `UnsupportedRequestedLanguage` | `UnsupportedLanguage` | `2` | Reject before selection because the valid request chose a language outside declared support |
 | `NoFeasiblePlan` | `PlanningFailure` | `6` | Return no partial plan when structural constraints admit none |
 | `InsufficientAttentionBudget` | `InsufficientAttentionBudget` | `8` | Return no product result; do not emit a budget-driven empty attention block |
+
+These are the complete 20 planning variants in the exact precedence order
+defined by the planning specification. Unsupported-language resolution is
+owned earlier by request/configuration compatibility and is never adapted from
+`PlanningError`. For multiple valid planning predicates, the stage returns the
+earliest table-row variant and that class's lexicographically smallest
+typed canonical evidence key; source iteration order and message text cannot
+change this mapping. `SourceProjectionViolation` is residual and excludes every
+field owned by `AuthorityEscalation` or `AllowedUseEscalation`.
 
 A valid optional closure that is individually over budget is not an error when
 another faithful nonempty or faithfully empty plan remains possible; only that
@@ -2381,7 +4405,8 @@ The following decisions are already accepted and constrain this proposal:
 - one local user principal and trusted caller;
 - local persistent memory and one logical memory universe;
 - authorization before relevance;
-- read-only compilation over one immutable logical revision;
+- semantically read-only compilation over one immutable logical revision, with
+  only content-free durable admission coordination;
 - structured numerical relevance computation after ingress;
 - exact combined text with byte-identical prompt bytes;
 - no required network service, autonomous discovery, downstream model
@@ -2470,8 +4495,10 @@ A conforming implementation requires:
   total predictive-support budget.
 - Material expectation alternatives are retained or the expectation branch
   abstains.
-- No compile stage writes any persistent compiler state or performs a network
-  call.
+- No compile stage changes persistent semantic product state or performs a
+  network call. Durable compile-side writes are limited to the content-free
+  admission-record transitions defined by Decision 0031 and proof obligation
+  F4; every other persistent transition is forbidden.
 - Every index and numerical representation is compatible with the pinned
   authoritative revision.
 - Empty attention, retrieval failure, renderer failure, and insufficient
@@ -2584,7 +4611,9 @@ Architecture conformance requires:
   compatibility errors;
 - CLI byte-preservation, zero-stdout-before-delivery, partial-prefix
   invalidation with exit `10`, exit-map, and cancellation tests;
-- network-blocked and persistent-write-detection integration tests;
+- network-blocked integration tests plus semantic-state write detection,
+  content-free admission-record allowlisting, and terminal/fenced record
+  lifecycle tests;
 - result isolation and transport-failure tests for every adopted adapter;
 - resource measurements on frozen reference hardware; and
 - end-to-end evaluation under the V1 proof program.
@@ -2602,11 +4631,13 @@ conditions are defined in
 
 - Adoption and stabilization of the proposed callable and CLI contracts,
   concrete input limits, and budget unit.
-- Authoritative memory representation and minimum provisioning operation.
-- Storage engine, encryption policy, filesystem ownership, and physical
-  deletion.
-- Artifact-manifest signature format, installation trust root, rollback
-  protection, and authenticated update and recovery path.
+- Concrete authoritative memory representation and management API within the
+  accepted authenticated empty-store provisioning contract.
+- Storage engine, encryption policy, filesystem ownership, and the physical
+  deletion mechanism used by the accepted separate purge operation.
+- Concrete cryptographic algorithms, signature encoding, trust-root rotation,
+  authenticated update transport, and recovery implementation within the
+  accepted release lifecycle and supply-chain admission contract.
 - Snapshot-stable versus immediate in-flight authorization revocation.
 - Concrete vector spaces, dimensions, encoders, and relation-learning method
   within the accepted typed-facet and exact-value boundary.
@@ -2644,6 +4675,16 @@ omnibus acceptance of those choices.
 - [Decision 0014: Adopt memory-grounded predictive attention](../decisions/0014-adopt-memory-grounded-predictive-attention.md)
 - [Decision 0015: Render qualified focus-and-expectation plans](../decisions/0015-render-qualified-focus-and-expectation-plans.md)
 - [Decision 0016: Adopt sealed compile-integrity boundaries](../decisions/0016-adopt-sealed-compile-integrity-boundaries.md)
+- [Decision 0020: Freeze deterministic public call semantics](../decisions/0020-freeze-deterministic-public-call-semantics.md)
+- [Decision 0021: Adopt a recoverable, verifiable release lifecycle](../decisions/0021-adopt-a-recoverable-verifiable-release-lifecycle.md)
+- [Decision 0023: Bind complete renderer training state](../decisions/0023-bind-complete-renderer-training-state.md)
+- [Decision 0024: Separate transition records from derived artifacts](../decisions/0024-separate-transition-records-from-derived-artifacts.md)
+- [Decision 0025: Complete pre-access and statistical guards](../decisions/0025-complete-pre-access-and-statistical-guards.md)
+- [Decision 0026: Distinguish initial release from predecessor rollback](../decisions/0026-distinguish-initial-release-from-predecessor-rollback.md)
+- [Decision 0027: Complete release support and update recovery](../decisions/0027-complete-release-support-and-update-recovery.md)
+- [Superseded Decision 0028: Bind update writer exclusion and ship authorization](../decisions/0028-bind-update-writer-exclusion-and-ship-authorization.md)
+- [Decision 0029: Require positive update success per supported tuple](../decisions/0029-require-positive-update-success-per-supported-tuple.md)
+- [Decision 0031: Complete compile and update admission handoffs](../decisions/0031-complete-compile-and-update-admission-handoffs.md)
 - [SQLite transactions](https://www.sqlite.org/lang_transaction.html)
 - [SQLite write-ahead logging](https://www.sqlite.org/wal.html)
 - [SQLite backup API](https://www.sqlite.org/backup.html)

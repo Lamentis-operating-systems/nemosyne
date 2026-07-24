@@ -457,7 +457,7 @@ pub struct PlannedExpectation {
     alternative_set: AlternativeSetId,
     alternative_class: AlternativeFamilyClassId,
     outcome: OutcomeMeaningId,
-    representative: TransitionId,
+    representative: TransitionRecordVersionId,
     condition: ConditionRef,
     horizon: Horizon,
     support: SupportSummary,
@@ -872,7 +872,8 @@ closed lineage-independent tuple:
 The role vector is nonempty, duplicate-free, and sorted by the same total
 registered role rank used by planning.
 Duplicate complete plan-order keys are structural errors; neither
-`PlanItemId`, `ExpectationAbstentionId`, representative `TransitionId`, source
+`PlanItemId`, `ExpectationAbstentionId`, representative
+`TransitionRecordVersionId`, source
 receipt, support magnitude, nor upstream serialized position can break a tie.
 The planner validates every copied upstream and plan key against the source
 item; it never reconstructs a rank from prose or insertion position.
@@ -1584,15 +1585,15 @@ lineage-independent branch content. `PlanCanonicalEnvelopeV1` includes that
 projection and `SemanticConfigurationId`, and never copies raw \(\Lambda_A\),
 the full `configuration_id`, or either runtime witness.
 
-Representative errors are:
+`PlanningError` is the following closed 20-variant sum:
 
 - `SchemaMismatch`;
 - `LineageMismatch`;
 - `PlanCallBindingMismatch`;
 - `UnknownSource`;
-- `SourceProjectionViolation`;
 - `AuthorityEscalation`;
 - `AllowedUseEscalation`;
+- `SourceProjectionViolation`;
 - `InvalidRole`;
 - `MissingQualifier`;
 - `MissingRelation`;
@@ -1604,36 +1605,56 @@ Representative errors are:
 - `CostOverflow`;
 - `PlanningLimitExceeded`;
 - `ConflictingControl`;
-- `UnsupportedRequestedLanguage`;
 - `NoFeasiblePlan`; and
 - `InsufficientAttentionBudget`.
 
 Each error carries a closed reason code and the relevant content identities; no
-public classification depends on message text. The error contract assigns each
-variant exactly one disposition class before public adaptation:
+public classification depends on message text. Installed language support is
+resolved exactly once before planning. `PlanningInput` contains only a valid
+resolved supported language, so unsupported-language classification is not a
+planning responsibility and is not representable as `PlanningError`.
+
+Validation is total and uses the declaration order above as precedence.
+Within one class, the reported witness is the lexicographically smallest
+complete typed canonical evidence key. Implementations collect all applicable
+predicates, choose the earliest class, and then choose that canonical witness;
+they never return the first error encountered while iterating caller- or
+collection-supplied order. The predicates are disjoint by construction:
+`UnknownSource` means that a referenced `SourceId` is absent from the
+authenticated immutable source registry. `AuthorityEscalation` and
+`AllowedUseEscalation` exclusively own any attempted expansion of their
+respective ceilings. `SourceProjectionViolation` is evaluated only after that
+source exists and both specific escalation predicates pass; it compares only
+the remaining projected fields with the canonical projection of that known
+source. A missing source or specific escalation can therefore never also be a
+projection violation.
+
+The error contract assigns each variant exactly one disposition class before
+public adaptation:
 
 | Planning error | Disposition class |
 | --- | --- |
-| `SchemaMismatch`, `LineageMismatch`, `PlanCallBindingMismatch`, `UnknownSource`, `SourceProjectionViolation`, `AuthorityEscalation`, and `AllowedUseEscalation` | Internal invariant violation |
+| `SchemaMismatch`, `LineageMismatch`, `PlanCallBindingMismatch`, `UnknownSource`, `AuthorityEscalation`, `AllowedUseEscalation`, and `SourceProjectionViolation` | Internal invariant violation |
 | `InvalidPlanningPriority` and `InvalidCostContract` | Unavailable or invalid pinned artifact |
 | `CostOverflow` | Internal invariant violation after successful preflight |
 | `PlanningLimitExceeded` | Resource limit |
-| `UnsupportedRequestedLanguage` | Unsupported requested language |
 | `InvalidRole`, `MissingQualifier`, `MissingRelation`, `InvalidExpectationDisposition`, `InvalidExactSlot`, `ConflictingExactSlot`, `ConflictingControl`, and `NoFeasiblePlan` | Ordinary planning failure after every invariant and artifact check has passed |
 | `InsufficientAttentionBudget` | Insufficient attention budget |
 
 `InvalidPlanningPriority` and `InvalidCostContract` distinguish a malformed
 pinned artifact from a well-formed input outside that artifact's declared
 domain.
-`UnsupportedRequestedLanguage` means the request selected a language outside
-declared support. A renderer artifact that falsely claims that language but
-lacks its required table or cost function is `InvalidCostContract`, not an
-unsupported request. `UnknownSource`, `SourceProjectionViolation`,
-`AuthorityEscalation`, and `AllowedUseEscalation` are defensive invariant
+An authenticated renderer artifact that falsely claims support for the
+already resolved language but lacks its required table or cost function is
+`InvalidCostContract`, not a request-language error. `UnknownSource`,
+`AuthorityEscalation`, `AllowedUseEscalation`, and
+`SourceProjectionViolation` are defensive invariant
 failures against the immutable branch projections. They do not trigger
-authorization or policy evaluation. `SourceProjectionViolation` means a
-source, ceiling, qualifier, relation, or exact binding is absent from or
-inconsistent with its canonical upstream projection. No planning error means
+authorization or policy evaluation. `SourceProjectionViolation` means a known
+source's non-authority and non-allowed-use qualifier, relation, exact binding,
+or other residual projected field is absent from or inconsistent with its
+canonical upstream projection.
+`UnknownSource` owns source nonexistence exclusively. No planning error means
 that a live authority service was unavailable because planning has no such
 dependency.
 
@@ -1649,8 +1670,9 @@ plan-shape failure after source equality has passed.
 The public `CompileError` mapping is owned by the
 [reference architecture](v1-reference-architecture.md#failure-taxonomy).
 Its adapter must preserve the disposition classes above. Planning never maps
-errors itself and never collapses an artifact, invariant, resource, budget, or
-language failure into generic `PlanningFailure`. In particular,
+errors itself and never collapses an artifact, invariant, resource, or budget
+failure into generic `PlanningFailure`; an upstream language-compatibility
+failure never enters planning at all. In particular,
 `PlanCallBindingMismatch` belongs only to the current-call check in `PLAN-02`;
 `PLAN-01` propagates the opaque witness and cannot produce that classification.
 

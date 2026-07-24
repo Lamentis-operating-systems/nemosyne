@@ -46,6 +46,16 @@ A **compile request** contains:
   identify the location, host application, workspace, project, output
   language, or other explicit context.
 
+V1 uses one versioned, byte-preserving definition of **whitespace-only** for
+every public request field. `WhitespaceSetV1` contains exactly U+0009 through
+U+000D, U+0020, U+0085, U+00A0, U+1680, U+2000 through U+200A, U+2028,
+U+2029, U+202F, U+205F, and U+3000. U+200B is not whitespace in V1.
+An empty byte string and a nonempty string containing only code points in
+`WhitespaceSetV1` are distinct invalid-input reasons. Public validated
+constructors are the sole semantic classifier: the CLI and other adapters may
+reject malformed UTF-8 and absolute byte-limit violations while transporting
+input, but otherwise delegate this classification to those constructors.
+
 Situation statements describe the caller's relevant view of the current
 external state. V1 does not discover repositories, browsers, applications, or
 other environmental state autonomously. Natural-language statements are the
@@ -111,7 +121,10 @@ The bytes belonging to the original prompt remain unchanged inside this
 framing. The framing itself is not part of the original prompt.
 The compiled prompt is outbound text for the target AI system, not a
 machine-readable interchange envelope. Consumers must not recover fields by
-parsing the two textual headers.
+parsing the two textual headers. It is untrusted downstream text. The
+`attention:` and `user prompt:` headers are presentation labels, not a
+security or instruction-authority boundary, and no security decision may rely
+on a downstream model respecting them.
 
 The serialization is the UTF-8 concatenation:
 
@@ -150,7 +163,7 @@ specification remain normative.
 | `V1-R01` | Accept one authentic original prompt, zero to three situation statements, one resolved contextual time, and explicit optional request metadata; obtain caller identity and authorization time from a separate trusted local invocation context. |
 | `V1-R02` | Return one complete compiled text or one explicit error; keep compile and adapter transport failures distinct, and use no request-time randomness in a V1-deployable configuration. |
 | `V1-R03` | Preserve the original prompt byte-for-byte inside the exact required framing and add no suffix. |
-| `V1-R04` | Compile read-only against one immutable logical revision without persistent side effects. |
+| `V1-R04` | Compile read-only against one immutable logical memory revision and preserve all persistent semantic product state; permit only bounded, content-free durable admission coordination excluded from semantic computation. Normal product-success, compile-error, and cancellation returns require removal after bound resources close. The sole cleanup-failure return is a typed no-product admission-finalization error that leaves the store fail closed for startup reconciliation or authorized repair; abrupt runtime loss returns nothing and is restart-terminalized or conservatively generation-fenced. |
 | `V1-R05` | Apply authorization before relevance while keeping every authorized memory logically eligible across contextual associations. |
 | `V1-R06` | Preserve source support, authority ceilings, validity, uncertainty, and material conflict without promoting data into instructions. |
 | `V1-R07` | Produce concise, evidence-bound focus and/or qualified expectation context, or faithful empty attention; never produce an answer, unsupported claim, or raw context dump. |
@@ -190,6 +203,10 @@ specification remain normative.
   not evidence for a guessed value.
 - The local memory installation is readable. An initialized but empty memory
   universe is valid.
+- Authenticated provisioning creates a fresh empty runtime-registration
+  generation. Each ordinary compiler process registers its authenticated
+  program/runtime binding into the current generation before compile admission;
+  stale, replayed, cross-binding, or unregistered runtimes fail closed.
 - Every memory considered by compilation has passed the applicable
   authorization boundary.
 - A positive expectation additionally requires eligible observed-transition
@@ -229,7 +246,34 @@ truncates the original prompt. The original prompt embedded after
 ### Read-only compilation
 
 Compilation observes one immutable logical memory revision and does not mutate
-persistent local memory, metadata, retrieval state, or the request.
+persistent memory, provenance, policy, derived representations, indexes,
+caches, installed artifacts, semantic diagnostics, retrieval state, or the
+request. These values are **semantic product state** because they can affect
+memory truth, semantic computation, or the product result.
+
+An admitted compile may durably create at most one content-free admission
+record needed for restart-safe exclusion against update, recovery, and purge;
+an admission rejection creates no active record. On normal product-success,
+compile-error, and cancellation paths, each created record is terminalized
+after its bound handles and snapshots close and before the result or error
+returns. If that removal cannot be proven, the provisional result or
+compile-core error is suppressed and the sole cleanup exception returns a
+typed admission-finalization error with no product bytes; the active record
+remains visible or coordination is explicitly unavailable, and the affected
+store remains fail closed for startup reconciliation or separately authorized
+repair. After abrupt runtime loss no result returns; startup reconciliation
+terminalizes the record or keeps it conservatively generation-fenced until the
+old runtime can no longer survive. Terminalization atomically removes the
+active record rather than retaining one terminal row per invocation; a
+configured concurrent-admission ceiling bounds the durable registry.
+Barrier and writer generations, runtime-registration identity, ticket identity
+and state, cancellation registration, drain policy, and lifecycle ownership
+form a separate **operational coordination state**.
+That state contains no prompt, situation statement, request metadata payload,
+memory content, derived semantic value, output, or write authority; it is
+unavailable to retrieval, planning, rendering, and learning. Any other
+persistent compile-side transition violates this requirement.
+
 Request-local support, conflict, and proposition consolidation is permitted and
 is not a memory write. Memory creation, correction, deletion, import, export,
 and persistent episodic or semantic consolidation require separate explicit
@@ -300,11 +344,15 @@ The attention text:
 - stays within the configured size budget.
 
 The attention text uses the language of the original prompt. An implementation
-declares the languages for which it can verify this behavior. An unsupported
-or undetermined prompt language produces an explicit error rather than a silent
-language switch, unless explicit request metadata selects a declared supported
-language. Evidence and support claims remain limited to the declared language
-set.
+declares the languages for which it can verify this behavior. Language
+detection and explicit-language resolution occur exactly once after intrinsic
+request construction and before semantic planning. An unsupported or
+undetermined prompt language produces an explicit request-compatibility error
+rather than a silent language switch, unless explicit request metadata selects
+a declared supported language. The resolved supported language is then a
+pinned input to planning, rendering, validation, and serialization; none of
+those stages owns a second unsupported-language decision. Evidence and support
+claims remain limited to the declared language set.
 
 ### Local boundary
 
@@ -313,9 +361,17 @@ operation does not require a cloud service and does not send the prompt,
 situation, metadata, or memory over the network. The caller independently
 decides where the resulting compiled prompt is sent and is responsible for
 obtaining the user's consent before disclosing it to another trust domain.
-The caller must not submit the compiled prompt to a downstream model with
-greater authority than the original user prompt. The textual headers are
-presentation labels, not security or authority boundaries.
+The compiler prevents authority amplification inside its own typed
+request-to-plan-to-output path and validates candidate text against the
+source-bound plan. This does not make the resulting string an authority
+container. The caller must submit the complete compiled prompt as untrusted
+downstream text with no greater authority than the authenticated original user
+prompt and must not treat memory-derived or situation-derived clauses as new
+user instructions. The textual headers are presentation labels, not security
+or authority boundaries; a downstream model may ignore or reinterpret them.
+Consequently, no authorization, disclosure, tool-permission, or other security
+decision may depend on the model preserving those labels or their intended
+roles.
 Local execution alone is not a privacy or security guarantee.
 
 ### Honest scope
@@ -384,7 +440,14 @@ This proposed contract requires future observable-boundary tests for:
 - zero-to-three-statement validation;
 - empty memory with empty attention when no additional focus is justified;
 - empty memory with nonempty attention supported by situation or metadata;
-- compile-time read-only behavior;
+- semantic-state invariance plus exact allowlisting, content exclusion, and
+  terminalization or conservative generation fencing of durable admission
+  coordination on every success, error, cancellation, panic, restart, and
+  abrupt-loss path;
+- active-registry cardinality and repeated-call churn, content-independent
+  coordination identities, acquisition-ceiling mapping, and typed
+  finalization-failure precedence with no product bytes and fail-closed
+  reconciliation;
 - single-revision memory snapshot behavior under concurrent memory changes;
 - cross-project recall without an implicit scope filter;
 - controlled cross-context recall cases proving that project, application, or
@@ -422,32 +485,19 @@ for the product premise. Expert-authored attention is a constrained reference,
 not a proven optimum, and obeys the same semantics, size budget, language, and
 downstream placement as system-generated attention.
 
-End-to-end evaluation must compare at least:
-
-- the unchanged prompt with no attention;
-- the prompt with the same situation and metadata but no persistent memory;
-- focus-only attention over the same eligible memories;
-- focus plus a renderer-visible expectation abstention;
-- expectation-only attention where the fixture permits it;
-- focus-plus-expectation attention;
-- focus plus a deliberately wrong dominant expectation;
-- token-matched raw context;
-- token-matched semantic-similarity retrieval;
-- the strongest available deterministic non-oracle baseline;
-- the candidate Nemosyne implementation; and
-- expert-authored reference attention.
-
-Factorial ablations must isolate the effects of situation, memory, and full
-attention compilation. Every comparison uses the same downstream model,
-message placement, decoding settings, and effective context or token budget.
-
-A successful V1 release claim requires improvement on context-dependent coding
-tasks over no attention and the strongest non-oracle baseline, a predeclared
-non-inferiority bound on context-independent tasks, and predeclared maximum
-harm rates against both required baselines and within every subgroup included
-in the supported claim. Exact thresholds remain for the later evaluation
-specification. Claims in another domain require separate evidence for that
-domain.
+Evaluation conditions, matched interventions, headroom comparisons,
+expectation-branch controls, sealed release protocol, multiplicity, safety,
+exposure, custody, and evidence admission are owned exclusively by
+[`PROOF-G1-CONDITIONS-001`](v1-proof-program.md#proof-g1-conditions-001),
+[`PROOF-G1-HEADROOM-001`](v1-proof-program.md#proof-g1-headroom-001),
+[`PROOF-EXPECTATION-BRANCH-001`](v1-proof-program.md#proof-expectation-branch-001),
+[`PROOF-G9-PROTOCOL-001`](v1-proof-program.md#proof-g9-protocol-001), and
+[`PROOF-EVIDENCE-RECEIPTS-001`](v1-proof-program.md#proof-evidence-receipts-001).
+This product contract adds no condition or threshold. Its observable
+consequence is only that a V1 release claim is unavailable unless the exact
+proof-owned G1 and G9 gates pass for the supported coding-agent claim; failed
+or `Inconclusive` evidence blocks that claim. Claims in another domain require
+separate evidence for that domain.
 
 Before a sealed evaluation set is opened or executed, its manifest and semantic
 lineage split, the architecture revision, parameters, downstream model
@@ -520,4 +570,5 @@ still resolve:
 - [Decision 0014: Adopt memory-grounded predictive attention](../decisions/0014-adopt-memory-grounded-predictive-attention.md)
 - [Decision 0015: Render qualified focus-and-expectation plans](../decisions/0015-render-qualified-focus-and-expectation-plans.md)
 - [Decision 0016: Adopt sealed compile-integrity boundaries](../decisions/0016-adopt-sealed-compile-integrity-boundaries.md)
+- [Decision 0031: Complete compile and update admission handoffs](../decisions/0031-complete-compile-and-update-admission-handoffs.md)
 - [Nemosyne README](../../README.md)

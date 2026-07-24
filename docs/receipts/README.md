@@ -1,0 +1,150 @@
+# DOC-00 attestations
+
+This directory contains the non-cryptographic, content-bound attestations
+defined by Decision 0022. They are version-controlled review evidence, not
+experiment receipts, signatures, external certification, or product evidence.
+
+## Canonical paths
+
+- `doc-00-g0.md`: the current DOC-00 merge-authorization attestation;
+- `consolidations/consol-01.md` through `consol-03.md`: the three current
+  consolidation attestations; and
+- `reviews/rev-01.md` through `rev-18.md`: the eighteen current independent
+  review attestations.
+
+Every canonical file uses one two-column `Field | Value` table with these
+fields in this exact order:
+
+1. `Schema`
+2. `Record ID`
+3. `Kind`
+4. `Status`
+5. `Actor`
+6. `Declaration`
+7. `Completed at`
+8. `Source commit`
+9. `Source tree`
+10. `Included paths`
+11. `Archive algorithm`
+12. `Archive SHA-256`
+13. `Method`
+14. `Findings`
+15. `Disposition`
+16. `Residual limits`
+17. `Evidence references`
+18. `Replaces`
+
+`Schema` is `doc00-attestation-v1`. `Included paths` is exactly
+`docs/specifications, docs/decisions`. `Archive algorithm` is exactly
+`git-archive-tar-sha256-v1`. That algorithm hashes the raw stdout bytes from:
+
+```text
+GIT_NO_REPLACE_OBJECTS=1 GIT_ATTR_NOSYSTEM=1 git --no-replace-objects -c core.attributesFile=<OS null device> -c tar.umask=0002 archive --format=tar <source-commit> -- docs/specifications docs/decisions
+```
+
+The checker resolves `<OS null device>` through the standard-library null
+device for the current platform; it is `/dev/null` on this source-freeze
+environment. No bytes are read from that path.
+
+The repository must have no nonempty `.git/info/attributes` file while
+reconstructing the archive. Repository-tracked attributes remain part of the
+attested source semantics. Reviews and consolidations use
+`Status: Pass` and `Disposition: Pass`; the G0 record uses
+`Status: MergeAuthorized` and `Disposition: Pass`. It does not claim the pull
+request is already merged or promoted.
+
+The canonical `Kind` values are `Review`, `Consolidation`, and
+`MergeAuthorization`. Every review uses the exact declaration
+`Independent reviewer; did not author or remediate the reviewed source.`;
+every consolidation uses
+`Integration owner for the named consolidation pass.`; and the G0 record uses
+`Principal integrator for DOC-00 merge authorization; not the accountable
+human or an independent reviewer.`.
+
+All current records bind the same source commit, source tree, included paths,
+and archive digest. The source commit contains the reviewed specifications and
+decisions. Receipt files are excluded from the reviewed archive so the digest
+does not depend on itself.
+
+The attested DOC-00 source/evidence pair consists of two direct commits. The
+first freezes the reviewed source and passes the structural checker. Its direct
+child adds only the attestations, leaves the included paths unchanged, and
+passes:
+
+```text
+./scripts/check-v1-delivery-program.py --require-receipts
+```
+
+The DOC-00 pull request is merged with **Create a merge commit** so the exact
+source and evidence commits remain ancestors of `main`. Squash and rebase
+merge are not valid for this attested pull request. G0 closes only after the
+strict main-push CI run passes on that merge commit.
+
+Before integration, strict validation accepts the evidence commit itself. Any
+later validated head must descend from a two-parent merge commit whose second
+parent is that exact evidence commit. Later descendants of the preserving
+merge remain valid when the reviewed paths, governance programs, this schema,
+and all canonical attestations stay tree-entry-identical to their bound
+commits. A change to any bound surface requires a replacement
+source-and-evidence pair.
+
+The recorded merge authorization becomes effective only after the committed
+evidence head passes the strict checker, the change-aware documentation check,
+and every repository check named by the G0 record. A failure requires replacing
+the evidence commit before review; the field alone grants no merge authority.
+
+Review actors are unique and declare that they did not author or remediate the
+reviewed source. Consolidation actors declare their ownership or integration
+role. A passing record uses `Findings: None`; a material P0, P1, or P2 finding
+blocks a passing disposition. `Evidence references` names the evidence used by
+the record. `Replaces` is `None` for the first passing record.
+
+Any change to the included source invalidates every affected attestation.
+Replacing a canonical record requires a later Git commit at the same canonical
+path with a new source identity. Its `Replaces` value is exactly
+`<Record ID> at archive digest <64 lowercase hexadecimal SHA-256>` and names
+the different earlier archive digest; the earlier record remains recoverable
+from Git history.
+
+The replacement source-freeze commit has at most one parent and preserves
+every canonical attestation tree entry from that parent byte-for-byte,
+including its file mode. At every earlier history head, the canonical set is
+either wholly absent or contains all 22 records. A present set must resolve to
+one common last-modified evidence commit whose direct parent is its attested
+source commit, whose only changes are those 22 records, and whose source,
+archive, schema, and replacement bindings are valid. Historical G0 check
+requirements are read as exactly one module-level literal binding per contract
+name from that set's own source checker; every additional AST binding is
+invalid, current policy is not substituted, and no historical checker code is
+executed. The protected digest names likewise have exactly one module-level
+lowercase SHA-256 string literal and no other binding or mutation in every
+current or historical checker revision. Attribute or subscript stores of
+protected names, wildcard imports, and direct, imported, or transitively
+aliased dynamic namespace or code-execution primitives are invalid. Current
+protected-region and G0 validation use parsed literal values rather than
+mutable module globals.
+Pull-request digest comparison uses the trusted comparison-base checker to
+parse both revisions, and append-only pull-request comparison uses that same
+extracted comparison-base checker; the head checker does not validate either
+claim about itself. Extracted comparators run with isolated Python startup so
+caller-controlled module search paths, user sites, and `sitecustomize` cannot
+alter them. A wholly absent set is a valid first-attestation state only when no
+canonical path has earlier reachable history. All checker Git subprocesses
+disable replacement objects and strip caller-controlled Git environment
+overrides. Strict receipt validation rejects nonempty legacy grafts and shallow
+repositories so reachable history cannot be substituted or truncated.
+Documentation CI checks out full history before strict validation. Validation
+traverses every commit reachable from HEAD and every merge parent with memoized
+canonical receipt-tree states;
+it rejects partial states, deletion after introduction, and any nonidentical
+parent states unless a two-parent preserving merge selects the exact evidence
+commit as its second parent and that set replaces the first-parent set.
+Validation follows source/evidence pairs recursively to that genuine
+first-attestation state. Each historical source also carries this schema as a
+non-executable regular file and both governance programs as executable regular
+files. Every successor source preserves each existing finding row and complete
+conformance section as an exact ordered prefix of both the pull-request
+comparison base and the recursively validated predecessor source; only new
+sequential entries may be appended. `Replaces` is derived from the validated
+predecessor set, never from mutable content introduced by the new source freeze
+or an earlier preparatory commit.

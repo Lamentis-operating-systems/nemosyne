@@ -166,6 +166,7 @@ A transition record has the following logical wireframe:
 ```rust
 pub struct TransitionRecord {
     id: TransitionId,
+    version_id: TransitionRecordVersionId,
     record_version: RecordVersion,
     schema: TransitionSchemaId,
     subject: SubjectId,
@@ -182,6 +183,16 @@ pub struct TransitionRecord {
     authorization: DisclosurePolicyRef,
     allowed_usage: UsagePolicy,
     exact_sidecar: ExactSidecarRef,
+}
+
+pub struct TransitionFacetArtifact {
+    id: TransitionFacetArtifactId,
+    source_version_id: TransitionRecordVersionId,
+    artifact_schema: FacetArtifactSchemaId,
+    transform: FacetTransformId,
+    transform_revision: FacetTransformRevision,
+    encoder: EncoderId,
+    vector_spaces: CanonicalSet<VectorSpaceId>,
     facets: FacetManifest,
 }
 ```
@@ -189,6 +200,52 @@ pub struct TransitionRecord {
 This is a logical contract, not a committed Rust API or physical database row.
 Private fields, validated constructors, and reading getters are required when
 implemented.
+
+`TransitionId` identifies the logical immutable-revision chain for one
+transition. `TransitionRecordVersionId` identifies exactly one immutable
+version in that chain. Its preimage is the canonical
+`TransitionRecordVersionEnvelopeV1`, whose closed field set is exactly:
+`TransitionId`, `RecordVersion`, `TransitionSchemaId`, `SubjectId`, the
+complete before and after observations, condition, horizon, validity,
+reliability, uncertainty, provenance root, dependency group, authority,
+authorization, allowed usage, and exact-sidecar reference. It excludes the
+derived `version_id`, every facet or index artifact and artifact identity,
+encoder output, and rebuild metadata. The identifier is the domain-separated
+content identity
+
+\[
+\operatorname{TransitionRecordVersionId}
+=
+H\!\left(
+\texttt{"nemosyne.transition-record-version.v1"}
+\parallel
+\operatorname{canonical}
+(\operatorname{TransitionRecordVersionEnvelopeV1})
+\right).
+\]
+
+`RecordVersion` is the serialization-schema version of that preimage; it is
+neither identity. A correction, migration, or other authorized publication
+preserves `TransitionId` only when it is the next version of the same logical
+transition and always creates a new `TransitionRecordVersionId`. Compilation,
+migration references, representative selection, canonical tie-breaks, plan
+projection, and provenance bind the version identity. The logical
+`TransitionId` is retained only to traverse and audit the version chain and
+never breaks a computational tie.
+
+`TransitionFacetArtifactId` is a separate domain-separated content identity
+over the complete artifact wireframe shown above except its derived `id`.
+The pure constructor validates that wireframe and derives an unpersisted
+candidate identity from its supplied source-version ID; it cannot establish
+store existence. A published facet artifact binds exactly one existing
+`TransitionRecordVersionId` only after the privileged memory-management
+operation verifies the source in the target revision and atomically admits the
+candidate. The record never binds back to an artifact. Changing the transform,
+revision, encoder, vector space, facet manifest, or artifact schema creates a
+different artifact identity without changing the authoritative record.
+Missing, stale, incompatible, cyclic, multiply claimed, or partially published
+artifacts are rejected or rebuilt and never alter authoritative record
+equality.
 
 Observation status and meaning form one tagged value rather than two fields
 that can disagree:
@@ -272,7 +329,7 @@ pub enum ReliabilityState {
 
 pub struct ReliabilityMigrationRef {
     migration: ReliabilityMigrationId,
-    source_record: TransitionRecordRevisionId,
+    source_record: TransitionRecordVersionId,
     source_schema: ReliabilitySchemaId,
     source_state: ReliabilityMigrationSource,
     source_state_digest: ReliabilityStateDigest,
@@ -329,15 +386,17 @@ structural error rather than an ignored value.
 Reliability migration never occurs implicitly during compilation. Migration
 lineage belongs to `TransitionReliability`, not to one state variant, because
 a registered migration may map any source state to any target state. A
-separately authorized management operation or derived-artifact rebuild may
-apply one authenticated, versioned `ReliabilityMigrationId` with declared
+separately authorized management operation may apply one authenticated,
+versioned `ReliabilityMigrationId` with declared
 source and target schemas, state-transition matrix, derivations, calibration
 domains, missingness mapping, finite-range behavior, and compatibility proof.
-It publishes a new immutable record version or revision-bound derived
+It always publishes a new immutable record version. Reliability is
+authoritative record content and is never replaced by a revision-bound derived
 artifact.
 
-Its `ReliabilityMigrationRef` binds the exact source record revision and
-schema, a canonical digest of the complete source state, and variant-specific
+Its `ReliabilityMigrationRef` binds the exact source
+`TransitionRecordVersionId` and schema, a canonical digest of the complete
+source state, and variant-specific
 source metadata. A `Derived` source supplies its derivation and calibration
 domain. `Missing`, `Unknown`, and `Inapplicable` sources supply only their
 registered reason code and cannot carry or require a fabricated derivation,
@@ -1197,11 +1256,13 @@ and error behavior through `NumericalPolicyId`.
 ### Representative medoid
 
 For each nonempty \((a,h,d)\), select the transition with greatest
-\(\alpha_i\); an exact tie uses the smallest `TransitionId`. Let those
+\(\alpha_i\); an exact tie uses the smallest
+`TransitionRecordVersionId`. Let those
 positive-weight dependency representatives form
 \(\mathcal D^{\mathrm{rep}}_{a,h}\). Each member \(j\) retains its dependency
 group \(d_j\), qualified weight \(\alpha_j\), allocated dependency support
-\(\bar u_{a,h,d_j}\), outcome meaning \(y_j\), and transition identity.
+\(\bar u_{a,h,d_j}\), outcome meaning \(y_j\), and transition-record-version
+identity.
 
 When the configuration registers a finite symmetric outcome dissimilarity
 \(\delta_y\in\mathbb U\) with \(\delta_y(y,y)=0\), the group representative is
@@ -1216,7 +1277,8 @@ the weighted medoid:
 \bar u_{a,h,d_k}\delta_y(y_j,y_k).
 \]
 
-An exact tie uses the smallest `TransitionId`. The medoid is therefore one
+An exact tie uses the smallest `TransitionRecordVersionId`. The medoid is
+therefore one
 stored eligible outcome, not a synthetic vector mean. Its exact sidecars are
 only its own exact values. A medoid does not prove truth or semantic centrality
 outside the declared dissimilarity. No triangle inequality is assumed. If the
@@ -1233,7 +1295,7 @@ key_{\mathrm{fallback}}(j)=
 \left(
 -\bar u_{a,h,d_j},
 -\alpha_j,
-TransitionId(j)
+TransitionRecordVersionId(j)
 \right),
 \qquad
 \mu^{\mathrm{rep}}_{a,h}=
@@ -1243,7 +1305,7 @@ key_{\mathrm{fallback}}(j).
 
 Tuple comparison is ordinary lexicographic order: greater allocated
 dependency support wins, then greater qualified transition support, then the
-smallest transition identity. The first two components use the exact
+smallest transition-record-version identity. The first two components use the
 canonical order defined by `NumericalPolicyId`; implementations need not
 materialize negative encoded values. An unknown distance identity, malformed
 distance, non-finite result, asymmetric result under a symmetric contract, or
@@ -1401,7 +1463,7 @@ tag-specific comparison keys are exactly:
 
 1. `Hypothesis` (`0`): ascending `AlternativeSetId`, descending finite
    \(s_{a,h}\), ascending `OutcomeMeaningId`, then ascending representative
-   `TransitionId`;
+   `TransitionRecordVersionId`;
 2. `UnknownSupport` (`1`): ascending `AlternativeSetId`;
 3. `OmittedSupport` (`2`): ascending `AlternativeSetId`;
 4. `CounterSupport` (`3`): ascending `AlternativeSetId`, then ascending
@@ -1433,7 +1495,8 @@ content-identified frame and family priorities. Neither
 `ExpectationRecordOrderKey` nor one of its tag-specific components is an
 `ExpectationItemSemanticKey`: per-set identifiers such as
 `RetrievalDiagnosticId`, `ActionId`, `ExpectationAbstentionId`,
-`DerivationReferenceId`, or representative `TransitionId` remain serialization
+`DerivationReferenceId`, or representative `TransitionRecordVersionId` remain
+serialization
 or audit identity even when they provide a deterministic tie-break.
 
 For each registered alternative-family class, the content-identified
@@ -1940,7 +2003,7 @@ evidence-receipt identity, and exactly one disposition:
 pub enum PredictionAssessmentDisposition {
     Compared {
         relations: NonEmptyCanonicalMap<
-            HypothesisId,
+            ExpectationHypothesisInstanceId,
             HypothesisObservationRelation,
         >,
     },
@@ -1962,10 +2025,13 @@ pub enum HypothesisObservationRelation {
 ```
 
 These are logical wireframes. A positive prior produces one relation for every
-prior hypothesis in canonical hypothesis order, including hypotheses in
-different families. A prior frame-abstention produces `PriorAbstained` and
-does not fabricate hypotheses to compare. A meaning-less but otherwise valid
-later observation produces `ObservationAmbiguous`.
+prior `ExpectationHypothesisInstanceId` in canonical prior-hypothesis order,
+including hypotheses in different families. The constructor validates that
+the map covers each and only each exact prior hypothesis once. Semantic keys
+remain available for grouping and duplicate detection but never replace the
+prior-fixture instance identity. A prior frame-abstention produces
+`PriorAbstained` and does not fabricate hypotheses to compare. A meaning-less
+but otherwise valid later observation produces `ObservationAmbiguous`.
 
 ```mermaid
 stateDiagram-v2
@@ -2190,7 +2256,7 @@ pub enum LearnedSlotDisposition {
         outcome: OutcomeMeaningId,
         relative_logit: FiniteLogit,
         dispersion: FiniteNonNegativeDiagnostic,
-        source_attribution: NonEmptyBoundedCanonicalSet<TransitionId>,
+        source_attribution: NonEmptyBoundedCanonicalSet<TransitionRecordVersionId>,
     },
     Abstention {
         reason: LearnedModelAbstentionCode,
@@ -2283,7 +2349,7 @@ The \(N_{\mathrm{support},a}\) bound follows from Cauchy-Schwarz:
 
 Duplicate invariance is an aggregate-support property only. Exact duplicate
 records are canonicalized by content identity before representative and
-sidecar selection; otherwise a lower record identifier could legitimately
+sidecar selection; otherwise a lower record-version identifier could legitimately
 change the representative even when support is unchanged. Forging a new
 dependency group remains a provenance-integrity failure, not a mathematical
 case the aggregation can detect.
@@ -2754,6 +2820,8 @@ defines no production coefficient, threshold, model, or probability claim.
 - [V1 proof program](v1-proof-program.md)
 - [V1 delivery program](v1-delivery-program.md)
 - [Decision 0016: Adopt sealed compile-integrity boundaries](../decisions/0016-adopt-sealed-compile-integrity-boundaries.md)
+- [Decision 0018: Canonicalize predictive and planning identities](../decisions/0018-canonicalize-predictive-and-planning-identities.md)
+- [Decision 0024: Separate transition records from derived artifacts](../decisions/0024-separate-transition-records-from-derived-artifacts.md)
 
 ### Research evidence
 
@@ -2769,9 +2837,10 @@ Primary experiments motivating, but not selecting, the software model:
 - Ekman, M., Kusch, S., and de Lange, F. P. (2023),
   [Successor-like representation guides the prediction of future events in
   human visual cortex and hippocampus](https://doi.org/10.7554/eLife.78904).
-- Alink, A. and Blank, H. (2019),
-  [Distinct Neural Mechanisms of Spatial Attention and
-  Expectation](https://pmc.ncbi.nlm.nih.gov/articles/PMC6433765/).
+- Zuanazzi, A. and Noppeney, U. (2019),
+  [Distinct Neural Mechanisms of Spatial Attention and Expectation Guide
+  Perceptual Inference in a Multisensory
+  World](https://pmc.ncbi.nlm.nih.gov/articles/PMC6433765/).
 
 The following synthesis and review sources provide background and limitations;
 they are not primary experimental proof of Nemosyne's mechanism:
@@ -2779,7 +2848,9 @@ they are not primary experimental proof of Nemosyne's mechanism:
 - Buckner, R. L. (2010), [The Role of the Hippocampus in Prediction and Imagination](https://doi.org/10.1146/annurev.psych.60.110707.163508).
 - Schacter, D. L. et al. (2012), [The Future of Memory: Remembering, Imagining, and the Brain](https://pmc.ncbi.nlm.nih.gov/articles/PMC3815616/).
 - Bein, O. et al. (2023), [Predictions transform memories](https://pmc.ncbi.nlm.nih.gov/articles/PMC10591973/).
-- Summerfield, C. and Egner, T. reviewed in [Dissociating the impact of attention and expectation](https://pmc.ncbi.nlm.nih.gov/articles/PMC6756985/).
+- Rungratsameetaweemana, N. and Serences, J. T. (2019),
+  [Dissociating the impact of attention and expectation on early sensory
+  processing](https://pmc.ncbi.nlm.nih.gov/articles/PMC6756985/).
 - Walsh, K. S. et al. (2020), [Evaluating the neurophysiological evidence for predictive processing](https://pmc.ncbi.nlm.nih.gov/articles/PMC7187369/).
 - Lee, J. et al. (2019), [Set Transformer](https://proceedings.mlr.press/v97/lee19d.html).
 - Guo, C. et al. (2017), [On Calibration of Modern Neural Networks](https://proceedings.mlr.press/v70/guo17a.html).
