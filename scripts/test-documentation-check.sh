@@ -109,6 +109,33 @@ write_body() {
     > "$destination"
 }
 
+replace_checker_digest() {
+  local repository="$1"
+  local constant="$2"
+  local replacement="$3"
+
+  python3 - \
+    "$repository/scripts/check-v1-delivery-program.py" \
+    "$constant" \
+    "$replacement" <<'PY'
+from pathlib import Path
+import re
+import sys
+
+path = Path(sys.argv[1])
+constant = sys.argv[2]
+replacement = sys.argv[3]
+text = path.read_text()
+pattern = re.compile(
+    rf'({re.escape(constant)} = \(\n    ")[0-9a-f]{{64}}("\n\))'
+)
+updated, count = pattern.subn(rf"\g<1>{replacement}\g<2>", text)
+if count != 1:
+    raise SystemExit(f"expected one protected digest constant: {constant}")
+path.write_text(updated)
+PY
+}
+
 expect_repository_check_failure() {
   local repository="$1"
   local message="$2"
@@ -257,6 +284,58 @@ expect_repository_check_failure \
   "$governance_head" \
   "$temporary_directory/governance-body.md"
 
+delivery_checker_governance_fixture="$temporary_directory/delivery-checker-governance-fixture"
+create_fixture "$delivery_checker_governance_fixture"
+git -C "$delivery_checker_governance_fixture" add .
+git -C "$delivery_checker_governance_fixture" commit -qm baseline
+delivery_checker_governance_base="$(
+  git -C "$delivery_checker_governance_fixture" rev-parse HEAD
+)"
+printf '\n# Undecided governance mutation.\n' \
+  >> "$delivery_checker_governance_fixture/scripts/check-v1-delivery-program.py"
+git -C "$delivery_checker_governance_fixture" add .
+git -C "$delivery_checker_governance_fixture" commit -qm delivery-checker-change
+delivery_checker_governance_head="$(
+  git -C "$delivery_checker_governance_fixture" rev-parse HEAD
+)"
+write_body \
+  "$temporary_directory/delivery-checker-governance-body.md" \
+  'none' \
+  'This fixture changes the delivery checker without a decision record.'
+expect_repository_check_failure \
+  "$delivery_checker_governance_fixture" \
+  'Expected an undecided delivery-checker governance change to fail.' \
+  'documentation governance changed without a new accepted decision record' \
+  "$delivery_checker_governance_base" \
+  "$delivery_checker_governance_head" \
+  "$temporary_directory/delivery-checker-governance-body.md"
+
+delivery_checker_test_governance_fixture="$temporary_directory/delivery-checker-test-governance-fixture"
+create_fixture "$delivery_checker_test_governance_fixture"
+git -C "$delivery_checker_test_governance_fixture" add .
+git -C "$delivery_checker_test_governance_fixture" commit -qm baseline
+delivery_checker_test_governance_base="$(
+  git -C "$delivery_checker_test_governance_fixture" rev-parse HEAD
+)"
+printf '\n# Undecided governance mutation.\n' \
+  >> "$delivery_checker_test_governance_fixture/scripts/test-v1-delivery-program-check.sh"
+git -C "$delivery_checker_test_governance_fixture" add .
+git -C "$delivery_checker_test_governance_fixture" commit -qm delivery-checker-test-change
+delivery_checker_test_governance_head="$(
+  git -C "$delivery_checker_test_governance_fixture" rev-parse HEAD
+)"
+write_body \
+  "$temporary_directory/delivery-checker-test-governance-body.md" \
+  'none' \
+  'This fixture changes the delivery checker test without a decision record.'
+expect_repository_check_failure \
+  "$delivery_checker_test_governance_fixture" \
+  'Expected an undecided delivery-checker-test governance change to fail.' \
+  'documentation governance changed without a new accepted decision record' \
+  "$delivery_checker_test_governance_base" \
+  "$delivery_checker_test_governance_head" \
+  "$temporary_directory/delivery-checker-test-governance-body.md"
+
 create_fixture "$approved_governance_fixture"
 git -C "$approved_governance_fixture" add .
 git -C "$approved_governance_fixture" commit -qm baseline
@@ -285,6 +364,400 @@ printf '%s\n' \
     "$approved_governance_base" \
     "$approved_governance_head" \
     "$temporary_directory/approved-governance-body.md"
+) >/dev/null
+
+finding_history_fixture="$temporary_directory/finding-history-fixture"
+create_fixture "$finding_history_fixture"
+git -C "$finding_history_fixture" add .
+git -C "$finding_history_fixture" commit -qm baseline
+finding_history_base="$(
+  git -C "$finding_history_fixture" rev-parse HEAD
+)"
+python3 - \
+  "$finding_history_fixture/docs/specifications/v1-delivery-program.md" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text()
+old = "Recursive predecessor validation accepted a historical evidence pair"
+new = "Altered predecessor validation accepted a historical evidence pair"
+if text.count(old) != 1:
+    raise SystemExit("expected one FND-263 mutation target")
+path.write_text(text.replace(old, new, 1))
+PY
+git -C "$finding_history_fixture" add .
+git -C "$finding_history_fixture" commit -qm rewrite-finding-history
+finding_history_head="$(
+  git -C "$finding_history_fixture" rev-parse HEAD
+)"
+write_body \
+  "$temporary_directory/finding-history-body.md" \
+  'specification' \
+  'This fixture attempts to rewrite an existing finding record.'
+expect_repository_check_failure \
+  "$finding_history_fixture" \
+  'Expected an existing finding rewrite to fail.' \
+  'previously attested finding FND-263 was rewritten' \
+  "$finding_history_base" \
+  "$finding_history_head" \
+  "$temporary_directory/finding-history-body.md"
+
+conformance_history_fixture="$temporary_directory/conformance-history-fixture"
+create_fixture "$conformance_history_fixture"
+git -C "$conformance_history_fixture" add .
+git -C "$conformance_history_fixture" commit -qm baseline
+conformance_history_base="$(
+  git -C "$conformance_history_fixture" rev-parse HEAD
+)"
+python3 - \
+  "$conformance_history_fixture/docs/specifications/v1-delivery-program.md" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text()
+old = "This source receipt\ncontains no self-referential final digest"
+new = "This source receipt\ncontains no circular final digest"
+if text.count(old) != 1:
+    raise SystemExit("expected one DOC-CONF-22 mutation target")
+path.write_text(text.replace(old, new, 1))
+PY
+git -C "$conformance_history_fixture" add .
+git -C "$conformance_history_fixture" commit -qm rewrite-conformance-history
+conformance_history_head="$(
+  git -C "$conformance_history_fixture" rev-parse HEAD
+)"
+write_body \
+  "$temporary_directory/conformance-history-body.md" \
+  'specification' \
+  'This fixture attempts to rewrite an existing conformance record.'
+expect_repository_check_failure \
+  "$conformance_history_fixture" \
+  'Expected an existing conformance rewrite to fail.' \
+  'previously attested conformance receipt DOC-CONF-22 was rewritten' \
+  "$conformance_history_base" \
+  "$conformance_history_head" \
+  "$temporary_directory/conformance-history-body.md"
+
+for protected_digest_constant in \
+  EXPECTED_PROTECTED_CONFORMANCE_SHA256 \
+  EXPECTED_PROTECTED_FINDING_SHA256
+do
+  digest_rebaseline_fixture="$temporary_directory/digest-rebaseline-$protected_digest_constant"
+  create_fixture "$digest_rebaseline_fixture"
+  write_decision \
+    "$digest_rebaseline_fixture" \
+    '0030' \
+    'protect-doc-00-history-and-governance' \
+    'Protect DOC-00 history and governance' \
+    'Accepted' \
+    'Protected digest changes require explicit supersession.'
+  git -C "$digest_rebaseline_fixture" add .
+  git -C "$digest_rebaseline_fixture" commit -qm baseline
+  digest_rebaseline_base="$(
+    git -C "$digest_rebaseline_fixture" rev-parse HEAD
+  )"
+
+  replace_checker_digest \
+    "$digest_rebaseline_fixture" \
+    "$protected_digest_constant" \
+    'ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff'
+  write_decision \
+    "$digest_rebaseline_fixture" \
+    '0031' \
+    'unrelated-governance-change' \
+    'Record an unrelated governance change' \
+    'Accepted' \
+    'This accepted record does not supersede Decision 0030.'
+  git -C "$digest_rebaseline_fixture" add .
+  git -C "$digest_rebaseline_fixture" commit -qm unauthorized-digest-rebaseline
+  digest_rebaseline_head="$(
+    git -C "$digest_rebaseline_fixture" rev-parse HEAD
+  )"
+  write_body \
+    "$temporary_directory/digest-rebaseline-body.md" \
+    'decision' \
+    'This fixture attempts a protected digest rebaseline with an unrelated decision.'
+  expect_repository_check_failure \
+    "$digest_rebaseline_fixture" \
+    "Expected an unrelated decision to reject $protected_digest_constant rebaseline." \
+    'protected DOC-00 digest rebaseline requires Decision 0030 to be superseded by a newly added Accepted replacement decision' \
+    "$digest_rebaseline_base" \
+    "$digest_rebaseline_head" \
+    "$temporary_directory/digest-rebaseline-body.md"
+done
+
+rebound_digest_fixture="$temporary_directory/rebound-protected-digest"
+create_fixture "$rebound_digest_fixture"
+write_decision \
+  "$rebound_digest_fixture" \
+  '0030' \
+  'protect-doc-00-history-and-governance' \
+  'Protect DOC-00 history and governance' \
+  'Accepted' \
+  'Protected digest changes require explicit supersession.'
+git -C "$rebound_digest_fixture" add .
+git -C "$rebound_digest_fixture" commit -qm baseline
+rebound_digest_base="$(
+  git -C "$rebound_digest_fixture" rev-parse HEAD
+)"
+
+printf '%s\n' \
+  '' \
+  'EXPECTED_PROTECTED_FINDING_SHA256 += ""' \
+  >>"$rebound_digest_fixture/scripts/check-v1-delivery-program.py"
+write_decision \
+  "$rebound_digest_fixture" \
+  '0031' \
+  'reject-protected-digest-rebinding' \
+  'Reject protected digest rebinding' \
+  'Accepted' \
+  'Protected digest declarations remain unique literal bindings.'
+git -C "$rebound_digest_fixture" add .
+git -C "$rebound_digest_fixture" commit -qm rebound-protected-digest
+rebound_digest_head="$(
+  git -C "$rebound_digest_fixture" rev-parse HEAD
+)"
+write_body \
+  "$temporary_directory/rebound-protected-digest-body.md" \
+  'decision' \
+  'This fixture verifies that protected digest rebinding is rejected.'
+expect_repository_check_failure \
+  "$rebound_digest_fixture" \
+  'Expected a rebound protected digest to fail.' \
+  'cannot read a unique protected DOC-00 digest binding from' \
+  "$rebound_digest_base" \
+  "$rebound_digest_head" \
+  "$temporary_directory/rebound-protected-digest-body.md"
+
+lying_digest_fixture="$temporary_directory/lying-protected-digest-checker"
+create_fixture "$lying_digest_fixture"
+write_decision \
+  "$lying_digest_fixture" \
+  '0030' \
+  'protect-doc-00-history-and-governance' \
+  'Protect DOC-00 history and governance' \
+  'Accepted' \
+  'Protected digest changes require explicit supersession.'
+git -C "$lying_digest_fixture" add .
+git -C "$lying_digest_fixture" commit -qm baseline
+lying_digest_base="$(
+  git -C "$lying_digest_fixture" rev-parse HEAD
+)"
+lying_base_conformance="$(
+  NEMOSYNE_REPOSITORY_ROOT="$lying_digest_fixture" \
+    python3 "$lying_digest_fixture/scripts/check-v1-delivery-program.py" \
+      --protected-digest-at \
+      "$lying_digest_base" \
+      EXPECTED_PROTECTED_CONFORMANCE_SHA256
+)"
+lying_base_finding="$(
+  NEMOSYNE_REPOSITORY_ROOT="$lying_digest_fixture" \
+    python3 "$lying_digest_fixture/scripts/check-v1-delivery-program.py" \
+      --protected-digest-at \
+      "$lying_digest_base" \
+      EXPECTED_PROTECTED_FINDING_SHA256
+)"
+
+replace_checker_digest \
+  "$lying_digest_fixture" \
+  'EXPECTED_PROTECTED_FINDING_SHA256' \
+  'ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff'
+python3 - \
+  "$lying_digest_fixture/scripts/check-v1-delivery-program.py" \
+  "$lying_base_conformance" \
+  "$lying_base_finding" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+conformance_digest = sys.argv[2]
+finding_digest = sys.argv[3]
+text = path.read_text()
+marker = "    arguments = sys.argv[1:]\n"
+lie = (
+    "    if arguments[:1] == [\"--protected-digest-at\"]:\n"
+    "        declared = {\n"
+    f"            \"EXPECTED_PROTECTED_CONFORMANCE_SHA256\": "
+    f"\"{conformance_digest}\",\n"
+    f"            \"EXPECTED_PROTECTED_FINDING_SHA256\": "
+    f"\"{finding_digest}\",\n"
+    "        }\n"
+    "        print(declared[arguments[2]])\n"
+    "        return 0\n"
+)
+if text.count(marker) != 1:
+    raise SystemExit("expected one checker argument binding")
+path.write_text(text.replace(marker, marker + lie, 1))
+PY
+write_decision \
+  "$lying_digest_fixture" \
+  '0031' \
+  'unrelated-checker-change' \
+  'Record an unrelated checker change' \
+  'Accepted' \
+  'This decision does not supersede protected digest governance.'
+git -C "$lying_digest_fixture" add .
+git -C "$lying_digest_fixture" commit -qm lying-protected-digest-checker
+lying_digest_head="$(
+  git -C "$lying_digest_fixture" rev-parse HEAD
+)"
+write_body \
+  "$temporary_directory/lying-protected-digest-body.md" \
+  'decision' \
+  'This fixture verifies that the head checker cannot report its own digest values.'
+expect_repository_check_failure \
+  "$lying_digest_fixture" \
+  'Expected a lying head digest checker to fail.' \
+  'protected DOC-00 digest rebaseline requires Decision 0030 to be superseded by a newly added Accepted replacement decision' \
+  "$lying_digest_base" \
+  "$lying_digest_head" \
+  "$temporary_directory/lying-protected-digest-body.md"
+
+lying_append_fixture="$temporary_directory/lying-append-only-checker"
+create_fixture "$lying_append_fixture"
+write_decision \
+  "$lying_append_fixture" \
+  '0030' \
+  'protect-doc-00-history-and-governance' \
+  'Protect DOC-00 history and governance' \
+  'Accepted' \
+  'Append-only comparison must use the trusted comparison-base checker.'
+git -C "$lying_append_fixture" add .
+git -C "$lying_append_fixture" commit -qm baseline
+lying_append_base="$(
+  git -C "$lying_append_fixture" rev-parse HEAD
+)"
+python3 - \
+  "$lying_append_fixture/docs/specifications/v1-delivery-program.md" \
+  "$lying_append_fixture/scripts/check-v1-delivery-program.py" <<'PY'
+from pathlib import Path
+import sys
+
+delivery_path = Path(sys.argv[1])
+delivery_text = delivery_path.read_text()
+old = "Recursive predecessor validation accepted a historical evidence pair"
+new = "Altered predecessor validation accepted a historical evidence pair"
+if delivery_text.count(old) != 1:
+    raise SystemExit("expected one FND-263 mutation target")
+delivery_path.write_text(delivery_text.replace(old, new, 1))
+
+checker_path = Path(sys.argv[2])
+checker_text = checker_path.read_text()
+marker = "    arguments = sys.argv[1:]\n"
+lie = (
+    "    if arguments[:1] == [\"--check-append-only\"]:\n"
+    "        print(\"V1 delivery-program append-only history is consistent.\")\n"
+    "        return 0\n"
+)
+if checker_text.count(marker) != 1:
+    raise SystemExit("expected one checker argument binding")
+checker_path.write_text(checker_text.replace(marker, marker + lie, 1))
+PY
+write_decision \
+  "$lying_append_fixture" \
+  '0031' \
+  'record-append-only-regression' \
+  'Record append-only checker regression coverage' \
+  'Accepted' \
+  'The head checker must not validate its own append-only claim.'
+git -C "$lying_append_fixture" add .
+git -C "$lying_append_fixture" commit -qm lying-append-only-checker
+lying_append_head="$(
+  git -C "$lying_append_fixture" rev-parse HEAD
+)"
+write_body \
+  "$temporary_directory/lying-append-only-body.md" \
+  'specification-and-decision' \
+  'This fixture verifies trusted and startup-isolated append-only comparison.'
+malicious_python_path="$temporary_directory/malicious-python-startup"
+malicious_python_marker="$temporary_directory/sitecustomize-imported"
+mkdir -p "$malicious_python_path"
+printf '%s\n' \
+  'from pathlib import Path' \
+  "Path('$malicious_python_marker').write_text('imported')" \
+  'raise SystemExit(0)' \
+  >"$malicious_python_path/sitecustomize.py"
+if output="$(
+  cd "$lying_append_fixture"
+  PYTHONPATH="$malicious_python_path" \
+    ./scripts/check-documentation.sh \
+      "$lying_append_base" \
+      "$lying_append_head" \
+      "$temporary_directory/lying-append-only-body.md" 2>&1
+)"; then
+  printf '%s\n' \
+    'Expected the trusted base checker to reject a rewritten finding despite a lying head checker.' \
+    >&2
+  exit 1
+elif [[ "$output" != *'previously attested finding FND-263 was rewritten'* ]]; then
+  printf '%s\n' \
+    'Expected the trusted base checker to report the rewritten finding.' \
+    >&2
+  printf 'Actual output:\n%s\n' "$output" >&2
+  exit 1
+fi
+if [[ -e "$malicious_python_marker" ]]; then
+  printf '%s\n' \
+    'Expected isolated comparator startup to ignore PYTHONPATH and sitecustomize.' \
+    >&2
+  exit 1
+fi
+
+authorized_digest_rebaseline_fixture="$temporary_directory/authorized-digest-rebaseline"
+create_fixture "$authorized_digest_rebaseline_fixture"
+write_decision \
+  "$authorized_digest_rebaseline_fixture" \
+  '0030' \
+  'protect-doc-00-history-and-governance' \
+  'Protect DOC-00 history and governance' \
+  'Accepted' \
+  'Protected digest changes require explicit supersession.'
+git -C "$authorized_digest_rebaseline_fixture" add .
+git -C "$authorized_digest_rebaseline_fixture" commit -qm baseline
+authorized_digest_rebaseline_base="$(
+  git -C "$authorized_digest_rebaseline_fixture" rev-parse HEAD
+)"
+
+replace_checker_digest \
+  "$authorized_digest_rebaseline_fixture" \
+  'EXPECTED_PROTECTED_CONFORMANCE_SHA256' \
+  'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'
+replace_checker_digest \
+  "$authorized_digest_rebaseline_fixture" \
+  'EXPECTED_PROTECTED_FINDING_SHA256' \
+  'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd'
+write_decision \
+  "$authorized_digest_rebaseline_fixture" \
+  '0030' \
+  'protect-doc-00-history-and-governance' \
+  'Protect DOC-00 history and governance' \
+  'Superseded' \
+  'Protected digest changes require explicit supersession.' \
+  '0031-authorize-protected-digest-rebaseline.md'
+write_decision \
+  "$authorized_digest_rebaseline_fixture" \
+  '0031' \
+  'authorize-protected-digest-rebaseline' \
+  'Authorize a protected digest rebaseline' \
+  'Accepted' \
+  'This decision explicitly replaces Decision 0030 for the new protected baseline.'
+git -C "$authorized_digest_rebaseline_fixture" add .
+git -C "$authorized_digest_rebaseline_fixture" commit -qm authorized-digest-rebaseline
+authorized_digest_rebaseline_head="$(
+  git -C "$authorized_digest_rebaseline_fixture" rev-parse HEAD
+)"
+write_body \
+  "$temporary_directory/authorized-digest-rebaseline-body.md" \
+  'decision' \
+  'This fixture explicitly supersedes Decision 0030 before rebaselining both digests.'
+(
+  cd "$authorized_digest_rebaseline_fixture"
+  ./scripts/check-documentation.sh \
+    "$authorized_digest_rebaseline_base" \
+    "$authorized_digest_rebaseline_head" \
+    "$temporary_directory/authorized-digest-rebaseline-body.md"
 ) >/dev/null
 
 source_fixture="$temporary_directory/source-fixture"

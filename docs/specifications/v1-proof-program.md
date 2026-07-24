@@ -62,10 +62,12 @@ and claims must use registered or visibly qualified symbols.
 | \(\rho_P,\rho_R\) | configuration-independent identities | Prompt-content and complete request-presentation identities derived before authentication from \(\mathsf R\) | [Reference architecture](v1-reference-architecture.md) |
 | \(\Gamma_P\) | untrusted presentation | Prompt-origin presentation and bounded compile claims supplied at the public boundary | [Reference architecture](v1-reference-architecture.md) |
 | \(\Gamma_A\) | authenticated call binding | Request-local proof binding the exact presentation, claims, \(\rho_P\), \(\rho_R\), and \(\mathsf R\); not a configuration or disclosure grant | [Reference architecture](v1-reference-architecture.md) |
-| \(T_{\mathrm{boot}}\) | private trust inputs | Compiler-owned bootstrap trust, platform handles, and trusted clock | [Reference architecture](v1-reference-architecture.md) |
+| \(T_{\mathrm{boot}}\) | private trust inputs | Compiler-owned bootstrap trust, platform handles, coordinator capability, and trusted clock; no active-pair-dependent handle | [Reference architecture](v1-reference-architecture.md) |
+| \(\mathcal R_O\) | opaque operational-runtime ticket | Non-cloneable ticket returned by the atomic operational-registration boundary at `Compiler::open`; every compile admission revalidates it and it exposes no pair-dependent handle or semantic value | [Reference architecture](v1-reference-architecture.md) |
 | \(P_A\) | private authenticated prompt | Request-local proof binding exact \(P\), \(\rho_P\), \(\rho_R\), and the retained \(\mathsf R\) pairing | [Reference architecture](v1-reference-architecture.md) |
 | \(\mathcal I_A\) | sealed authenticated invocation | One private request-local aggregate containing inseparable \(P_A,\Gamma_A,I,t_{\mathrm{auth}}\) projections and one fresh non-semantic call brand \(b_A\); only the authenticator constructs it, and downstream stages consume the aggregate rather than independently supplied projections | [Reference architecture](v1-reference-architecture.md) |
-| \(b_A\) | private authenticated-call brand | Fresh opaque generative capability identity allocated by the sole authenticator and sealed into \(\mathcal I_A\); equality is runtime instance membership, not byte, digest, or numeric equality, and the brand has no semantic, policy, or authority meaning | [Reference architecture](v1-reference-architecture.md) |
+| \(\mathcal T_A\) | sealed compile-admission scope | One non-cloneable active-pair-bound admission ticket and its durable content-free record, acquired for the authenticated invocation before any active-pair-dependent resolution and held until every bound handle and snapshot closes | [Reference architecture](v1-reference-architecture.md) |
+| \(b_A\) | private authenticated-call brand | Fresh opaque generative capability identity allocated by the sole authenticator and sealed into \(\mathcal I_A\); equality is authenticated call-instance membership, not byte, digest, or numeric equality, and the brand has no semantic, policy, or authority meaning | [Reference architecture](v1-reference-architecture.md) |
 | \(I\) | authenticated context | Trusted invocation principal, caller, and authorization facts | [Reference architecture](v1-reference-architecture.md) |
 | \(t_{\mathrm{context}}\) | exact contextual instant | Caller-declared situational time | [Product contract](v1-product-contract.md) |
 | \(t_{\mathrm{auth}}\) | exact trusted instant | One pinned authorization time | [Reference architecture](v1-reference-architecture.md) |
@@ -178,8 +180,10 @@ Let:
   claims, including any requested installed configuration and equal-or-narrower
   disclosure ceiling;
 - \(T_{\mathrm{boot}}\) be compiler-owned bootstrap trust, platform handles,
-  authenticated registries, and trusted-clock inputs that no caller can
-  construct;
+  operational-coordinator capability, opaque runtime-registration ticket, and
+  trusted-clock inputs that no caller can construct; it contains no active
+  manifest, configuration registry, policy registry, artifact, runtime, or
+  memory handle;
 - \(\mathcal I_A\) be the sealed request-local `AuthenticatedInvocation`
   produced only by successful prompt-origin authentication, with private
   inseparable projections \(P_A,\Gamma_A,I,t_{\mathrm{auth}}\) and one fresh
@@ -208,12 +212,20 @@ T_{\mathrm{boot}}
 \]
 
 \[
+\mathcal T_A =
+\operatorname{acquireCompileAdmission}(
+\mathcal I_A;
+T_{\mathrm{boot}}
+)
+\]
+
+\[
 \Theta_{\mathrm{call}}
 =
 (K,\ell,B,p_{\mathrm{policy}},\mathcal D_{\mathrm{eff}})
 =
 resolveAndPinControls(
-\mathsf R,\mathcal I_A;
+\mathsf R,\mathcal I_A,\mathcal T_A;
 T_{\mathrm{boot}}
 )
 \]
@@ -239,6 +251,14 @@ B_A=\pi_A(\widehat B_{\mathrm{in}})
 V_{\mathrm{sig}}=
 \operatorname{validateSignalContext}
 (\mathcal I_A,\Sigma_{\mathrm{sig}};K)
+\]
+
+\[
+M^r =
+\operatorname{openImmutableRevision}(
+\mathcal T_A;
+\Theta_{\mathrm{call}}
+)
 \]
 
 \[
@@ -395,6 +415,15 @@ validate(Z_{\mathrm{exact}},V_{\mathrm{view}},K_R)
 O=serialize_{\mathrm{product}}(T',promptBytes(\mathsf R)).
 \]
 
+`O` is not returned until every handle and snapshot bound to
+\(\mathcal T_A\) has closed, the admission record has terminalized, and that
+call's `CompileAdmissionTicketV1` has been consumed. The separate
+runtime-registration ticket remains live across successful compile calls until
+`Compiler::close(self)` conditionally removes its registration or an exclusive
+lifecycle transition retires its generation. Process loss returns no `O`;
+startup reconciliation terminalizes the admission record or keeps it
+conservatively generation-fenced until the old runtime cannot survive.
+
 The displayed successful path substitutes from \(L\). The substitution
 contract also accepts any separately constructed \(L'\equiv_{\mathrm{can}}L\).
 The Rust lifetimes of \(Z_{\mathrm{slot}}\), \(Z_{\mathrm{exact}}\), and
@@ -423,9 +452,10 @@ memory access, retrieval, candidate derivation, planning, rendering, or
 validation. After authentication, every use of exact request content validates
 the immutable \((\mathsf R,\mathcal I_A)\) binding; final serialization reads
 the byte-identical prompt from that same retained \(\mathsf R\).
-`derivePresentationIdentities` uses the authenticated installation's
-configuration-independent presentation schema pinned at open; it is a pure
-canonical identity derivation and grants no authority. `authenticateOrigin`
+`derivePresentationIdentities` uses the frozen configuration-independent
+bootstrap presentation schema selected by the public locator schema and trusted
+compiler build; it is a pure canonical identity derivation and grants no
+authority. `authenticateOrigin`
 checks the exact presentation, claims, \(\rho_P\), \(\rho_R\), complete
 \(\mathsf R\), freshness, and compiler-owned platform evidence together. Its
 only successful return is one sealed \(\mathcal I_A\); the private constructor
@@ -437,9 +467,14 @@ model input, or a numerical feature. Its allocation may differ across
 otherwise identical calls without affecting any semantic stage or product
 byte. No downstream stage accepts those projections as an independently
 constructible tuple.
-`resolveAndPinControls` accepts only the resulting \(\mathcal I_A\), not raw
-claims or separable authentication fields, and is the sole producer of
-\(K,\ell,B,p_{\mathrm{policy}},\mathcal D_{\mathrm{eff}}\).
+`acquireCompileAdmission` accepts only the resulting \(\mathcal I_A\), the
+opaque \(\mathcal R_O\), and the narrow coordinator capability in
+\(T_{\mathrm{boot}}\). Its sole success is \(\mathcal T_A\), bound to
+the active pair, installation, configuration registry, runtime-registration
+generation, executing program, invocation, barrier generation, and writer
+epoch. `resolveAndPinControls` accepts only \(\mathcal I_A\) and
+\(\mathcal T_A\), not raw claims or separable authentication fields, and is the
+sole producer of \(K,\ell,B,p_{\mathrm{policy}},\mathcal D_{\mathrm{eff}}\).
 `constructIngress` revalidates the \(\mathcal I_A\)-to-\(\mathsf R\) pairing
 and derives
 the configuration-bound complete-request envelope from all fields of
@@ -603,7 +638,8 @@ plan's configuration, policy, language, and budget against the resolved
 controls. It then consumes and erases the witness while returning an opaque
 `ValidationContext<'plan>` that borrows its source plan and retains only sealed
 deterministic \(c_L\), private exact \(\beta_L\) comparison capsule, sealed
-\(c_R\), and minimized semantic and validator projections. Its lifetime
+\(c_R\), private exact \(\beta_R\) canonical-\(K_R\) comparison capsule, and
+minimized semantic and validator projections. Its lifetime
 prevents it from outliving that borrow or being detached unchecked; it does
 not encode referent identity. The context has no witness accessor, identity
 mutator, or independent identity input. The compiler projects
@@ -612,13 +648,14 @@ validation receives only the candidate, that least-privilege read-only view,
 and authenticated \(K_R\), never the backing context, a second raw plan, or a
 witness. Before semantic interpretation, the compiler and validator enforce
 the complete
-\((c_L,\beta_L,c_R)\) contract with their separately owned checks. A
+\((c_L,\beta_L,c_R,\beta_R)\) contract with their separately owned checks. A
 separately constructed plan is interchangeable only when its exact
 `PlanCanonicalEnvelopeV1` bytes and renderer configuration are identical; it
 must then yield identical substitution, validation, and product bytes.
 Different valid canonical bytes fail `PlanIdentityMismatch`, different
-renderer configuration fails `RendererConfigurationMismatch`, and equal
-`PlanContentId` with different bytes fails `PlanContentIdentityCollision`.
+renderer configuration ID or canonical-content commitment fails
+`RendererConfigurationMismatch`, and equal `PlanContentId` with different
+bytes fails `PlanContentIdentityCollision`.
 Each context builder still validates and consumes its own plan witness against
 its current invocation. The compiler
 owns the concrete context and is the sole product call site; the validator has
@@ -722,7 +759,7 @@ normative and move only with a same-change registry update.
 | `ALG-SER-01` | [Product output](v1-product-contract.md#successful-output) | Validated attention bytes plus retained prompt bytes to one compiled byte string; exact byte serialization; total after validation. File/stdin sources have already been streamed under `AbsoluteIngressLimitsV1`; already-owned API and direct-argument values have been checked before request construction or further internal allocation. An adapter buffers the complete serialized value before delivery | Prompt is the final byte-identical suffix. Test normalization, line endings, nested headers, trailing bytes, each exact ingress maximum and maximum plus one byte, ceiling-plus-one bounded reads for stream-backed sources, no further internal allocation after an oversized owned value is detected, zero stdout before delivery, and transport-prefix invalidation through exit `10` | `API-01`, `CLI-01`, `SYS-01` | F1, F9; G7 |
 | `ALG-MEM-01` | [Numerical query state](cognitive-memory-activation-and-focus.md#numerical-query-state) | Authenticated pinned \(K\) plus the exact validated compile request produce one sealed \(\widehat B_{\mathrm{in}}\), pure \(Q_{\mathrm{num}}\), independently derived \(B_Q=(request,situation,configuration)\), and sealed \(Q=\operatorname{bindQuery}(\mathsf R,\widehat B_{\mathrm{in}};K)\) with private projections and canonical `BoundQueryContentId`; no post-ingress split constructor or field replacement exists; request/situation IDs are domain-separated typed content identities over injective canonical envelopes; typed failure; presence differs from numeric zero; exact prompt remains outside both query projections; no caller-owned ID, principal, trusted time, policy, or authorization-view input | Same numerical content/configuration produces bit-identical \(Q_{\mathrm{num}}\); same complete request/configuration produces the same canonical \(Q\); changed content/configuration separates subject to the digest-collision assumption; recomputation mismatch and observed collision evidence fail closed. Test prompt/situation/context/control mutations, numerical/binding noninterference, map permutation, cross-request whole-query swaps, compile-fail split-projection construction, defensive numerical-only and binding-only corruption, constant/reused/caller IDs, collision witnesses, configuration substitution, locators, content identities, and ambient/trusted-time noninterference | `SIT-01`, `ENC-01` | F2, F3, F10, F12; G3 |
 | `ALG-MEM-09` | [Minimized trusted signal context](cognitive-memory-activation-and-focus.md#minimized-trusted-signal-context) | One sealed \(\mathcal I_A\) and preflighted \(K\) to one private \(\Sigma_{\mathrm{sig}}\), then validation of its carried brand, copied trusted values, context schema, and social-identity schema against the independently supplied current \(\mathcal I_A\) to typed \(V_{\mathrm{sig}}=(t_{\mathrm{auth}},u_{\mathrm{auth}})\); total through typed artifact or invariant failure; no public constructor, independently supplied authentication projection, serialization, digest reconstruction, or fallback | The aggregate constructor prevents mixed-\(\Gamma_A\), mixed-\(I\), and mixed-time assembly; a complete context from another call fails because membership is anchored to the current aggregate rather than a second value returned beside the context; the brand is erased before signal math; social source tags cannot alias and schema rotation requires an authenticated one-to-one migration; excluded authority/request fields are noninterfering; test every mixed-projection counterexample plus missing, malformed, duplicate, copied-value mutation, wrong-owner/lifetime, whole-context cross-call/schema, social-schema/rotation/migration, ambient-time, request-fallback, and renderer-exposure cases | `API-01`, `SIG-01`, `SEC-01` | F2, F3, F10, F12; G4, G8 |
-| `ALG-MEM-02` | [Eligible memory view](cognitive-memory-activation-and-focus.md#eligible-memory-view) | Authorized snapshot plus one sealed \(\mathcal I_A\) to \(\mathcal M_E\), then sealed \(Q,\mathcal M_E,\mathcal I_A\) to \(\mathcal M_Q\); stages borrow only the numerical projection for semantic use and trusted fields only through their aggregates; total for valid policy artifacts; hard gates precede scores; no \(B_Q\)-dependent semantics | Excluded records cannot crowd candidates and mixed-\(I\)/mixed-time/split-query inputs are unrepresentable; mutate only unauthorized, deleted, invalid, usage-incompatible, and binding-only inputs; include forged internal-corruption counterexamples | `MEM-03`, `RET-01`, `SEC-01` | F2, F3, F12; G2-G3 |
+| `ALG-MEM-02` | [Eligible memory view](cognitive-memory-activation-and-focus.md#eligible-memory-view) | Authorized snapshot plus one sealed \(\mathcal I_A\) to \(\mathcal M_E\), then sealed \(Q,\mathcal M_E,\mathcal I_A\) to \(\mathcal M_Q\); stages borrow only the numerical projection for semantic use and trusted fields only through their aggregates; total for valid policy artifacts; hard gates precede scores; no \(B_Q\)-dependent semantics | Excluded records cannot crowd candidates and mixed-\(I\)/mixed-time/split-query inputs are unrepresentable; mutate only unauthorized, deleted, invalid, usage-incompatible, and binding-only inputs; include forged internal-corruption counterexamples | `MEM-02`, `RET-01`, `SEC-01` | F2, F3, F12; G2-G3 |
 | `ALG-MEM-03` | [Direct cue activation](cognitive-memory-activation-and-focus.md#direct-cue-activation) | Sealed \(Q\), compatible query-memory facets, and registered calibration artifacts to finite calibrated cues; cue arithmetic borrows only \(\operatorname{numerical}(Q)\); metric, calibration, missingness, and canonical accumulation are pinned; no binding or ambient input reaches the math | Inspectable bounded cue lineage; separately valid same-content queries are equal, while a malformed sealed query rejects before this stage; test incompatible spaces, nonfinite values, duplicated evidence, and attempted split-query construction or mutation | `SIG-01`, `ACT-00` | F8, F10; G4 |
 | `ALG-MEM-04` | [Base availability](cognitive-memory-activation-and-focus.md#base-availability-from-frequency-and-recency) | Valid history statistics plus trusted \(t_{\mathrm{auth}}\) supplied only by validated \(V_{\mathrm{sig}}\) to bounded availability; checked log-sum-exp with finite ceilings and canonical accumulation; typed underflow/nonfinite failure; no ambient clock | Recency and frequency affect accessibility, not truth or authority; test extreme finite ages/decay, raw-power underflow counterexamples, future and duplicate events, context substitution, and ambient-clock perturbation | `SIG-01`, `EVAL-01` | F3, F4, F8, F10; G4 |
 | `ALG-MEM-05` | [Signal derivation and kernel composition](cognitive-memory-activation-and-focus.md#signal-derivation-and-existing-kernel-composition) | Sealed \(Q\), eligible candidate facets, and source-tagged trusted fields from validated \(V_{\mathrm{sig}}\) to the separately owned finite temporal, spatial, goal, procedure, hazard, deadline, and two stable social derivations under one family budget; signal math borrows only \(\operatorname{numerical}(Q)\); missingness stays typed; deadline duration/scale are finitely bounded, division is checked, and one pinned exponential plus explicit zero-underflow boundary is total or returns `InvalidUrgencyArithmetic`; social identities use one pinned comparison schema and typed authenticated, declared, and memory-participant domains; no policy or authorization capability | Context affects relevance without overriding policy; test deadline-over-constraint, every finite deadline boundary, checked division, exact-zero underflow, invalid exponential output, authenticated-versus-declared social subjects, partner permutation/duplication/cardinality, social schema compatibility/rotation/migration, unknown partner IDs, family-budget failure, cross-call/schema substitution, split-query unrepresentability, social-as-authorization, and risk-as-probability errors | `SIG-01`, `EVAL-01`, `SEC-01` | F2, F3, F5, F8; G4 |
@@ -752,7 +789,7 @@ normative and move only with a same-change registry update.
 | `ALG-REND-01` | [Renderer projection](vector-to-attention-renderer.md#renderer-projection-view) | \(G(L)\), safe slot metadata, and language to typed tensors; fixed facets, masks, and canonical rank. Each exact slot exposes only `RendererSlotId`, content-independent `ExactSlotOwnerSemanticKey`, `ExactSlotSemanticLocator`, `SlotSemanticKey`, type, role, bounds, permissions, schema, and formatter; authoritative values, surface content identities/bytes, binding instances, \(B_Q\), and \(\Lambda_A\) remain privileged | Preserve selected semantics without exact payload access. Changing only an exact value plus its content identity/formatted bytes preserves owner keys, slot keys, IDs, order, and every pre-substitution tensor while deterministic substituted/product bytes may change; independent same-locator owners remain distinct and one owner-plus-locator cannot carry conflicting values; alter masked and validator-only fields and reject model-visible payload or lineage leakage | `REN-01`, `REN-02`, `VAL-01` | F5, F6, F17; G4 |
 | `ALG-REND-02` | [Latent resampler](vector-to-attention-renderer.md#typed-latent-resampler) | Bounded item tensors to bounded continuous prefix; fixed dimensions and deterministic runtime identity | Canonical-order determinism and no hidden state; test rank permutation, missing facets, and precision drift | `REN-02`, `REN-03`, `PERF-01` | F10, F17; G4, G6 |
 | `ALG-REND-03` | [Generation](vector-to-attention-renderer.md#generation) | Nonempty prefix to slot-bearing claim, then substitution and validation to \(T'\) or error; frozen decoding and checked slots | No answer, action, unsupported claim, or exact-value invention; test injection, smuggling, language, and cost violations | `REN-04`, `VAL-01`, `SEC-01`, `SYS-01` | F7, F17; G4, G7 |
-| `ALG-REND-04` | [Training objective](vector-to-attention-renderer.md#combined-objective) | Frozen examples to candidate parameters; research-only; manifest-bound weights, seeds, splits, masks, and numeric policy | Training does not itself prove faithfulness; test leakage, attribution gaming, and nonfinite runs | `ML-01`-`ML-03`, `REN-05`, `REN-06` | F17 empirical support only; G4, G6 |
+| `ALG-REND-04` | [Training objective](vector-to-attention-renderer.md#combined-objective) | Frozen examples to candidate parameters; research-only; manifest-bound weights, seeds, splits, masks, and numeric policy | Training does not itself prove faithfulness; test leakage, attribution gaming, and nonfinite runs | `REN-05`, `REN-06` | F17 empirical support only; G4, G6 |
 
 The predictive specification keeps finer derivation identities because several
 proof obligations share one executable stage. Their aggregation is complete
@@ -852,10 +889,12 @@ memory-policy revision, both pinned time values, and one compiler-artifact and
 execution set even when a writer or updater publishes a later revision
 concurrently.
 
-After exact request authentication, the compiler resolves and pins `K`;
-`SIT-01` then constructs \(\widehat B_{\mathrm{in}}\) from the same complete
-\(\mathsf R\). Under the injectivity of the registered canonical encoding and
-collision resistance of its authenticated digest algorithm:
+After exact request authentication, the compiler presents the opaque
+\(\mathcal R_O\) and acquires one active-pair-bound compile-admission ticket.
+Only inside that admitted scope does it resolve and
+pin `K`; `SIT-01` then constructs \(\widehat B_{\mathrm{in}}\) from the same
+complete \(\mathsf R\). Under the injectivity of the registered canonical
+encoding and collision resistance of its authenticated digest algorithm:
 
 \[
 C_R=C_R' \land K=K'
@@ -877,18 +916,128 @@ either content identity because they are absent from both canonical envelopes.
 
 #### F4: Read-only compilation
 
-Let `State` be all persistent compiler state, including memory, derived
-representations, indexes, caches, logs, telemetry, and installed artifacts.
-Compilation has the transition:
+Partition persistent compiler state into semantic product state
+\(\mathit{State}_{\mathrm{sem}}\) and operational coordination state
+\(\mathit{State}_{\mathrm{coord}}\).
+\(\mathit{State}_{\mathrm{sem}}\) contains memory, provenance, policy, derived
+representations, indexes, caches, installed artifacts, semantic logs or
+telemetry, and every persistent value available to retrieval, planning,
+rendering, learning, or the product result.
+\(\mathit{State}_{\mathrm{coord}}\) contains only the content-free lifecycle,
+barrier, epoch, runtime-registration, and bounded active-admission registry
+selected by Decision 0031. Terminalization removes an active record
+crash-atomically and retains no per-invocation terminal row.
+
+Let \(\mathcal A_{\mathrm{runtime}}\) be the separate closed operational
+runtime-registration relation. It admits only: creation of one content-free
+registration in the current fresh generation after authenticated
+executing-program, exact `Operational` binding, startup reconciliation,
+replay, and capacity checks; removal after that runtime owns no admission or
+resource; recovery fencing after abrupt loss; and atomic whole-generation
+retirement by an exclusive lifecycle handoff. Provisioning creates an empty
+generation, never a fabricated runtime. Registration linearizes with lifecycle
+closure, is bounded by a configured ceiling, yields only an opaque runtime
+ticket, and resolves or retains no active-pair-dependent semantic handle.
+Every record has a content-free binding digest and monotonic state sequence.
+Close and recovery fence compare the exact generation, digest, and sequence;
+whole-generation retirement compares the generation binding and lifecycle
+state sequence. These conditional transitions exclude stale-close, stale-fence,
+and generation-reuse ABA.
+Whole-generation retirement crash-atomically removes every record and the
+retired generation from the live registry. Its content-free terminal handoff
+receipt may retain only the retired generation identity under its independently
+bounded lifecycle-retention policy; it cannot retain per-runtime rows.
+Compile does not invoke \(\mathcal A_{\mathrm{runtime}}\); `Compiler::open`
+completes it first, and every admission revalidates the resulting ticket.
+
+Let \(\mathcal A_{\mathrm{admission}}\) be the closed transition relation that
+admits exactly:
+
+1. linearized creation of at most one active record for that invocation, only
+   when admission succeeds after authentication and before
+   active-pair-dependent control resolution;
+2. crash-atomic terminalization and removal of that same active record only
+   after every bound handle and snapshot closes; and
+3. restart reconciliation or generation-fenced abandonment of that record
+   while admission remains fail closed.
+
+Each active record and its terminalization command contain only registered
+coordination identities and closed lifecycle disposition. They contain no
+prompt, situation statement, request metadata payload, memory content, derived
+semantic value, output, or write authority.
+The configured concurrent-admission ceiling bounds the active registry, and
+terminalization retains no per-invocation terminal row.
+Let \(\mathcal A_{\mathrm{admission}}^*\) be the reflexive-transitive closure
+of those primitive transitions. Every **returning** compile call has a finite
+coordination trace \(s_0,\ldots,s_n\), where \(s_0\) is the initial
+\(\mathit{State}_{\mathrm{coord}}\), \(s_n\) is the final
+\(\mathit{State}_{\mathrm{coord}}'\), and every adjacent state-changing pair
+belongs to \(\mathcal A_{\mathrm{admission}}\). A pre-admission failure or
+rejected admission has \(n=0\), creates no record, and leaves coordination state
+unchanged. A returning call therefore has the transition:
 
 \[
-(\mathit{State},request) \rightarrow (\mathit{State},result)
+(\mathit{State}_{\mathrm{sem}},
+ \mathit{State}_{\mathrm{coord}},
+ request)
+\rightarrow
+(\mathit{State}_{\mathrm{sem}},
+ \mathit{State}_{\mathrm{coord}}',
+ result),
+\qquad
+(\mathit{State}_{\mathrm{coord}},
+ \mathit{State}_{\mathrm{coord}}')
+ \in \mathcal A_{\mathrm{admission}}^* .
 \]
 
-The proof requires read-only storage capabilities in the compile dependency
-graph and treats request-local allocation as nonpersistent state. Access logs,
-cache publication, re-indexing, and consolidation would violate this property
-if performed by compile.
+Abrupt process loss has no `result` transition. It leaves a finite prefix ending
+with either no record, one visible `Live` active record, or an unavailable
+coordination state. Before any later admission, a separate startup trace either
+proves and completes the already-committed removal or advances each surviving
+record to the conservative `RecoveryFenced` disposition. A recovery-fenced
+record grants no semantic work and blocks admission and exclusive lifecycle
+operations; it may remain indefinitely if liveness cannot be disproved. A
+later, separately justified trace removes it only after topology-specific
+evidence proves that the old holder and every bound snapshot cannot survive.
+No timeout, retry, or inferred absence converts that prefix into a returned
+result.
+
+The proof requires:
+
+- byte- and identity-invariance of
+  \(\mathit{State}_{\mathrm{sem}}\) on success, error, cancellation, panic,
+  restart, and fenced abandonment;
+- a compile dependency graph with read-only semantic storage capabilities and
+  only the closed content-free coordination capability;
+- complete transition coverage showing that every durable compile-side write is
+  in \(\mathcal A_{\mathrm{admission}}\);
+- terminal or conservatively fenced disposition for each admitted record, with
+  no product success or compile-core error returned before removal; the sole
+  returning exception is a typed admission-finalization failure that exposes no
+  product bytes, preserves a visible or explicitly unavailable fail-closed
+  coordination state, and transfers resolution to startup reconciliation or
+  separately authorized repair; abrupt loss returns no result;
+- a bounded active registry whose cardinality never exceeds the configured
+  ceiling and whose repeated successful-call churn leaves no terminal rows;
+- a bounded runtime-registration registry proving clean-provisioning and
+  ordinary-start reachability, registration-versus-lifecycle linearization,
+  conditional clean-close removal, abrupt-loss fencing, whole-generation
+  retirement, digest/sequence ABA rejection, and stale, replayed,
+  cross-binding, or unregistered runtime rejection;
+- domain-separated record and cancellation identities derived only from
+  operational coordination values, with canary and taint evidence proving no
+  dependence on prompt, situation, metadata, memory, semantic state, or output;
+- exhaustive acquisition and finalization source-to-public-error mappings,
+  including precedence over provisional core results and fail-closed recovery;
+  and
+- noninterference showing that coordination identities select and pin the
+  coherent active pair but do not enter semantic scores, plan content, rendered
+  text, or product bytes.
+
+Request-local allocation remains nonpersistent. Content-bearing access logs,
+semantic telemetry, cache publication, re-indexing, consolidation, artifact
+mutation, or any durable transition outside
+\(\mathcal A_{\mathrm{admission}}\) violates F4.
 
 #### F5: Authority non-amplification
 
@@ -1167,7 +1316,7 @@ the contract to test rather than proving a model can satisfy it.
 | `V1-R01` | Exact prompt/request origin authentication, zero to three situations, caller-supplied contextual time, optional declared location, explicit request metadata, compiler-owned content identities, and separate private trusted caller and authorization time that do not enter either query projection | Invocation context, authenticated prompt, compiler ingress, and situation encoding | Exact prompt/request presentation freshness, substitution, cross-pair, and replay; origin, count, canonical-envelope, contextual-time/location/metadata presence; deterministic \(Q_{\mathrm{num}}\); independently derived \(B_Q\) sealed together as one canonical \(Q\); numerical/binding semantic noninterference; split-construction impossibility; same-content identity, content/control/configuration mutation, map-permutation, whole-query cross-request swap, defensive projection corruption, constant/reused/caller-ID, recomputation/collision-witness, locator/content-identity, invalid-input, trusted-time noninterference, and forged-time authorization-isolation tests |
 | `V1-R02` | One deterministic complete result or explicit error with separate transport failure and monotonic authority-free cancellation | Orchestrator and adapters | F3, F9, repeatability, prohibited-random-input, cancellation source-drop/token-clone/concurrent-idempotence/monotonic-visibility/every-stage/final-return-race, failure-injection, and adapter-delivery tests |
 | `V1-R03` | Byte-identical original prompt and exact framing | Ingress and serializer | F1, golden tests, and arbitrary UTF-8 property tests |
-| `V1-R04` | Read-only one-revision compilation | Snapshot and compile capability graph | F3, F4, concurrency, configuration-pinning, and write-detection tests |
+| `V1-R04` | Semantically read-only one-revision compilation with only closed content-free durable admission coordination | Snapshot, compile capability graph, and admission lifecycle | F3, F4, semantic-state byte/identity invariance, coordination-allowlist completeness, content exclusion, terminalization, concurrency, configuration-pinning, and forbidden-write detection |
 | `V1-R05` | Authorization before unified cross-context relevance | Policy gate and candidate generation | F2, canary exclusions, cross-context recall, and revocation policy tests |
 | `V1-R06` | Source support, qualification, immutable branch-owned planning projections, lowering-only authority/allowed-use/surface ceilings, and no authority promotion | Plan and validation | F5, F6, F12, adversarial provenance, projection/ceiling/slot/content-identity/inventory-minimization failures, ambient-authority noninterference, and semantic-fidelity cases |
 | `V1-R07` | Evidence-bound focus and/or qualified expectation context, or faithful empty attention | Planner, renderer, and validation | Plan-shape, proposition-label, leakage, support, and raw-copy metrics |
@@ -1176,7 +1325,7 @@ the contract to test rather than proving a model can satisfy it.
 | `V1-R10` | No caller-supplied trust or internal identity, no focus/planning authorization capability, no discovery, downstream AI invocation, or automatic learning | Compile dependency boundary | Private trusted-type and ingress construction, all-field forgery, cancellation authority-noninterference, static no-authority-edge, capability, and prohibited-call tests |
 | `V1-R11` | Numerical relevance after ingress with retained exact evidence | Encoding through planning | Schema, reconstruction-limit, provenance, and perturbation tests |
 | `V1-R12` | Coding agents are the first supported domain and claims remain bounded | End-to-end harness and release process | Sealed coding-task outcomes and frozen evidence receipts |
-| `V1-R13` | Memory management remains separate from compile | Compile capability boundary | Absence of management dependencies, persistent-write detection, and explicit rejection of management requests |
+| `V1-R13` | Memory management remains separate from compile | Compile capability boundary | Absence of management dependencies, forbidden semantic-write detection, exact coordination-transition auditing, and explicit rejection of management requests |
 | `V1-R14` | Versioned transition evidence with outcome representation, observation status, and state-typed reliability lineage | Transition schema and memory read boundary | Constructor, provenance, condition, horizon, status, version, every cross-state migration pair, and exact rollback fixtures |
 | `V1-R15` | Focus, expectation, goal, action, answer, fact, and probability remain distinct | Domain types, combined plan, renderer, and validator | Type-boundary, corruption, semantic-fidelity, and leakage tests |
 | `V1-R16` | Zero to a finite number of competing expectations | Expectation kernel | Empty, single, tied, alternative, cardinality, and canonical-order properties |
@@ -1189,6 +1338,21 @@ the contract to test rather than proving a model can satisfy it.
 | `V1-R23` | Generated outputs never become memory truth implicitly | Compile and memory-management capability boundaries | Taint, provenance-origin, prohibited-write, and generated-output ingestion tests |
 | `V1-R24` | Renderer is a local lexicalizer only | Combined plan, renderer, exact-slot resolver, and validator | F17, model corruptions, semantic verifier, no-answer, no-action, and no-probability gates |
 | `V1-R25` | Every stage has finite configured limits | Ingress, retrieval, activation, expectation, planning, rendering, and runtime | Limit-boundary, complexity, cancellation, memory, latency, and fail-closed tests |
+
+Because F9 and `V1-R02` refer to the public result and cancellation boundary,
+`OD-03` must close two additional API obligations before `API-01` begins.
+`CompiledPrompt` must own one immutable complete compiled-byte buffer whose
+public read-only accessor exposes exactly that whole buffer; any consuming
+ownership transfer must return the same whole buffer, and clone, thread-safety,
+and lifetime behavior must be explicit. It exposes no receipt, identity,
+configuration, plan, or partial-output channel. The CLI must own the
+`CancellationSource` for the complete invocation, pass only clonable
+authority-free tokens downstream, define source-drop behavior, map every
+supported interrupt to one idempotent monotonic cancellation transition,
+unregister handlers on every terminal path, close the final-return race, emit
+no stdout for a cancelled call, and preserve the adapter-owned typed exit and
+retryability mapping. These are open `OD-03` compatibility decisions, not
+current implementation evidence.
 
 ### Executable conformance program
 
@@ -1285,26 +1449,39 @@ Implementation evidence must include:
   mismatch;
 - budgets immediately below and at the faithful minimum;
 - pre-access sealed-evaluation fixtures with a designed empty or underexposed
-  `I_D` or `I_I`, proving `RejectedPreAccess`, no sealed-outcome access, and no
-  normalization or arithmetic; plus separate post-access fixtures in which a
+  `I_D` or `I_I`: one fixture supplies a structurally valid, exactly matching
+  `RejectedAttempt` guard witness and proves
+  `Rejected(PreAccessRejectionReceipt)` with no issued outcome capability, no
+  outcome-access ledger entry, and no outcome-dependent analysis job in its
+  declared audit window; parallel fixtures omit, invalidate, change the
+  subject of, and mismatch that witness and prove
+  `CustodyEvidenceUnavailable(PreAccessCustodyFailureRecord)` without a
+  custodian or no-access claim; plus separate post-access fixtures in which a
   manifest that passed those checks loses required realized outcome cells
   under its frozen failure policy, proving that the affected estimand and
   interval remain absent, no zero denominator is evaluated, the complete
   result is `Inconclusive`, and the release claim is blocked;
-- G1 pre-architecture fixtures that instantiate all six `g1_*` conditions,
-  verify equal focus and token-matched expert-attention inputs across the four
-  expectation roles, reconstruct every G1 expectation estimand, and prove that
-  no candidate artifact or G9 lineage enters the receipt;
+- G1 pre-architecture fixtures that instantiate all seven `g1_*` conditions,
+  verify a matched-size irrelevant no-memory placebo, byte-identical focus,
+  the exact frozen neutral carrier, and tokenizer-exact equal-size expert
+  attention across the four expectation roles, reconstruct every G1 estimand,
+  and prove that no candidate artifact or G9 lineage enters the receipt;
 - envelope-parameterized expectation-branch fixtures with a designed empty or
   underexposed \(I_E^{(e)}\), incomplete or noninjective condition maps, or
-  missing required pre-access fields, proving `RejectedPreAccess` and no
-  outcome access; plus separate valid-envelope fixtures with realized
-  condition loss, zero focus-only successes, and G9 candidate abstention on a
-  prospectively expectation-eligible case, proving that none
+  missing required pre-access fields: one fixture per defect supplies a
+  structurally valid, exactly matching `RejectedAttempt` guard witness and
+  proves `Rejected(PreAccessRejectionReceipt)`; parallel missing, invalid,
+  wrong-subject, and mismatched-witness fixtures prove
+  `CustodyEvidenceUnavailable(PreAccessCustodyFailureRecord)` without a
+  custodian or no-access claim; plus separate valid-envelope fixtures with
+  realized condition loss, zero focus-only successes, and G9 candidate
+  abstention on a prospectively expectation-eligible case, proving that none
   can be excluded, relabeled, or converted into a zero-valued estimand after
   outputs are visible;
 - crashes, timeouts, resource exhaustion, and partial-output prevention;
-- blocked network access and persistent-write detection; and
+- blocked network access, semantic-state write detection, an exact durable
+  coordination-write allowlist, content-exclusion checks, and admission-record
+  terminalization or fencing under every failure path; and
 - cold and warm invocation on every supported platform.
 
 These tests establish conformance only for their declared implementation and
@@ -1316,14 +1493,14 @@ Each hypothesis is falsifiable and configuration-specific.
 
 | ID | Hypothesis | Primary comparison |
 | --- | --- | --- |
-| H1 | Constrained expert attention creates meaningful headroom on context-dependent coding tasks | Expert reference versus prompt only and situation only |
+| H1 | Constrained expert attention creates meaningful headroom on context-dependent coding tasks beyond prompt, situation, and matched-size no-memory placebo effects | Expert reference versus prompt only, situation only, and matched-size no-memory placebo attention |
 | H2 | Persistent memory adds value beyond caller-supplied situation and metadata | Full memory condition versus situation only |
 | H3 | Proposed candidate generation finds required memory more reliably than semantic top-k at the same candidate budget | Candidate recall and downstream outcomes |
 | H4 | Proposed signal derivation adds value, and the proposed activation rule adds value over simpler rankers when derived signals are held fixed | Separate fixed-signal ranking and end-to-end derivation comparisons |
 | H5a | Focus-candidate construction improves response-changing context coverage and exclusion over record-level top-k when the shared activated set is held fixed | Focus-candidate comparison over frozen activated inputs |
 | H5b | The deterministic expectation baseline preserves eligible alternatives and abstains more faithfully than semantic-neighbor or dominant-outcome heuristics over identical transition evidence | Expectation-kernel comparison over one frozen shared set |
 | H5c | Adding a correct qualified expectation to the same focus plan improves the applicable manifest's prospectively frozen expectation-eligible tasks over focus-only attention without exceeding frozen anchoring, leakage, and harm limits | Focus-plus-expectation versus token-matched focus-only |
-| H5d | A deliberately wrong dominant expectation is detectably harmful and more anchoring on the same prospectively frozen tasks than the correct and abstaining conditions without gaining answer or action authority | Wrong-expectation negative control versus correct and abstaining conditions |
+| H5d | A deliberately wrong dominant expectation is distinguishable from both correct and abstaining conditions by two prospectively frozen semantic negative-control checks while its task harm, anchoring, and every leakage class remain below frozen safety bounds | Wrong-expectation negative control versus correct and abstaining conditions |
 | H5e | Combined plan selection improves mandatory closure, qualification, alternative preservation, and budget use over independent focus and expectation truncation | Combined planner over frozen branch outputs |
 | H6a | A learned numerical bridge carries the required typed plan information more faithfully than a simple projection | Registered latent resampler versus MLP projection over identical frozen plans and model |
 | H6b | The local renderer preserves focus and expectation meaning without material unsupported claims, probability inflation, fact promotion, exact-value errors, answer leakage, or action selection | Candidate renderer versus deterministic and expert rendering |
@@ -1343,7 +1520,14 @@ structured plan.
 
 ### Conditions and ablations
 
-#### G1 pre-architecture conditions
+<a id="proof-g1-conditions-001"></a>
+
+#### G1 pre-architecture condition protocol
+
+`PROOF-G1-CONDITIONS-001` is the sole normative owner of G1 condition
+construction. Downstream specifications may identify work, evidence, or
+failure consequences by linking to this anchor; they must not restate a
+second condition table, token-matching rule, or experimental formula.
 
 G1 tests product headroom before a candidate architecture exists. Its manifest
 therefore uses the following closed condition labels, which are disjoint from
@@ -1353,26 +1537,54 @@ the numbered G9 labels:
 | --- | --- |
 | `g1_prompt` | Original prompt only |
 | `g1_situation` | Prompt plus the same situation and metadata, without persistent memory |
-| `g1_focus` | Expert-authored focus-only attention |
+| `g1_placebo` | The same situation and metadata plus irrelevant no-memory placebo attention matched to the expert-attention size |
+| `g1_focus` | Expert-authored focus plus the frozen semantically neutral expectation carrier |
 | `g1_correct` | The same expert-authored focus plus one correctly qualified expectation |
 | `g1_wrong` | The same expert-authored focus plus one deliberately wrong dominant expectation with otherwise matched qualification |
 | `g1_abstain` | The same expert-authored focus plus an explicit renderer-visible expectation abstention |
 
-The four expert-attention conditions use the same independently authored focus,
-language, placement, effective budget, and attention-token count. Only the
-expectation intervention changes. The prompt-only and situation-only conditions
-retain the same downstream model, placement, decoding, environment, and
-effective budget and establish the separate product-headroom comparisons. Every
-expert attention block preserves the no-answer, no-action, no-fact-promotion,
-and no-probability-promotion boundaries. The `g1_wrong` intervention alone is
-deliberately incorrect or unsupported and is never a product configuration; all
-other expert conditions obey the complete evidence-support contract. G1 case
-semantics, expectation eligibility, labels, condition construction,
+The four expert-attention conditions use one frozen two-region construction:
+an independently authored focus region followed by one fixed-width expectation
+region. `g1_focus` fills the second region with a prospectively frozen,
+semantically neutral carrier that expresses no expectation, abstention,
+answer, action, fact, probability, advice, or task content. `g1_correct`,
+`g1_wrong`, and `g1_abstain` replace only that carrier under the frozen
+intervention map. The exact tokenizer identity, tokenizer configuration,
+language, message role, placement, focus bytes, delimiter bytes, effective
+budget, and target token count are frozen before authoring condition outputs.
+Every one of the four complete attention blocks must have exactly the target
+token count under that tokenizer. Padding may use only the frozen closed
+surface-only carrier grammar and must not introduce semantic content.
+
+`g1_placebo` uses no persistent memory and no task-relevant premise. Its
+attention block has the same language, role, placement, delimiters, exact
+tokenizer, and total target token count as the four expert-attention blocks.
+Its source pool, generation procedure, irrelevance rubric, and blinded
+irrelevance adjudication are frozen before outcomes. A placebo that is
+task-relevant, answer-bearing, action-bearing, or semantically unequal in size
+is invalid rather than a weaker comparator.
+
+The prompt-only and situation-only conditions retain the same downstream
+model, placement, decoding, environment, and effective budget and establish
+the separate product-headroom comparisons. Every expert attention block
+preserves the no-answer, no-action, no-fact-promotion, and
+no-probability-promotion boundaries. The `g1_wrong` intervention alone is
+deliberately incorrect or unsupported and is never a product configuration;
+all other expert conditions obey the complete evidence-support contract. G1
+case semantics, expectation eligibility, labels, condition construction,
+neutral-carrier grammar and bytes, placebo construction, tokenizer audit,
 token-matching procedure, and design weights are frozen before any G1 outcome
 is visible. No candidate artifact, candidate renderer, or
 implementation-derived plan participates in these conditions.
 
-#### G9 implementation conditions
+<a id="proof-g9-protocol-001"></a>
+
+#### G9 implementation and sealed-evaluation protocol
+
+`PROOF-G9-PROTOCOL-001` is the sole normative owner of the numbered G9
+conditions, complete-product estimands, sealed execution protocol, and release
+inequalities. Downstream specifications may link to this anchor and state
+operational consequences; they must not duplicate those normative details.
 
 Each G9 sealed task is run under frozen, token-matched conditions where
 applicable:
@@ -1431,13 +1643,19 @@ No model comparison may use a different semantic plan, target set, split,
 exact-slot policy, or validation rule. General benchmark scores are descriptive
 metadata and cannot select the Nemosyne renderer.
 
+The selectable V1 latent-prefix cardinality domain is exactly
+`\{8, 16, 32\}`. A `64`-token configuration may be executed only as a
+nonselectable resource and saturation stress diagnostic. It cannot qualify a
+renderer, win a cohort, become a fallback, or support a release claim without
+a later decision that reopens this frozen domain.
+
 These comparisons isolate:
 
-- G1 expert-focus headroom: `g1_focus` against `g1_prompt` and
-  `g1_situation`;
+- G1 expert-focus headroom: `g1_focus` against `g1_prompt`,
+  `g1_situation`, and `g1_placebo`;
 - G1 expert expectation contribution: `g1_correct - g1_focus`;
-- G1 wrong-expectation sensitivity: `g1_wrong` against `g1_correct` and
-  `g1_abstain`;
+- G1 correct-versus-wrong semantic differentiation plus upper-bounded
+  wrong-condition harm, anchoring, and leakage;
 - situation value: `2 - 1`;
 - prompt-length or placebo effects: `3 - 2`;
 - persistent-memory value: memory conditions against `2`;
@@ -1445,9 +1663,10 @@ These comparisons isolate:
 - expectation-only behavior where valid: `8` and `11` against `2`;
 - renderer quality: `7` against `10`, `8` against `11`, `9` against `12`, and
   `15` against `16`;
-- wrong-expectation sensitivity: `13` against `12` and `14`;
-- complete product value: `12` against `1`, `2`, and the strongest of `4` to
-  `6`; and
+- wrong-expectation semantic differentiation and safety diagnostics: `13`
+  against `12` and `14`;
+- complete product value: `12` against `1`, `2`, and the strongest eligible
+  non-oracle baseline among `3` to `6`; and
 - remaining headroom: `16 - 12`.
 
 Conditions `15` and `16` differ only in rendering. Conditions `10`, `12`,
@@ -1557,14 +1776,38 @@ Primary coding outcomes are:
 - repository-invariant preservation; and
 - explicit instruction compliance.
 
+<a id="proof-g1-headroom-001"></a>
+
 #### G1 headroom estimands
 
+`PROOF-G1-HEADROOM-001` is the sole normative owner of the G1 headroom
+population, estimands, thresholds, and pass rule.
+
 G1 owns a closed condition domain
-\(\mathcal C_{\mathrm{G1}}=\{P,S,F,+,W,A\}\), mapped injectively to
-`g1_prompt`, `g1_situation`, `g1_focus`, `g1_correct`, `g1_wrong`, and
-`g1_abstain`. Its headroom baseline set is exactly
-\(\mathcal B_{\mathrm{G1}}=\{P,S\}\); no G9 condition, candidate output, or
-release baseline may replace either member.
+\[
+\mathcal C_{\mathrm{G1}}=
+\{
+\mathsf c_{\mathrm{g1,prompt}},
+\mathsf c_{\mathrm{g1,situation}},
+\mathsf c_{\mathrm{g1,placebo}},
+\mathsf c_{\mathrm{g1,focus}},
+\mathsf c_{\mathrm{g1,correct}},
+\mathsf c_{\mathrm{g1,wrong}},
+\mathsf c_{\mathrm{g1,abstain}}
+\},
+\]
+mapped injectively to the same seven `g1_*` labels defined by
+`PROOF-G1-CONDITIONS-001`. Its headroom baseline set is exactly
+\[
+\mathcal B_{\mathrm{G1}}=
+\{
+\mathsf c_{\mathrm{g1,prompt}},
+\mathsf c_{\mathrm{g1,situation}},
+\mathsf c_{\mathrm{g1,placebo}}
+\}.
+\]
+No bare cross-specification symbol, G9 condition, candidate output, or release
+baseline may stand in for a G1 condition or replace a baseline member.
 
 Before any G1 outcome is accessible, the signed G1 envelope freezes a finite
 claim-bearing headroom population
@@ -1604,10 +1847,12 @@ meeting each such minimum. A missing case, duplicate membership, partition gap
 or overlap, unknown member, missing/non-finite/nonpositive weight, weight-mass
 failure, absent or nonpositive exposure minimum, designed membership below a
 minimum, or incomplete subgroup exposure contract prevents construction and
-signature of a valid `IF-G1-ENVELOPE`. `EVD-02` emits only a
-`PreAccessRejectionReceipt` and must reject the attempt before opening
+signature of a valid `IF-G1-ENVELOPE`. `EVD-02` returns `Rejected` when its
+matching rejection witness is valid or `CustodyEvidenceUnavailable` when that
+guard evidence is unavailable, and must reject the attempt before opening
 outcomes, normalizing weights, computing an estimand, or constructing an
-interval.
+interval. A valid signed `IF-G1-ENVELOPE` freezes the design but does not grant
+outcome access.
 
 Let \(Y_x^{(\mathrm{G1})}(i)\in\{0,1\}\) be the frozen binary task outcome
 under condition \(x\in\mathcal C_{\mathrm{G1}}\). For
@@ -1625,26 +1870,29 @@ For each \(b\in\mathcal B_{\mathrm{G1}}\), the focus headroom effect in domain
 \(d\), population harm rate, and conditional reversal rate are:
 
 \[
-\Delta_{F,b,d}^{(\mathrm{G1})}
+\Delta_{\mathrm{focus},b,d}^{(\mathrm{G1})}
 =
 \sum_{i\in I_d^{(\mathrm{G1})}}v_i^{(\mathrm{G1},d)}
-\left(Y_F^{(\mathrm{G1})}(i)-Y_b^{(\mathrm{G1})}(i)\right),
+\left(
+Y_{\mathsf c_{\mathrm{g1,focus}}}^{(\mathrm{G1})}(i)
+-Y_b^{(\mathrm{G1})}(i)
+\right),
 \]
 
 \[
-h_{F,b,d}^{(\mathrm{G1})}
+h_{\mathrm{focus},b,d}^{(\mathrm{G1})}
 =
 \sum_{i\in I_d^{(\mathrm{G1})}}v_i^{(\mathrm{G1},d)}
 \mathbb{1}
 \left[
 Y_b^{(\mathrm{G1})}(i)=1
 \land
-Y_F^{(\mathrm{G1})}(i)=0
+Y_{\mathsf c_{\mathrm{g1,focus}}}^{(\mathrm{G1})}(i)=0
 \right],
 \]
 
 \[
-h_{F,b,d\mid b}^{(\mathrm{G1})}
+h_{\mathrm{focus},b,d\mid b}^{(\mathrm{G1})}
 =
 \frac{
 \sum_{i\in I_d^{(\mathrm{G1})}}v_i^{(\mathrm{G1},d)}
@@ -1652,7 +1900,7 @@ h_{F,b,d\mid b}^{(\mathrm{G1})}
 \left[
 Y_b^{(\mathrm{G1})}(i)=1
 \land
-Y_F^{(\mathrm{G1})}(i)=0
+Y_{\mathsf c_{\mathrm{g1,focus}}}^{(\mathrm{G1})}(i)=0
 \right]
 }{
 \sum_{i\in I_d^{(\mathrm{G1})}}v_i^{(\mathrm{G1},d)}
@@ -1660,69 +1908,89 @@ Y_F^{(\mathrm{G1})}(i)=0
 }.
 \]
 
-The envelope freezes, separately for \(b=P\) and \(b=S\), positive
+The envelope freezes, separately for every
+\(b\in\mathcal B_{\mathrm{G1}}\), positive
 context-dependent superiority margins
-\(\delta_{F,b,D}^{min,(\mathrm{G1})}\), context-independent
+\(\delta_{\mathrm{focus},b,D}^{min,(\mathrm{G1})}\), context-independent
 non-inferiority margins
-\(\delta_{F,b,I}^{NI,(\mathrm{G1})}\), maximum population-harm bounds
-\(h_{F,b,d}^{max,(\mathrm{G1})}\), maximum conditional-reversal bounds
-\(h_{F,b,d\mid b}^{max,(\mathrm{G1})}\), confidence procedures, multiplicity
+\(\delta_{\mathrm{focus},b,I}^{NI,(\mathrm{G1})}\), maximum population-harm
+bounds \(h_{\mathrm{focus},b,d}^{max,(\mathrm{G1})}\), maximum
+conditional-reversal bounds
+\(h_{\mathrm{focus},b,d\mid b}^{max,(\mathrm{G1})}\), confidence procedures,
+multiplicity
 treatment, and subgroup gates. Every such threshold is finite and, for every
-\(b\in\{P,S\}\) and \(d\in\{D,I\}\), must satisfy:
+\(b\in\mathcal B_{\mathrm{G1}}\) and \(d\in\{D,I\}\), must satisfy:
 
 \[
-0<\delta_{F,b,D}^{min,(\mathrm{G1})}<1,
+0<\delta_{\mathrm{focus},b,D}^{min,(\mathrm{G1})}<1,
 \qquad
-0<\delta_{F,b,I}^{NI,(\mathrm{G1})}<1,
+0<\delta_{\mathrm{focus},b,I}^{NI,(\mathrm{G1})}<1,
 \]
 
 \[
-0<h_{F,b,d}^{max,(\mathrm{G1})}<1,
+0<h_{\mathrm{focus},b,d}^{max,(\mathrm{G1})}<1,
 \qquad
-0<h_{F,b,d\mid b}^{max,(\mathrm{G1})}<1.
+0<h_{\mathrm{focus},b,d\mid b}^{max,(\mathrm{G1})}<1.
 \]
 
 A missing, non-finite, zero, negative, or otherwise out-of-domain threshold
 prevents construction and signature of a valid `IF-G1-ENVELOPE` before any
-outcome becomes accessible and yields only a `PreAccessRejectionReceipt`.
+outcome becomes accessible and yields only `Rejected` or
+`CustodyEvidenceUnavailable` according to the available guard evidence.
 `EVD-02` must not open that envelope, inspect outcomes, normalize weights,
 compute an estimand, or construct an interval; this is an invalid manifest,
 not an observed `Inconclusive` result.
+
+After the envelope is signed and still before any condition output or outcome
+is accessible, the frozen deterministic finalization rule constructs one
+complete signed immutable `IF-G1-RUN-MANIFEST`. It binds the exact
+`IF-G1-ENVELOPE`; sealed population root; all seven condition-artifact
+identities; neutral-carrier and placebo identities; exact tokenizer,
+token-matching audit, prompt template, role, placement, downstream model,
+runtime, decoding, seeds, execution order, hardware, budgets, analysis,
+confidence, multiplicity, custody, and failure-policy identities; and one
+fresh execution-instance identity. Incomplete joins, mismatched content,
+signature failure, prohibited pre-signature access, or mutation retire the
+attempt and produce only `Rejected` or `CustodyEvidenceUnavailable` according
+to the available guard evidence. Only successful validation of the complete
+signed `IF-G1-RUN-MANIFEST` may produce `ValidForOutcomeAccess`; neither a
+valid envelope nor an unbound execution identity is sufficient.
 
 G1 headroom passes only if every simultaneous or multiplicity-adjusted
 comparison satisfies:
 
 \[
-lowerCI\left(\Delta_{F,b,D}^{(\mathrm{G1})}\right)
+lowerCI\left(\Delta_{\mathrm{focus},b,D}^{(\mathrm{G1})}\right)
 >
-\delta_{F,b,D}^{min,(\mathrm{G1})},
+\delta_{\mathrm{focus},b,D}^{min,(\mathrm{G1})},
 \qquad
-lowerCI\left(\Delta_{F,b,I}^{(\mathrm{G1})}\right)
+lowerCI\left(\Delta_{\mathrm{focus},b,I}^{(\mathrm{G1})}\right)
 >
--\delta_{F,b,I}^{NI,(\mathrm{G1})},
+-\delta_{\mathrm{focus},b,I}^{NI,(\mathrm{G1})},
 \]
 
 \[
-upperCI\left(h_{F,b,d}^{(\mathrm{G1})}\right)
+upperCI\left(h_{\mathrm{focus},b,d}^{(\mathrm{G1})}\right)
 <
-h_{F,b,d}^{max,(\mathrm{G1})},
+h_{\mathrm{focus},b,d}^{max,(\mathrm{G1})},
 \qquad
-upperCI\left(h_{F,b,d\mid b}^{(\mathrm{G1})}\right)
+upperCI\left(h_{\mathrm{focus},b,d\mid b}^{(\mathrm{G1})}\right)
 <
-h_{F,b,d\mid b}^{max,(\mathrm{G1})}
+h_{\mathrm{focus},b,d\mid b}^{max,(\mathrm{G1})}
 \quad
 \text{for each }d\in\{D,I\}.
 \]
 
-After a structurally valid envelope has been admitted and outcomes are
-accessible only through the frozen execution policy, a required realized cell
-that is missing, failed, empty, or below its frozen exposure minimum produces
-no affected weight normalization, estimate, interval, or division, and the
-complete G1 receipt is `Inconclusive`. If a required baseline has no realized
-successes in a domain, its conditional reversal rate is undefined and the same
-rule applies. Neither a zero value nor the other baseline or domain may
-substitute. These realized-evidence dispositions do not repair or relabel a
-structurally invalid envelope. G1 cases, condition variants, labels, outcomes,
+After a complete G1 run manifest has been admitted by
+`ValidForOutcomeAccess`, outcomes are accessible only through its frozen
+execution policy. A required realized cell that is missing, failed, empty, or
+below its frozen exposure minimum produces no affected weight normalization,
+estimate, interval, or division, and the complete G1 receipt is
+`Inconclusive`. If a required baseline has no realized successes in a domain,
+its conditional reversal rate is undefined and the same rule applies. Neither
+a zero value nor the other baseline or domain may substitute. These
+realized-evidence dispositions do not repair or relabel a structurally invalid
+envelope or run manifest. G1 cases, condition variants, labels, outcomes,
 weights, thresholds, and estimands are lineage-disjoint from G9.
 
 #### G9 complete-product estimands
@@ -1737,9 +2005,12 @@ Let the required frozen baseline set be:
 \]
 
 where `b_prompt` is the unchanged prompt without attention and `b_strong` is
-the strongest eligible non-oracle baseline selected using development or
-calibration evidence before sealed outcomes are accessible. If they are
-behaviorally identical, the duplicate comparison is collapsed and recorded.
+the strongest eligible non-oracle baseline among numbered conditions `3`
+through `6`, selected using development or calibration evidence before sealed
+outcomes are accessible. The matched-size irrelevant-placebo condition `3`
+cannot be omitted from eligibility because it performs well. If `b_prompt` and
+the selected `b_strong` are behaviorally identical, the duplicate comparison
+is collapsed and recorded.
 Let `Y_n(i)` and `Y_b(i)` be predeclared binary task-level success outcomes
 under Nemosyne and baseline `b` for task `i`.
 
@@ -1781,9 +2052,9 @@ attention text, abstention, success, failure, and any post-outcome judgment
 cannot create, remove, or reclassify a member. A gap, overlap, duplicate,
 unknown member, or member outside \(\mathcal T_H^{(\mathrm{G9})}\) invalidates
 the attempted protocol or run-manifest data, prevents construction and
-signature of a valid protocol or run manifest, and produces only a
-`PreAccessRejectionReceipt` before any weight normalization, estimand,
-interval, or division is attempted.
+signature of a valid protocol or run manifest, and produces only `Rejected` or
+`CustodyEvidenceUnavailable` according to the available guard evidence before
+any weight normalization, estimand, interval, or division is attempted.
 
 Let \(v_i:=v_i^{(\mathrm{G9})}>0\) be the frozen G9 design weight for every
 \(i\in\mathcal T_H^{(\mathrm{G9})}\), with:
@@ -1804,10 +2075,12 @@ independent-cluster count for each partition member set. A release-claim-
 bearing design requires both sets to be nonempty and to meet both frozen
 exposure minima. A designed empty or underexposed set invalidates the protocol
 or attempted run-manifest data, prevents construction and signature of a valid
-protocol or run manifest, and produces only a `PreAccessRejectionReceipt`;
-sealed outcomes remain inaccessible, and no normalization, estimand, interval,
-or division is attempted. Because every \(v_i>0\), a design that passes those
-preconditions makes each within-set weight denominator strictly positive.
+protocol or run manifest, and produces only `Rejected` or
+`CustodyEvidenceUnavailable` according to the available guard evidence;
+sealed outcomes remain inaccessible, and no normalization, estimand,
+interval, or division is attempted. Because every \(v_i>0\), a design that
+passes those preconditions makes each within-set weight denominator strictly
+positive.
 None of this population, partition, its memberships, cases, weights, or
 outcomes may be sourced from G1.
 
@@ -1867,6 +2140,46 @@ The context-independent paired effect is:
 (Y_n(i)-Y_b(i))
 \]
 
+Let the context-independent weights be:
+
+\[
+v_i^{I} =
+\frac{v_i}{\sum_{k\in I_I}v_k},
+\qquad i\in I_I.
+\]
+
+For every mandatory baseline, the separately gated context-independent
+population-harm rate is:
+
+\[
+h_{population,b,I} =
+\sum_{i\in I_I}
+v_i^{I}
+\mathbb{1}[Y_b(i)=1 \land Y_n(i)=0].
+\]
+
+The context-independent conditional reversal rate is:
+
+\[
+h_{reversal,b,I} =
+\frac{
+\sum_{i\in I_I}
+v_i^{I}
+\mathbb{1}[Y_b(i)=1 \land Y_n(i)=0]
+}{
+\sum_{i\in I_I}
+v_i^{I}
+\mathbb{1}[Y_b(i)=1]
+}.
+\]
+
+The predeclared nonempty and exposure checks make the weight-normalization
+denominator positive before outcome access. If baseline `b` has no successful
+context-independent outcome, \(h_{reversal,b,I}\) is undefined and that
+mandatory comparison is `Inconclusive`. Whole-population harm, another
+baseline, or the context-dependent set cannot substitute for either
+context-independent harm gate.
+
 For every language, task-family, and risk subgroup included in the supported
 claim, compute the same non-inferiority and harm estimands with weights
 renormalized inside the subgroup. Each claim-bearing subgroup must have
@@ -1875,7 +2188,13 @@ underpowered subgroup prevents the broader claim; it may be excluded only by a
 new, prospectively frozen narrower claim, never after inspecting the same
 sealed outcomes.
 
+<a id="proof-expectation-branch-001"></a>
+
 #### Expectation-branch estimands
+
+`PROOF-EXPECTATION-BRANCH-001` is the sole normative owner of the
+expectation-branch condition roles, estimands, negative-control interpretation,
+threshold domains, and pass rule for both evaluation envelopes.
 
 Let \(e\in\{\mathrm{G1},\mathrm{G9}\}\) identify one evaluation envelope.
 Each envelope owns its own prospectively frozen expectation-eligible task set
@@ -1891,14 +2210,22 @@ justifies a broader population claim.
 
 Each envelope manifest defines one injective condition-label map
 \(\kappa_e\) over the closed experimental roles
-\(\mathcal R_E=\{F,+,W,A\}\):
+\[
+\mathcal R_E=
+\{
+\mathsf r_{\mathrm{focus}},
+\mathsf r_{\mathrm{correct}},
+\mathsf r_{\mathrm{wrong}},
+\mathsf r_{\mathrm{abstain}}
+\}.
+\]
 
 | Role | Meaning | G1 condition label | G9 condition label |
 | --- | --- | --- | --- |
-| \(F\) | Focus-only comparator | `g1_focus` | `10` |
-| \(+\) | Correct qualified focus-plus-expectation treatment | `g1_correct` | `12` |
-| \(W\) | Deliberately wrong dominant-expectation control | `g1_wrong` | `13` |
-| \(A\) | Explicit renderer-visible expectation-abstention control | `g1_abstain` | `14` |
+| \(\mathsf r_{\mathrm{focus}}\) | Focus-only comparator with its envelope-defined neutral realization | `g1_focus` | `10` |
+| \(\mathsf r_{\mathrm{correct}}\) | Correct qualified focus-plus-expectation treatment | `g1_correct` | `12` |
+| \(\mathsf r_{\mathrm{wrong}}\) | Deliberately wrong dominant-expectation control | `g1_wrong` | `13` |
+| \(\mathsf r_{\mathrm{abstain}}\) | Explicit renderer-visible expectation-abstention control | `g1_abstain` | `14` |
 
 For G1, all four conditions are independently expert-authored before
 architecture selection. For G9, they are the frozen candidate and intervention
@@ -1906,8 +2233,8 @@ conditions defined above. Within an envelope, the four conditions use identical
 frozen input, focus meaning, attention-realization method, placement, and
 effective budget; only the expectation role changes. The realization method is
 the frozen expert-authoring protocol for G1 and the exact candidate renderer for
-G9. \(W\) and \(A\) are experimental interventions, not supported product
-outputs for a fixture that supports a positive expectation.
+G9. The mapped wrong and abstaining roles are experimental interventions, not
+supported product outputs for a fixture that supports a positive expectation.
 
 Membership in \(I_E^{(e)}\) is determined from independently authored case
 semantics before any condition output or score is accessible and, for G9,
@@ -1919,14 +2246,20 @@ succeeds, or fails.
 Each envelope freezes positive minimum task and independent-cluster exposure
 for \(I_E^{(e)}\). A designed empty or underexposed \(I_E^{(e)}\), a missing
 required mapped condition, or a malformed exposure field invalidates that
-envelope before any condition output or outcome is accessible and is
-`RejectedPreAccess`, not `Inconclusive`. Every included case then requires
-paired outcomes for all four roles under the frozen missing-data and failure
-policy. In G9, candidate abstention where the fixture requires a positive
-expectation is retained and scored under the predeclared \(+\)-condition
-failure rule; it is not treated as missing. An absent condition, invalid
-condition, timeout, or other failed run after a valid envelope opens follows
-the frozen failure policy. No case is removed or reassigned after outputs are
+envelope before any condition output or outcome is accessible. Validation
+returns `Rejected(PreAccessRejectionReceipt)` only with a structurally valid,
+exactly matching `RejectedAttempt` guard witness; missing, invalid,
+wrong-subject, or mismatched guard evidence returns
+`CustodyEvidenceUnavailable(PreAccessCustodyFailureRecord)`. Neither result is
+`Inconclusive`, and the custody-failure branch makes no custodian or no-access
+claim. Every included case then requires paired outcomes for all four roles
+under the frozen missing-data and failure policy. In G9, candidate abstention
+where the fixture requires a positive expectation is retained and scored
+under the predeclared
+\(\mathsf r_{\mathrm{correct}}\)-condition failure rule; it is not treated as
+missing. After a complete run manifest receives `ValidForOutcomeAccess`, an
+absent condition, invalid condition, timeout, or other failed run follows the
+frozen failure policy. No case is removed or reassigned after outputs are
 visible. If those realized failures make a required comparison lose its frozen
 exposure minimum, all affected expectation-branch estimands and intervals for
 that envelope are absent and its complete evaluation is `Inconclusive`.
@@ -1966,51 +2299,104 @@ class-specific rubrics frozen before outputs are accessible.
 The correct expectation contribution over the identical focus is:
 
 \[
-\Delta_{E,+}^{(e)} =
+\Delta_{E,\mathrm{correct}}^{(e)} =
 \sum_{i\in I_E^{(e)}}v_i^{E,e}
-\left(Y_+^{(e)}(i)-Y_F^{(e)}(i)\right)
+\left(
+Y_{\mathsf r_{\mathrm{correct}}}^{(e)}(i)
+-Y_{\mathsf r_{\mathrm{focus}}}^{(e)}(i)
+\right)
 \]
 
 Its population harm and conditional reversal rates are:
 
 \[
-h_{E,+}^{(e)} =
+h_{E,\mathrm{correct}}^{(e)} =
 \sum_{i\in I_E^{(e)}}v_i^{E,e}
-\mathbb{1}[Y_F^{(e)}(i)=1\land Y_+^{(e)}(i)=0]
+\mathbb{1}
+\left[
+Y_{\mathsf r_{\mathrm{focus}}}^{(e)}(i)=1
+\land
+Y_{\mathsf r_{\mathrm{correct}}}^{(e)}(i)=0
+\right]
 \]
 
 \[
-h_{E,+\mid focus}^{(e)} =
+h_{E,\mathrm{correct}\mid focus}^{(e)} =
 \frac{
 \sum_{i\in I_E^{(e)}}v_i^{E,e}
-\mathbb{1}[Y_F^{(e)}(i)=1\land Y_+^{(e)}(i)=0]
+\mathbb{1}
+\left[
+Y_{\mathsf r_{\mathrm{focus}}}^{(e)}(i)=1
+\land
+Y_{\mathsf r_{\mathrm{correct}}}^{(e)}(i)=0
+\right]
 }{
-\sum_{i\in I_E^{(e)}}v_i^{E,e}\mathbb{1}[Y_F^{(e)}(i)=1]
+\sum_{i\in I_E^{(e)}}v_i^{E,e}
+\mathbb{1}\left[Y_{\mathsf r_{\mathrm{focus}}}^{(e)}(i)=1\right]
 }
 \]
 
-If the mapped \(F\) condition has no successes,
-\(h_{E,+\mid focus}^{(e)}\) is undefined and the mandatory
+If the mapped focus condition has no successes,
+\(h_{E,\mathrm{correct}\mid focus}^{(e)}\) is undefined and the mandatory
 expectation-contribution comparison is `Inconclusive`; the population harm rate
 cannot substitute for it.
 
-For \(r\in\{+,A\}\), wrong-expectation sensitivity is measured against the
-correct and abstaining conditions by:
+The negative control must demonstrate correct-versus-wrong semantic
+differentiation without requiring the wrong intervention to harm a user. Let
+\(D_{\mathrm{correct,wrong}}^{(e)}(i)\in\{0,1\}\) be the result of the frozen
+blinded negative-control discriminator over the realized pair. It is one only
+when the realized correct condition is accepted as supported and qualified
+while the realized wrong condition is identified as unsupported or incorrect,
+without access to the condition label. Its weighted differentiation rate is:
 
 \[
-\Delta_{E,wrong,r}^{(e)} =
+d_{\mathrm{correct,wrong}}^{(e)}
+=
 \sum_{i\in I_E^{(e)}}v_i^{E,e}
-\left(Y_r^{(e)}(i)-Y_W^{(e)}(i)\right)
+D_{\mathrm{correct,wrong}}^{(e)}(i).
+\]
+
+Let \(D_{\mathrm{abstain,wrong}}^{(e)}(i)\in\{0,1\}\) be a second frozen
+blinded discriminator over the realized abstaining and wrong pair. It is one
+only when the abstaining condition is accepted as the justified
+non-asserting control and the wrong condition is identified as unsupported or
+incorrect, without access to the condition label. Its weighted
+differentiation rate is:
+
+\[
+d_{\mathrm{abstain,wrong}}^{(e)}
+=
+\sum_{i\in I_E^{(e)}}v_i^{E,e}
+D_{\mathrm{abstain,wrong}}^{(e)}(i).
+\]
+
+For
+\(r\in\{\mathsf r_{\mathrm{correct}},\mathsf r_{\mathrm{abstain}}\}\),
+task-effect and harm sensitivity may be reported as:
+
+\[
+\Delta_{E,\mathrm{wrong},r}^{(e)} =
+\sum_{i\in I_E^{(e)}}v_i^{E,e}
+\left(
+Y_r^{(e)}(i)-Y_{\mathsf r_{\mathrm{wrong}}}^{(e)}(i)
+\right),
 \]
 
 \[
-h_{E,wrong,r}^{(e)} =
+h_{E,\mathrm{wrong},r}^{(e)} =
 \sum_{i\in I_E^{(e)}}v_i^{E,e}
-\mathbb{1}[Y_r^{(e)}(i)=1\land Y_W^{(e)}(i)=0]
+\mathbb{1}
+\left[
+Y_r^{(e)}(i)=1
+\land
+Y_{\mathsf r_{\mathrm{wrong}}}^{(e)}(i)=0
+\right].
 \]
 
-The second quantity is a negative-control manipulation check, not an acceptable
-product harm rate.
+Neither quantity is a required positive effect. Harmless detection of the
+deliberately wrong content is preferable to downstream degradation. Every
+wrong-condition task-harm rate is safety-bounded from above; zero harm remains
+valid.
 
 For every \(r\in\mathcal R_E\), define \(a_r^{(e)}\), and for every
 \((r,c)\in\mathcal R_E\times\mathcal C_L\), define
@@ -2026,10 +2412,13 @@ a_r^{(e)}=\sum_{i\in I_E^{(e)}}v_i^{E,e}A_r^{(e)}(i),
 and the paired expectation-induced differences:
 
 \[
-\Delta a_{+,focus}^{(e)}=a_+^{(e)}-a_F^{(e)},
+\Delta a_{\mathrm{correct},focus}^{(e)}
+=a_{\mathsf r_{\mathrm{correct}}}^{(e)}
+-a_{\mathsf r_{\mathrm{focus}}}^{(e)},
 \qquad
-\Delta \ell_{+,focus,c}^{(e)}
-=\ell_{+,c}^{(e)}-\ell_{F,c}^{(e)}.
+\Delta \ell_{\mathrm{correct},focus,c}^{(e)}
+=\ell_{\mathsf r_{\mathrm{correct}},c}^{(e)}
+-\ell_{\mathsf r_{\mathrm{focus}},c}^{(e)}.
 \]
 
 For diagnostics only, the protocol may additionally report:
@@ -2051,15 +2440,26 @@ L_{r,c}^{(e)}(i)=1
 Neither this union rate nor any average, maximum, or other composite across
 classes can satisfy, replace, or weaken a class-specific leakage gate.
 
-The wrong-expectation anchoring manipulation checks are:
+The wrong-condition anchoring differences are diagnostics:
 
 \[
-\Delta a_{wrong,r}^{(e)}=a_W^{(e)}-a_r^{(e)},
-\qquad r\in\{+,A\}
+\Delta a_{\mathrm{wrong},r}^{(e)}
+=a_{\mathsf r_{\mathrm{wrong}}}^{(e)}-a_r^{(e)},
+\qquad
+r\in\{
+\mathsf r_{\mathrm{correct}},
+\mathsf r_{\mathrm{abstain}}
+\}.
 \]
 
-These estimands do not authorize the mapped \(W\) condition as a product
-configuration. The mapped \(+\) condition must also pass the independently
+No positive wrong-condition harm, anchoring, or leakage minimum exists.
+Instead, the manifest freezes maximum absolute wrong-condition anchoring
+\(a_{\mathrm{wrong}}^{max,(e)}\), maximum harm
+\(h_{E,\mathrm{wrong},r}^{max,(e)}\) for both controls, and maximum
+class-specific wrong-condition leakage
+\(\ell_{\mathrm{wrong},c}^{max,(e)}\) for every \(c\in\mathcal C_L\).
+These estimands do not authorize the mapped wrong condition as a product
+configuration. The mapped correct condition must also pass the independently
 frozen semantic correctness, qualification, alternative, faithfulness, and
 exact-value gates. A statistically useful but unsupported expectation cannot
 pass G1 or G9.
@@ -2077,7 +2477,8 @@ Measure cold and warm:
 - input and output size;
 - timeout and crash rate;
 - database-size and candidate-count scaling; and
-- network and persistent-write attempts.
+- network attempts, forbidden persistent semantic writes, allowlisted
+  operational-coordination transitions, and nonterminal admission records.
 
 ### Statistical protocol
 
@@ -2091,12 +2492,15 @@ outcomes, or estimands:
 - one primary endpoint, the comparator set required by \(e\), and its
   multiplicity treatment;
 - for \(e=\mathrm{G1}\), every
-  \(\delta_{F,b,D}^{min,(\mathrm{G1})}\),
-  \(\delta_{F,b,I}^{NI,(\mathrm{G1})}\),
-  \(h_{F,b,d}^{max,(\mathrm{G1})}\), and
-  \(h_{F,b,d\mid b}^{max,(\mathrm{G1})}\) threshold defined above; for
+  \(\delta_{\mathrm{focus},b,D}^{min,(\mathrm{G1})}\),
+  \(\delta_{\mathrm{focus},b,I}^{NI,(\mathrm{G1})}\),
+  \(h_{\mathrm{focus},b,d}^{max,(\mathrm{G1})}\), and
+  \(h_{\mathrm{focus},b,d\mid b}^{max,(\mathrm{G1})}\) threshold defined
+  above; for
   \(e=\mathrm{G9}\), every baseline-specific `delta_min,b`, `delta_NI,b`,
-  `h_population_max,b`, and `h_reversal_max,b` threshold;
+  `h_population_max,b`, `h_reversal_max,b`,
+  `h_population_independent_max,b`, and
+  `h_reversal_independent_max,b` threshold;
 - positive minimum task and independent-cluster exposure for
   \(I_D^{(e)}\) and \(I_I^{(e)}\), with envelope-local cases, memberships,
   weights, outcomes, thresholds, and estimands;
@@ -2104,20 +2508,25 @@ outcomes, or estimands:
   membership rule, and positive minimum task and independent-cluster exposure
   for \(I_E^{(e)}\);
 - the expectation-contribution superiority margin
-  `delta_E_plus_min`, maximum population and conditional-reversal bounds
-  `h_E_plus_max` and `h_E_plus_focus_max`, maximum absolute and incremental
-  anchoring bounds `a_E_plus_max` and `delta_a_E_plus_max`, and, for every
+  `delta_E_correct_min`, maximum population and conditional-reversal bounds
+  `h_E_correct_max` and `h_E_correct_focus_max`, maximum absolute and
+  incremental anchoring bounds `a_E_correct_max` and
+  `delta_a_E_correct_max`, and, for every
   \(r\in\mathcal R_E\) and \(c\in\mathcal C_L\), class-specific maximum
   absolute leakage bounds `l_E_r_c_max` plus class-specific incremental bounds
-  `delta_l_E_plus_c_max`, each scoped to the applicable envelope; the optional
-  union leakage rate is diagnostic only and has no gate;
-- for both correct and abstaining controls, the minimum wrong-expectation task
-  effect `delta_E_wrong_min,r`, minimum wrong-expectation harm
-  `h_E_wrong_min,r`, and minimum wrong-expectation anchoring effect
-  `delta_a_E_wrong_min,r`, each scoped to the applicable envelope;
+  `delta_l_E_correct_c_max`, each scoped to the applicable envelope; the
+  optional union leakage rate is diagnostic only and has no gate;
+- the minimum blinded correct-versus-wrong and abstaining-versus-wrong
+  semantic-differentiation rates `d_E_correct_wrong_min` and
+  `d_E_abstain_wrong_min`, and, for the wrong condition, maximum absolute
+  anchoring `a_E_wrong_max`, maximum task harm against both correct and
+  abstaining controls `h_E_wrong_r_max`, and every class-specific maximum
+  leakage rate `l_E_wrong_c_max`; no positive wrong-condition harm, anchoring,
+  or leakage minimum is permitted;
 - one envelope-local multiplicity family and correction or predeclared
   hierarchical testing order covering every expectation-branch superiority,
-  harm, anchoring, and every class-specific leakage claim separately;
+  both semantic-differentiation claims, every harm and anchoring claim, and
+  every class-specific leakage claim separately;
 - claim-bearing language, task-family, and risk subgroups with their
   non-inferiority, harm, exposure, and power requirements;
 - sampling unit, inclusion probabilities, design weights, and clustering
@@ -2129,6 +2538,17 @@ outcomes, or estimands:
 - timeout, crash, missing-data, exclusion, and corruption policy;
 - multiplicity treatment for secondary models, languages, and subgroups; and
 - the confidence-interval and hypothesis-test implementation.
+
+Renderer qualification and fallback selection additionally freeze one
+family-wise error-control procedure or one fully predeclared sequential testing
+order before any mandatory-cohort result is accessible. Its family contains
+every selectable renderer cohort, checkpoint capacity, deployment pairing,
+adapter, training regime, quantization, mandatory seed aggregation, release
+gate, and fallback decision. The same manifest fixes alpha allocation or
+spending, stopping rules, failure and missingness handling, and the sole
+selection order. A cohort, seed, gate, or fallback omitted from that family is
+nonselectable; exploratory `64`-token stress results and other diagnostics
+cannot enter it retrospectively.
 
 Use paired cluster-aware analysis. The default independent cluster is the
 connected component induced by every known shared dependence, including
@@ -2172,19 +2592,30 @@ upperCI(h_{population,b}) < h_{population\_max,b}
 upperCI(h_{reversal,b}) < h_{reversal\_max,b}
 \]
 
+\[
+upperCI(h_{population,b,I}) < h_{population\_independent\_max,b}
+\]
+
+\[
+upperCI(h_{reversal,b,I}) < h_{reversal\_independent\_max,b}
+\]
+
 The G1 receipt applies the headroom estimands over
 \(I_D^{(\mathrm{G1})}\) and \(I_I^{(\mathrm{G1})}\), then applies the
-expectation-branch estimands with \(e=\mathrm{G1}\), the exact six-label
+expectation-branch estimands with \(e=\mathrm{G1}\), the exact seven-label
 `g1_*` map, its own frozen thresholds and multiplicity treatment, and
-\(I_E^{(\mathrm{G1})}\). It records the two focus-superiority, two
+\(I_E^{(\mathrm{G1})}\). It records the three focus-superiority, three
 focus-non-inferiority, population-harm, conditional-reversal,
-correct-contribution, wrong-versus-correct, and wrong-versus-abstention
-comparisons separately. Missing, invalid, empty, underexposed, or
-zero-denominator required outcome cells encountered under an already valid
-envelope are `Inconclusive` before affected arithmetic. Invalid attempted
-envelope data or a threshold prevents construction and signature of a valid
-envelope, produces only a `PreAccessRejectionReceipt` before outcome access,
-and is not relabeled as an observed `Inconclusive` result. A G1 case, weight,
+correct-contribution, both blinded correct-versus-wrong and
+abstaining-versus-wrong differentiation, and every wrong-condition safety
+bound separately. Missing, invalid, empty,
+underexposed, or
+zero-denominator required outcome cells encountered under an already
+`ValidForOutcomeAccess` G1 run manifest are `Inconclusive` before affected
+outcome-dependent analysis. Invalid attempted envelope data, run-manifest data,
+or a threshold prevents admission, produces only `Rejected` or
+`CustodyEvidenceUnavailable` according to the available guard evidence, and
+is not relabeled as an observed `Inconclusive` result. A G1 case, weight,
 outcome, threshold, estimand, or result cannot satisfy or seed a G9 gate.
 
 For either \(e\in\{\mathrm{G1},\mathrm{G9}\}\), a positive expectation claim
@@ -2197,23 +2628,28 @@ owned by, frozen in, and identified with that one envelope. The complete
 simultaneous or multiplicity-adjusted expectation gate is:
 
 \[
-lowerCI(\Delta_{E,+}^{(e)}) > \delta_{E,+}^{min,(e)}
+lowerCI(\Delta_{E,\mathrm{correct}}^{(e)})
+> \delta_{E,\mathrm{correct}}^{min,(e)}
 \]
 
 \[
-upperCI(h_{E,+}^{(e)}) < h_{E,+}^{max,(e)}
+upperCI(h_{E,\mathrm{correct}}^{(e)})
+< h_{E,\mathrm{correct}}^{max,(e)}
 \]
 
 \[
-upperCI(h_{E,+\mid focus}^{(e)}) < h_{E,+\mid focus}^{max,(e)}
+upperCI(h_{E,\mathrm{correct}\mid focus}^{(e)})
+< h_{E,\mathrm{correct}\mid focus}^{max,(e)}
 \]
 
 \[
-upperCI(a_+^{(e)}) < a_{E,+}^{max,(e)}
+upperCI(a_{\mathsf r_{\mathrm{correct}}}^{(e)})
+< a_{E,\mathrm{correct}}^{max,(e)}
 \]
 
 \[
-upperCI(\Delta a_{+,focus}^{(e)}) < \Delta a_{E,+}^{max,(e)}
+upperCI(\Delta a_{\mathrm{correct},focus}^{(e)})
+< \Delta a_{E,\mathrm{correct}}^{max,(e)}
 \]
 
 \[
@@ -2223,28 +2659,44 @@ r\in\mathcal R_E,\quad c\in\mathcal C_L
 \]
 
 \[
-upperCI(\Delta \ell_{+,focus,c}^{(e)})
-< \Delta \ell_{E,+,c}^{max,(e)},
+upperCI(\Delta \ell_{\mathrm{correct},focus,c}^{(e)})
+< \Delta \ell_{E,\mathrm{correct},c}^{max,(e)},
 \qquad c\in\mathcal C_L.
 \]
 
-Against both the correct \(r=+\) and abstaining \(r=A\) controls, the
-deliberately wrong expectation must also remain a detectable negative control
-within the same envelope:
+The deliberately wrong expectation must be distinguishable from the correct
+condition without requiring a harmful downstream effect:
 
 \[
-lowerCI(\Delta_{E,wrong,r}^{(e)})
-> \delta_{E,wrong,r}^{min,(e)}
+lowerCI(d_{\mathrm{correct,wrong}}^{(e)})
+> d_{\mathrm{correct,wrong}}^{min,(e)}.
 \]
 
 \[
-lowerCI(h_{E,wrong,r}^{(e)}) > h_{E,wrong,r}^{min,(e)}
+lowerCI(d_{\mathrm{abstain,wrong}}^{(e)})
+> d_{\mathrm{abstain,wrong}}^{min,(e)}.
+\]
+
+Against both
+\(r\in\{\mathsf r_{\mathrm{correct}},\mathsf r_{\mathrm{abstain}}\}\),
+its harm is bounded only from above:
+
+\[
+upperCI(h_{E,\mathrm{wrong},r}^{(e)})
+< h_{E,\mathrm{wrong},r}^{max,(e)}.
+\]
+
+Its absolute anchoring and every leakage class are likewise upper-bounded:
+
+\[
+upperCI(a_{\mathsf r_{\mathrm{wrong}}}^{(e)})
+< a_{\mathrm{wrong}}^{max,(e)}.
 \]
 
 \[
-lowerCI(\Delta a_{wrong,r}^{(e)})
-> \Delta a_{E,wrong,r}^{min,(e)},
-\qquad r\in\{+,A\}.
+upperCI(\ell_{\mathsf r_{\mathrm{wrong}},c}^{(e)})
+< \ell_{\mathrm{wrong},c}^{max,(e)},
+\qquad c\in\mathcal C_L.
 \]
 
 Because the task-level outcomes are binary, the baseline paired effects have
@@ -2256,18 +2708,22 @@ threshold is finite and must satisfy
 \(0<\delta_{min,b}<1\),
 \(0<\delta_{NI,b}<1\),
 \(0<h_{population\_max,b}<1\), and
-\(0<h_{reversal\_max,b}<1\). The separately named G1 headroom thresholds obey
+\(0<h_{reversal\_max,b}<1\),
+\(0<h_{population\_independent\_max,b}<1\), and
+\(0<h_{reversal\_independent\_max,b}<1\). The separately named G1 headroom thresholds obey
 their earlier domains instead and are not required by a G9 manifest; the G9
 baseline thresholds are not required by a G1 manifest. For the selected \(e\),
-every minimum expectation-branch effect or negative-control
-bound lies strictly inside \((0,1)\), every absolute maximum rate, including
-each \(\ell_{E,r,c}^{max,(e)}\), lies strictly inside \((0,1)\), and every
-maximum paired rate difference, including each
-\(\Delta\ell_{E,+,c}^{max,(e)}\), lies in \([0,1)\). All thresholds owned by
-the selected envelope are finite. A manifest containing a missing, non-finite,
-vacuous, or out-of-domain required threshold is invalid before its sealed data
-become accessible; no affected normalization, estimate, interval, or release
-arithmetic may begin, and the manifest cannot support a claim.
+every minimum expectation-branch effect or either semantic-differentiation
+bound lies strictly inside \((0,1)\), every absolute maximum rate, including each
+\(\ell_{E,r,c}^{max,(e)}\), lies strictly inside \((0,1)\), and every maximum
+paired rate difference, including each
+\(\Delta\ell_{E,\mathrm{correct},c}^{max,(e)}\), lies in \([0,1)\). Wrong
+harm, anchoring, and leakage limits are maxima in \((0,1)\); no corresponding
+positive minimum is valid. All thresholds owned by the selected envelope are
+finite. A manifest containing a missing, non-finite, vacuous, or out-of-domain
+required threshold is invalid before its sealed data become accessible; no
+affected normalization, estimate, interval, or release arithmetic may begin,
+and the manifest cannot support a claim.
 
 Every claim-bearing subgroup must additionally pass its frozen
 non-inferiority and harm bounds for every required baseline. The positive
@@ -2325,8 +2781,10 @@ dependence assumptions.
    join, lineage overlap, signature failure, manifest mutation, or prohibited
    access before signature. No partial manifest or reconstructed substitute may
    proceed.
-8. Only after the run manifest is signed, permit the independent evaluation
-   executor to access the sealed material. Randomize condition order through
+8. Only after the run manifest is signed, the custodian has authenticated a
+   same-attempt `PreAccessGuardWitnessV1`, and validation has issued the matching
+   `ValidForOutcomeAccess` record, permit the independent evaluation executor
+   to receive a sealed-material capability. Randomize condition order through
    the frozen seed schedule and execute that exact manifest once, unchanged,
    without reconstruction, substitution, tuning, threshold changes, or
    post-outcome reassignment.
@@ -2402,22 +2860,24 @@ The proof program proceeds in risk order:
 | Gate | Required result | Failure action |
 | --- | --- | --- |
 | G0: Contract | Product, architecture, and proof documents are internally consistent | Resolve contracts before implementation |
-| G1: Product headroom | The exact `g1_prompt`, `g1_situation`, `g1_focus`, `g1_correct`, `g1_wrong`, and `g1_abstain` conditions pass their matched-construction audit; `g1_focus` passes both frozen superiority gates over \(I_D^{(\mathrm{G1})}\), both non-inferiority gates over \(I_I^{(\mathrm{G1})}\), and every population-harm and conditional-reversal bound; on separate positive-exposure \(I_E^{(\mathrm{G1})}\), `g1_correct` passes contribution gates while `g1_wrong` is detectably worse and more anchoring than `g1_correct` and `g1_abstain`; all task/cluster/required-subgroup, multiplicity, answer/action/fact/probability-leakage, and no-reuse gates pass. An invalid attempted envelope or threshold prevents valid signature and emits only a `PreAccessRejectionReceipt` before outcome access. Under an already valid envelope, any missing, invalid, empty, underexposed, or zero-denominator required outcome cell is `Inconclusive` before arithmetic | Reject, narrow, or defer the premise before architecture implementation |
+| G1: Product headroom | The exact `g1_prompt`, `g1_situation`, `g1_placebo`, `g1_focus`, `g1_correct`, `g1_wrong`, and `g1_abstain` conditions pass their construction, neutral-carrier, placebo-irrelevance, and tokenizer-exact size audits; `g1_focus` passes all three frozen superiority gates over \(I_D^{(\mathrm{G1})}\), all three non-inferiority gates over \(I_I^{(\mathrm{G1})}\), and every population-harm and conditional-reversal bound; on separate positive-exposure \(I_E^{(\mathrm{G1})}\), `g1_correct` passes contribution gates, both correct-versus-wrong and abstaining-versus-wrong semantic differentiation pass, and `g1_wrong` remains below every harm, anchoring, and class-specific leakage maximum; all task/cluster/required-subgroup, family-wise or sequential multiplicity, and no-reuse gates pass. An invalid attempted envelope, complete G1 run manifest, or threshold prevents `ValidForOutcomeAccess` and returns `Rejected` when matching rejection evidence is valid; missing, invalid, wrong-subject, or mismatched guard evidence returns `CustodyEvidenceUnavailable`. Neither failure returns a receipt claim without its required witness, an admission, or a capability. Under an already valid run manifest, any missing, invalid, empty, underexposed, or zero-denominator required outcome cell is `Inconclusive` before outcome-dependent analysis | Reject, narrow, or defer the premise before architecture implementation |
 | G2: Evidence harness | Formal obligations are reviewed; one versioned manifest, receipt, split, lineage, baseline, and analysis harness can represent every required condition and preserve failed or inconclusive results | Do not select implementation technologies |
 | G3: Predictive semantics | The deterministic expectation baseline passes transition-schema, dependency-budget, alternative, abstention, observation-assessment, and non-probability contracts on curated and adversarial evidence | Correct or simplify predictive semantics before renderer or persistence integration |
-| G4: Renderer feasibility | A deterministic renderer or registered numerical bridge plus the smallest passing local checkpoint faithfully renders frozen expert focus-and-expectation plans and exact slots within local budgets | Replace or constrain the bridge, model, or rendering contract; do not weaken a failed gate |
+| G4: Renderer feasibility | Under the frozen family-wise or sequential qualification procedure, a deterministic renderer or registered numerical bridge plus the smallest passing selectable local checkpoint faithfully renders frozen expert focus-and-expectation plans and exact slots within local budgets across every mandatory cohort and seed; every fallback decision is resolved by the same procedure | Replace or constrain the bridge, model, or rendering contract; do not weaken a failed gate |
 | G5: Memory read and snapshots | Supplied revisions, authorization views, pinned indexes, concurrent publication, and compile/management separation satisfy their contracts | Do not build persistent-memory retrieval |
 | G6: Retrieval | Required-proposition and eligible-transition recall plus cross-context behavior beat frozen simple baselines | Replace or simplify retrieval |
 | G7: Activation and planning | Fixed-intermediate comparisons show value for signal derivation, activation, focus construction, expectation derivation, and combined closure selection over their strongest simpler baselines | Do not calibrate or integrate a mechanism without added value |
 | G8: Vertical slice | All critical invariants, offline boundaries, and resource budgets hold in one local end-to-end integration | Do not build release packaging |
-| G9: Sealed evaluation | Under the candidate-independent protocol, exact verified candidate, pre-access signed run manifest, and unchanged-once execution, every complete-product superiority, non-inferiority, paired \(I_E^{(\mathrm{G9})}\) correct-contribution, wrong-expectation negative-control, multiplicity, separate answer/action/fact/probability leakage, population harm, conditional reversal, anchoring, positive task/independent-cluster/required-subgroup exposure, subgroup, critical-rate, operational, resource, and exact \(\mathcal T_H^{(\mathrm{G9})}=I_D^{(\mathrm{G9})}\uplus I_I^{(\mathrm{G9})}\) membership/weight gate passes. An invalid attempted population partition, run manifest, or threshold prevents valid manifest signature and emits only a `PreAccessRejectionReceipt` before sealed outcome access. Under an already valid manifest, any missing, invalid, empty, underexposed, or zero-denominator required outcome cell is `Inconclusive` before normalization or arithmetic, has no estimate or interval, and blocks release | Report failure or inconclusive evidence; do not relabel it |
+| G9: Sealed evaluation | Under the candidate-independent protocol, exact verified candidate, pre-access signed run manifest, matching guard witness, and unchanged-once execution, every complete-product superiority, non-inferiority, paired \(I_E^{(\mathrm{G9})}\) correct-contribution, both semantic-differentiation gates, wrong-condition safety maximum, family-wise or sequential multiplicity, separate answer/action/fact/probability leakage, whole-population and context-independent population-harm and conditional-reversal, anchoring, positive task/independent-cluster/required-subgroup exposure, subgroup, critical-rate, operational, resource, and exact \(\mathcal T_H^{(\mathrm{G9})}=I_D^{(\mathrm{G9})}\uplus I_I^{(\mathrm{G9})}\) membership/weight gate passes. The strongest-baseline candidate family includes placebo condition `3`. An invalid attempted population partition, run manifest, or threshold prevents valid manifest signature and returns `Rejected` when matching rejection evidence is valid; missing, invalid, wrong-subject, or mismatched guard evidence returns `CustodyEvidenceUnavailable` before sealed outcome access. Neither failure returns a receipt claim without its required witness, an admission, or a capability. Under an already valid manifest, any missing, invalid, empty, underexposed, or zero-denominator required outcome cell is `Inconclusive` before outcome-dependent analysis, has no estimate or interval, and blocks release | Report failure or inconclusive evidence; do not relabel it |
 | G10: Shipment | Reproducible artifacts, authenticated manifests, migrations, backup/restore, rollback, licenses, SBOM, platform CI, installation, and evidence receipts pass one release-candidate rehearsal | Do not publish or broaden the supported claim |
 
 Stop or redirect work when:
 
 - expert attention fails to establish product headroom;
 - correct expert expectation adds no value over token-matched focus-only or the
-  wrong-expectation control is not detectably harmful;
+  correct-versus-wrong negative control is not semantically distinguishable;
+- the wrong-expectation control exceeds any frozen harm, anchoring, or leakage
+  safety bound;
 - situation-only input explains the complete benefit;
 - semantic top-k or a simpler deterministic rule is non-inferior at lower
   complexity;
@@ -2432,33 +2892,198 @@ Stop or redirect work when:
 
 An underpowered or conflicting result is `Inconclusive`, not success.
 
+<a id="proof-evidence-receipts-001"></a>
+
 ### Documentation and evidence receipts
 
-Every attempted G1-envelope or G9-run-manifest validation first produces
-exactly one minimal `PreAccessRejectionReceipt` or `ValidForOutcomeAccess`
-record. Every attempted G9-protocol validation instead produces exactly one
-minimal `PreAccessRejectionReceipt` or one valid signed `IF-G9-PROTOCOL`.
-A valid G9 protocol is candidate-independent: it neither grants outcome access
-nor creates a `ValidExperimentReceipt`; only the later post-RCV
-`IF-G9-RUN-MANIFEST` validation can produce `ValidForOutcomeAccess`.
+`PROOF-EVIDENCE-RECEIPTS-001` is the sole normative owner of G1/G9 pre-access
+admission, rejection-receipt, custody-failure, guard-witness, and
+valid-experiment receipt semantics.
+
+Every pre-access validation attempt returns exactly one closed
+`PreAccessValidationResult`:
+
+- a valid signed `IF-G1-ENVELOPE`, valid signed `IF-G9-PROTOCOL`, or
+  `ValidForOutcomeAccess`, as applicable;
+- `Rejected(PreAccessRejectionReceipt)` only when one structurally valid,
+  exactly matching `PreAccessGuardWitnessV1::RejectedAttempt` is available; or
+- `CustodyEvidenceUnavailable(PreAccessCustodyFailureRecord)` when required
+  guard evidence is missing, invalid, wrong-subject, or mismatched.
+
+The logical result wireframe is:
+
+```rust
+pub enum PreAccessValidationResult<T> {
+    Valid(T),
+    Rejected(PreAccessRejectionReceipt),
+    CustodyEvidenceUnavailable(PreAccessCustodyFailureRecord),
+}
+```
+
+`T` is exactly the applicable closed valid-artifact or admission type; it
+cannot be a partial manifest, unchecked value, receipt, or capability.
+
+A valid G1 envelope freezes design only and grants no outcome access. A valid
+candidate-independent G9 protocol likewise grants no outcome access. Only
+validation of a complete signed `IF-G1-RUN-MANIFEST` or the post-RCV
+`IF-G9-RUN-MANIFEST` may return `ValidForOutcomeAccess`.
+
+Every `ValidForOutcomeAccess` record contains the opaque attempt identity, the
+exact signed run-manifest content identity, immutable digest and signature,
+the structural-manifest validation record, and the content identity, digest,
+and signature of one authenticated `PreAccessGuardWitnessV1`. The witness must
+bind that same attempt, run manifest, sealed source, validation window,
+validation and analysis principals, capability-issuance state, and access- and
+analysis-ledger head and tail commitments. A missing, invalid, differently
+scoped, or mismatched witness prevents issuance of
+`ValidForOutcomeAccess` and outcome access.
+
 A `PreAccessRejectionReceipt` records only:
 
-- the attempted protocol, envelope, or run-manifest kind;
+- the closed attempted protocol, envelope, or run-manifest kind;
 - an opaque attempt identity;
-- the exact attempted bytes and their digest when those bytes are available,
-  or the available prefix plus the stage and field at which bounded parsing
-  failed;
-- every configuration, source, dataset, implementation, and custody identity
-  successfully established before rejection;
-- one closed typed rejection reason and the validation stage that produced it;
-- verifier, validation-implementation, hardware, operating-system, and time
-  identity; and
-- an auditable proof that sealed condition outputs and outcomes remained
-  inaccessible and that no normalization, estimand, interval, or division ran.
+- exactly one digest-only, non-retaining commitment: either the digest and byte
+  length of the complete attempted input with `Complete`, or the digest and
+  byte length of the consumed prefix with `Incomplete` plus the closed
+  validation stage and field at which bounded parsing stopped;
+- only canonical opaque identities from the receipt schema's explicit
+  allowlist that were established before rejection: applicable configuration,
+  source-root, dataset-root, implementation, custody, verifier,
+  validation-implementation, hardware-class, operating-system, trusted-time,
+  and signed artifact identities;
+- one closed typed rejection reason and the validation stage and field that
+  produced it; and
+- one content identity, digest, and signature for the corresponding
+  `PreAccessGuardWitnessV1`.
+
+A `PreAccessCustodyFailureRecord` records only:
+
+- its schema identifier, the opaque attempt identity, and the closed attempted
+  protocol, envelope, or run-manifest kind;
+- the same complete-input or consumed-prefix non-retaining commitment shape
+  permitted for a rejection receipt;
+- only allowlisted opaque identities independently established before the
+  failure;
+- the closed validation stage and one closed guard-evidence error:
+  `Missing`, `Invalid`, `WrongSubject`,
+  `RejectionMismatch { field }`, or `AdmissionMismatch { field }`;
+- the validator and validation-implementation identities, trusted time, and
+  validator signature.
+
+It contains no raw attempted bytes, raw prefix, raw witness bytes, rejected
+field value, custodian signature, witness identity, outcome, analysis result,
+admission, or capability. It authenticates only that the validator stopped
+the attempt for the named guard-evidence failure. It is not a
+`PreAccessRejectionReceipt`, does not establish the state of the custodian or
+sealed source, and makes no claim that outcome access or arithmetic did not
+occur.
+
+Neither commitment variant stores, embeds, quotes, logs, or otherwise retains
+the complete attempted bytes, consumed prefix bytes, a rejected field value,
+case content, label content, condition output, outcome, or a free-form identity
+description. Unknown or not-yet-established identities are omitted rather
+than copied from untrusted input.
+
+Digest and length are still derived from attempted content. They reveal
+equality and size and can support dictionary verification for predictable or
+low-entropy inputs. They provide integrity correlation, not confidentiality,
+and remain protected evidence under the custody and retention policy rather
+than a public diagnostic. “Non-retaining” means that raw attempted bytes and
+prefix bytes are not persisted; it does not mean that the commitment is
+information-free or secret-hiding.
+
+The independent custodian signs one `PreAccessGuardWitnessV1` for the attempt.
+Its closed canonical envelope contains exactly:
+
+- the witness schema identifier;
+- the attempt identity;
+- exactly one closed tagged guard subject:
+  - `RejectedAttempt { attempted_kind, input_commitment,
+    established_sealed_source }`, where `input_commitment` is the exact
+    complete-input or consumed-prefix commitment recorded by the rejection
+    receipt and `established_sealed_source` is either explicit `Absent` or one
+    canonical identity independently established before rejection; or
+  - `ValidatedRun { run_manifest_content_id, run_manifest_digest,
+    run_manifest_signature, sealed_source_id }`;
+- the validation-window start and end;
+- the closed canonical validation-principal and analysis-principal sets;
+- the outcome-capability issuance state;
+- the append-only outcome-access ledger head and tail commitments;
+- the append-only analysis-job ledger head and tail commitments;
+- the custodian identity;
+- the guard-implementation identity; and
+- the witness signature.
+
+The rejection-receipt constructor accepts only `RejectedAttempt` and compares
+its attempt identity, attempted kind, input commitment, and explicit
+absent-or-established sealed-source state with the receipt field by field. A
+present sealed-source identity is permitted only when that exact identity was
+independently validated before the failing stage and is retained in the
+receipt's established-identity set; otherwise both sides must be `Absent`.
+After structural validation, rejection joins use the fixed precedence
+`AttemptId`, `AttemptedKind`, `InputCommitment`,
+`EstablishedSealedSource`. The first inequality returns
+`RejectionGuardMismatch { field }` with a closed
+`RejectionGuardJoinField`; a structurally valid wrong subject returns
+`WrongGuardSubject`, while invalid fields return `InvalidGuardWitness`. The
+outer evidence envelope converts any such failure into
+`CustodyEvidenceUnavailable` without inventing a custodian witness. No
+rejection error returns a receipt, admission, or capability.
+The constructor never requires or fabricates a run-manifest or sealed-source
+identity. Missing identities remain `Absent` rather than being copied from
+rejected bytes.
+
+The sole successful-admission constructor
+`ValidForOutcomeAccess::new(validated_manifest, witness)` validates both
+inputs, requires the `ValidatedRun` subject, then compares attempt identity,
+run-manifest content identity, digest, signature, sealed-source identity,
+validation window, validation principals, analysis principals,
+capability-issuance state, and both ledger boundaries field by field. A
+`RejectedAttempt` subject fails as `WrongGuardSubject`; missing or invalid
+witness data otherwise fails as `MissingGuardWitness` or
+`InvalidGuardWitness`; any unequal join fails as `GuardWitnessMismatch {
+field }`, where `field` is a closed
+`GuardWitnessJoinField`. After both inputs and the `ValidatedRun` tag are
+structurally valid, joins are compared in this fixed precedence:
+`AttemptId`, `RunManifestContentId`, `RunManifestDigest`,
+`RunManifestSignature`, `SealedSourceId`, `ValidationWindowStart`,
+`ValidationWindowEnd`, `ValidationPrincipalSet`, `AnalysisPrincipalSet`,
+`OutcomeCapabilityIssuanceState`, `OutcomeAccessLedgerHead`,
+`OutcomeAccessLedgerTail`, `AnalysisJobLedgerHead`, then
+`AnalysisJobLedgerTail`. The first unequal field is returned even when later
+fields also differ. The outer evidence envelope converts any missing, invalid,
+wrong-subject, or mismatched admission witness into
+`CustodyEvidenceUnavailable`. No error returns an admission value, outcome
+capability, rejection receipt, or partial successful receipt. No unchecked
+constructor, field replacement, or caller-supplied admission identity is
+permitted.
+
+Both checked witness paths use the same outer failure precedence:
+`MissingGuardWitness`, structurally `InvalidGuardWitness`,
+`WrongGuardSubject`, then their path-specific field joins. The
+`PreAccessCustodyFailureRecord` maps these typed errors directly to `Missing`,
+`Invalid`, `WrongSubject`, `RejectionMismatch { field }`, or
+`AdmissionMismatch { field }`; it never re-inspects or reclassifies witness
+bytes outside the checked constructor.
+
+A valid witness requires that no outcome capability was issued to any bound
+validation or analysis principal during that window, the committed
+outcome-access ledger contains no access entry for the attempt between its
+heads and tails, and the committed analysis-job ledger contains no
+outcome-dependent normalization, estimand, confidence-interval,
+hypothesis-test, or division job for the attempt between its heads and tails.
+
+This witness is conditional evidence about the named custodian, sealed source,
+capability issuer, append-only ledgers, principals, and time window. It does
+not prove universal absence of access, execution, arithmetic, compromise, or
+an unobserved side channel. Receipt language must state those assumptions and
+must not abbreviate the result as an unconditional proof that "no arithmetic"
+or "no access" occurred.
 
 The rejection receipt may itself be content-identified and signed as a
 receipt. It never assigns a valid signed `IF-G1-ENVELOPE` or
-`IF-G9-PROTOCOL` or `IF-G9-RUN-MANIFEST` identity to rejected bytes,
+`IF-G1-RUN-MANIFEST`, `IF-G9-PROTOCOL`, or `IF-G9-RUN-MANIFEST` identity to
+rejected bytes,
 fabricates absent memberships, weights, thresholds, mappings, or execution
 identity, or contains an outcome-cell disposition. A corrected attempt
 receives a new attempt identity and is validated from the beginning.
@@ -2468,11 +3093,17 @@ full reconstructible `ValidExperimentReceipt` below. It records:
 
 - requirement, hypothesis, and configuration identifiers;
 - the selected envelope \(e\) and its envelope-specific execution identity:
-  for \(e=\mathrm{G1}\), the exact signed `IF-G1-ENVELOPE` content identity
-  plus the distinct signed G1 execution-instance identity bound to it; for
+  for \(e=\mathrm{G1}\), the exact complete signed `IF-G1-RUN-MANIFEST`
+  content identity, including its bound `IF-G1-ENVELOPE` and execution-instance
+  identity; for
   \(e=\mathrm{G9}\), the exact signed `IF-G9-RUN-MANIFEST` content identity;
   each recorded artifact includes its immutable digest and signature;
 - its separate `ValidForOutcomeAccess` structural-manifest validation record;
+- the exact authenticated `PreAccessGuardWitnessV1` bound by that
+  `ValidForOutcomeAccess` record, including its content identity, digest,
+  signature, attempt and run-manifest bindings, sealed-source identity,
+  validation window, principals, capability-issuance state, and both ledger
+  boundary pairs;
 - source and dataset revision hashes;
 - transition-reliability schema, target state or missingness code,
   compatibility-policy identity, applicable target derivation and
@@ -2509,7 +3140,9 @@ full reconstructible `ValidExperimentReceipt` below. It records:
 - raw per-case observations;
 - exclusions, timeouts, and failures;
 - analysis version; and
-- computed metrics with confidence intervals.
+- computed metrics with confidence intervals, including both G9
+  context-independent harm estimands for every mandatory baseline and both
+  envelope-local semantic-discrimination estimands whenever applicable.
 
 Receipts are evidence artifacts, not decision records. A later decision cites
 the frozen receipt when adopting a component or claim.
@@ -2665,9 +3298,10 @@ Before `Validated` product status:
 - Transition schema, alternative-family registry, dependency-group policy,
   expectation materiality, coverage, effective-support, and abstention
   thresholds.
-- Expectation-eligible-set rubric and exposure, expectation-contribution and
-  wrong-expectation margins, anchoring and leakage rubrics, and their maximum
-  tolerated rates.
+- Expectation-eligible-set rubric and exposure, expectation-contribution
+  margin, blinded correct-versus-wrong and abstaining-versus-wrong
+  semantic-differentiation minima, anchoring and leakage rubrics, and all
+  wrong-condition harm, anchoring, and class-specific leakage maxima.
 - Whether expectation-only output enters the supported product claim after its
   complete-scope cases are evaluated.
 - Annotation protocol and agreement threshold.
@@ -2696,3 +3330,6 @@ after the sealed outcomes are known.
 - [Decision 0014: Adopt memory-grounded predictive attention](../decisions/0014-adopt-memory-grounded-predictive-attention.md)
 - [Decision 0015: Render qualified focus-and-expectation plans](../decisions/0015-render-qualified-focus-and-expectation-plans.md)
 - [Decision 0016: Adopt sealed compile-integrity boundaries](../decisions/0016-adopt-sealed-compile-integrity-boundaries.md)
+- [Decision 0017: Control evaluation interventions and pre-access evidence](../decisions/0017-control-evaluation-interventions-and-pre-access-evidence.md)
+- [Decision 0025: Complete pre-access and statistical guards](../decisions/0025-complete-pre-access-and-statistical-guards.md)
+- [Decision 0031: Complete compile and update admission handoffs](../decisions/0031-complete-compile-and-update-admission-handoffs.md)

@@ -1,7 +1,8 @@
 # 0028: Bind update writer exclusion and ship authorization
 
-Status: Accepted
+Status: Superseded
 Date: 2026-07-24
+Superseded by: 0031-complete-compile-and-update-admission-handoffs.md
 
 ## Context
 

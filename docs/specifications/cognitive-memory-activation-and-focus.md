@@ -2242,7 +2242,7 @@ specifications.
 
 A conforming experiment requires:
 
-- the accepted local, read-only V1 product boundary;
+- the accepted local, semantically read-only V1 product boundary;
 - a pinned immutable request, compiler configuration, and authorized memory
   revision;
 - valid trusted `t_auth` for the separate authorization and memory-validity
@@ -2263,7 +2263,9 @@ A conforming experiment requires:
   locator, authority, allowed-use, derivation, scoring, and canonical-order
   contracts;
 - declared focus-candidate limits; and
-- no network access or persistent write capability on the compile path.
+- no network access and no semantic, content-bearing, or unallowlisted
+  persistent write capability on the compile path; the only durable exception
+  is the content-free admission coordination selected by Decision 0031.
 
 ## Invariants
 
@@ -2832,6 +2834,7 @@ inner experience, or literal thought.
   (superseded)](../decisions/0012-adopt-numerical-cognitive-memory-and-focus-compilation.md)
 - [Decision 0014: Adopt memory-grounded predictive attention](../decisions/0014-adopt-memory-grounded-predictive-attention.md)
 - [Decision 0016: Adopt sealed compile-integrity boundaries](../decisions/0016-adopt-sealed-compile-integrity-boundaries.md)
+- [Decision 0031: Complete compile and update admission handoffs](../decisions/0031-complete-compile-and-update-admission-handoffs.md)
 
 ### Human-memory and cognition research
 

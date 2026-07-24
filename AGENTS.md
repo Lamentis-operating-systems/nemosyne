@@ -52,11 +52,26 @@ Run the structural documentation check and code checks before committing:
 ./scripts/test-documentation-change-policy.sh
 ./scripts/test-documentation-check.sh
 ./scripts/check-documentation.sh
+./scripts/test-v1-delivery-program-check.sh
+./scripts/check-v1-delivery-program.py
 cargo fmt --all --check
 cargo clippy --workspace --all-targets --all-features --locked -- -D warnings -F missing-docs -F unsafe-code
 RUSTDOCFLAGS="-D warnings -F missing-docs -F unsafe-code" cargo doc --workspace --all-features --no-deps --locked
 cargo test --workspace --all-features --locked
 ```
+
+DOC-00 uses two commits to avoid a self-referential attestation. Its source
+freeze runs the structural command above before commit. After the review and
+consolidation attestations are committed separately, the final pull-request
+head must also pass:
+
+```text
+./scripts/check-v1-delivery-program.py --require-receipts
+```
+
+The DOC-00 pull request must be merged with GitHub's **Create a merge commit**
+method. Squash merge and rebase merge do not preserve the exact attested source
+commit and are therefore invalid for this one pull request.
 
 After committing, run the change-aware documentation check against the pull request body from a clean worktree:
 

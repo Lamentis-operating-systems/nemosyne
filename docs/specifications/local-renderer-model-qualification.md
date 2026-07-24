@@ -78,7 +78,12 @@ where:
   seed `s`, while original model rows remain byte-identical to the base
   revision;
 - `phi_s` and `r_phi_s` identify the trained numerical bridge and revision for
-  seed `s`;
+  seed `s`. They identify the complete immutable bridge checkpoint enumerated
+  by the vector-to-attention renderer contract, including every learned bridge
+  projector, categorical embedding, normalization, latent-query, resampler,
+  language-conditioning, and attribution tensor plus its canonical tensor
+  inventory and trainability/freeze mask. The bridge contains no model
+  vocabulary row;
 - `Delta_s` and `r_Delta_s` identify an optional LoRA adapter and revision for
   seed `s`;
 - `s` identifies one seed from the frozen training-seed set;
@@ -92,6 +97,14 @@ where:
 - `v` and `r_v` identify the independently trained semantic-verifier artifact
   and immutable revision; and
 - `tau_v` identifies its calibrated threshold vector and calibration receipt.
+
+The selected \((e_s,r_{e_s})\), \((\phi_s,r_{\phi_s})\), and optional
+\((\Delta_s,r_{\Delta_s})\) are the exact disjoint trained-artifact composite
+bound into authenticated \(K_R\) and therefore into
+`RendererConfigurationId`. A missing, partial, overlapping, reconstructed,
+differently partitioned, or replaced composite is a different or invalid
+renderer configuration and cannot reuse this candidate's qualification
+evidence.
 
 The same qualified verifier tuple \((v,r_v,\tau_v)\) is frozen for every
 renderer cohort in one protocol revision. It is not retuned per renderer,
@@ -245,6 +258,11 @@ evaluation:
   resolution, rounding, downstream-evaluation random tapes, and confidence
   procedures; renderer inference itself accepts no request-time randomness;
 - every metric definition and hard threshold;
+- one family-wise and sequential multiplicity contract over every mandatory
+  and fallback model family, selectable latent count (`8`, `16`, `32`),
+  diagnostic-only latent count (`64`), bridge/LoRA variant, training seed,
+  reference/deployment precision pair, language/script stratum, semantic and
+  resource gate, deployment-selection comparison, and fallback decision;
 - downstream target-model configurations and evaluation rubric; and
 - the deterministic final selection ordering.
 
@@ -260,6 +278,39 @@ digests and is authenticated by the installation trust root defined by the V1
 architecture. Content identity without manifest authenticity is insufficient.
 Mutable repository names, branches such as `main`, floating package versions,
 and model aliases are insufficient.
+
+### Frozen multiplicity and sequential-use contract
+
+Before training, `QualificationMultiplicityV1` enumerates every atomic
+statistical claim and every possible look at development, calibration, sealed,
+and fallback evidence. It fixes one family-wise error ceiling
+\(\alpha_{\mathrm{FWER}}\), a total claim order, one simultaneous-confidence or
+multiple-testing procedure, and a non-reusable alpha allocation for the
+mandatory and predeclared fallback stages. The selected procedure must control
+FWER under the dependence assumptions it declares; Holm-Bonferroni over the
+complete frozen atomic family is the default admissible reference procedure,
+while a different closed-testing or alpha-spending procedure requires an
+equally explicit manifest definition and simulation evidence.
+
+Deterministic conformance gates do not manufacture p-values, but every
+confidence bound, regression comparison, candidate-selection comparison,
+per-language inference, and downstream utility/harm inference belongs to the
+same frozen family. Selection uses simultaneous adjusted bounds rather than
+unadjusted favorable point estimates. Every seed remains an evaluated member,
+not an independently selectable trial. Development selection, LoRA escalation,
+quantization pairing, language gates, and model-family comparisons are all
+included when the claim family is frozen.
+
+The `64`-query condition is diagnostic stress-only: it is recorded in the
+family and consumes its preallocated diagnostic error budget when inferential
+claims are reported, but it cannot enter
+\(\mathcal C_{\mathrm{qual,pass}}\), choose a threshold, or become the deployed
+configuration. The fallback branch and its alpha allocation are frozen before
+mandatory results are observed. Mandatory failures may open that branch once;
+they cannot select its analysis, transfer unused alpha, add a model, or create
+another look. Missing, aborted, or invalid measurements are failures or
+explicitly unavailable claims, never silently removed from the multiplicity
+family.
 
 ### Required training conditions
 
@@ -300,6 +351,9 @@ conversions. Quantized artifact size alone is not a quality result.
 - Variants of one semantic scenario occur in exactly one dataset split.
 - The held-out split and its hard thresholds are sealed before any candidate
   is evaluated on it.
+- `QualificationMultiplicityV1`, including the complete atomic claim family,
+  simultaneous procedure, sequential looks, and mandatory/fallback alpha
+  allocation, is authenticated and sealed before training begins.
 - Every mandatory candidate has the same eligible training, development, and
   held-out semantic scenarios.
 - The authenticated manifest defines a finite nonempty
@@ -728,9 +782,11 @@ Every condition is evaluated on the same focus-only,
 focus-plus-renderable-abstention, valid expectation-only, combined, and
 deliberately corrupted semantic scenario roots.
 
-The registered prefix-length set is `8`, `16`, and `32` virtual tokens. The
-vector-to-attention renderer specification may evaluate additional ablations,
-but final model comparison uses the same frozen set for every candidate.
+The registered selectable prefix-length set is `8`, `16`, and `32` virtual
+tokens. A `64`-query run is permitted only as the predeclared diagnostic
+stress condition above. It is measured under the same frozen inputs and
+multiplicity family but is not selectable, cannot change a threshold, and
+cannot rescue a failing cohort.
 
 Development data selects bridge dimensions, one training condition per model
 family, and \(deploy(C_{\mathrm{qual}})\) under the frozen rule. Every seed artifact in the
@@ -795,6 +851,7 @@ unless separately demonstrated.
 - [Vector-to-attention renderer](vector-to-attention-renderer.md).
 - [Decision 0013 (superseded)](../decisions/0013-adopt-a-vector-prefix-local-renderer-qualification-path.md).
 - [Decision 0015](../decisions/0015-render-qualified-focus-and-expectation-plans.md).
+- [Decision 0023](../decisions/0023-bind-complete-renderer-training-state.md).
 - Qwen Team, [Qwen3 Technical
   Report](https://arxiv.org/abs/2505.09388), 2025.
 - Qwen, [`Qwen3-0.6B` model
