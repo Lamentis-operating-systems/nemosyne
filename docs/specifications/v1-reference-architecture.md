@@ -52,26 +52,29 @@ The proposed compile path is:
 
 ```mermaid
 flowchart TD
-    I["Compile invocation"] --> C["Principal, policy, configuration, and limits"]
-    C --> V["Ingress validation and prompt-origin check"]
-    V --> A["Authenticated immutable artifact preflight"]
-    A --> Q["Numerical situation construction"]
-    A --> M["Immutable memory revision acquisition"]
-    M --> P["Authorization, disclosure, validity, and usage view"]
-    Q --> R["Authorized bounded candidate retrieval"]
-    P --> R
-    R --> D["Signal and gate derivation"]
-    D --> K["Activation ranking"]
-    K --> S["Eligible activated-memory set"]
-    Q --> F["Focus planner"]
-    S --> F["Focus planner"]
-    S --> E["Deterministic expectation kernel"]
-    F --> J["Focus-and-expectation plan validation and selection"]
-    E --> J
-    J --> L["Preselected qualified local lexicalizer: deterministic or vector-prefix"]
-    L --> Z["Exact-slot validation and substitution"]
-    Z --> H["Independent faithfulness and policy validation"]
-    H --> O["Exact compiled-text serialization"]
+    IV["Compile invocation"] --> IR["Intrinsic request validation and exact retention"]
+    IR --> ID["Configuration-independent prompt/request identity derivation"]
+    ID --> AU["Prompt-origin authentication and private invocation context"]
+    AU --> RC["Policy, configuration, language, budget, and disclosure resolution"]
+    RC --> AP["Authenticated immutable artifact preflight"]
+    AP --> IB["Sealed complete-request ingress binding"]
+    IB --> QS["Bound numerical situation construction"]
+    AP --> MR["Immutable memory revision acquisition"]
+    MR --> AV["Authorization, disclosure, validity, and usage view"]
+    QS --> RET["Authorized bounded candidate retrieval"]
+    AV --> RET
+    RET --> SIG["Signal and gate derivation"]
+    SIG --> ACT["Activation ranking"]
+    ACT --> SH["Eligible activated-memory set"]
+    QS --> FOC["Focus planner"]
+    SH --> FOC
+    SH --> EXP["Deterministic expectation kernel"]
+    FOC --> PLN["Focus-and-expectation plan validation and selection"]
+    EXP --> PLN
+    PLN --> LEX["Preselected qualified local lexicalizer: deterministic or vector-prefix"]
+    LEX --> SLOT["Exact-slot validation and substitution"]
+    SLOT --> VAL["Independent faithfulness and policy validation"]
+    VAL --> OUT["Exact compiled-text serialization"]
 ```
 
 These are logical boundaries. They do not imply one process, one crate per
@@ -88,11 +91,12 @@ sequenceDiagram
     participant Renderer as Renderer and validator
     Caller->>Compiler: open(InstallationLocator)
     Caller->>Compiler: compile(CompileCallClaims, CompileRequest, CancellationToken)
-    Compiler->>Compiler: Validate and retain original prompt bytes
+    Compiler->>Compiler: Retain complete valid request; derive prompt/request identities
     Compiler->>Auth: Claims + request-presentation identity + prompt content identity
     Auth->>Auth: Authenticate with compiler-owned handles, registries, and clock
-    Auth-->>Compiler: Private InvocationContext + AuthenticatedPrompt
-    Compiler->>Compiler: Resolve and pin K; construct sealed ingress binding
+    Auth-->>Compiler: Private context + authenticated prompt + call binding
+    Compiler->>Compiler: Resolve/pin K, policy, language, budget, disclosure
+    Compiler->>Compiler: SIT-01 constructs sealed complete-request binding
     Compiler->>Store: Open authorized immutable revision
     Store-->>Compiler: Revision, policy, exact data, and numerical views
     Compiler->>Compiler: Encode situation, retrieve, derive signals, activate
@@ -125,11 +129,16 @@ the table below states otherwise.
 
 ### Configuration and artifact preflight
 
-The invocation boundary resolves the authenticated local principal, trusted
-caller context, trusted authorization time, attention budget, applicable
-policy, and one content-identified compiler configuration before validation.
-After basic request validation and before persistent memory access, artifact
-preflight:
+`Compiler::open` has already authenticated the installation bootstrap trust,
+registries, and handles required to evaluate a call. The per-call boundary
+first intrinsically validates and retains the complete immutable request,
+derives only its configuration-independent prompt and request-presentation
+identities, and authenticates their exact binding to the untrusted
+presentation. That authentication produces the private local principal,
+caller context, and trusted authorization time. Only then does the compiler
+resolve the requested installed configuration and disclosure narrowing,
+applicable policy, output language, effective attention budget, and immutable
+artifact handles. Before persistent memory access, artifact preflight:
 
 - verifies an authenticated artifact manifest against a pinned installation
   trust root held outside the mutable artifact bundle;
@@ -148,19 +157,22 @@ and update occur through a separately authenticated management path. A version
 label without provenance, content identity, and an immutable handle is
 insufficient because the underlying file could change during a call.
 
-### Ingress validation
+### Request, control, and ingress validation
 
-Ingress owns:
+These three boundaries are distinct:
 
-- original-prompt preservation;
-- prompt-origin and caller preconditions;
-- zero-to-three situation-statement validation;
-- required contextual-time validation;
-- metadata, language, and configured size validation;
-- resolution of one output language for the complete call; and
-- creation of an immutable request-local input object.
+- intrinsic `CompileRequest` construction owns original-prompt preservation,
+  zero-to-three situation-statement validation, required contextual-time
+  validation, and context-independent metadata, language-tag, and budget
+  syntax;
+- after successful prompt-origin authentication,
+  `resolveAndPinControls` solely owns installed compatibility and resolution
+  of configuration, policy, output language, effective attention budget, and
+  disclosure ceiling; and
+- `SIT-01` solely owns configuration-bound complete-request ingress
+  identities and the immutable request-local bound situation.
 
-Ingress retains the original prompt bytes separately from every decoded,
+The compiler retains the original prompt bytes separately from every decoded,
 normalized, tokenized, or numerical representation. No later stage may
 reconstruct the product prompt from an encoder output.
 
@@ -320,28 +332,37 @@ reuse, and cross-request swaps; retained canonical bytes permit recomputation
 and observed-collision rejection. Cryptographic collision resistance remains
 an explicit assumption rather than an absolute uniqueness claim.
 
-Situation encoding converts `P`, `S`, \(\Xi\), and `K` into a versioned
-numerical query state `Q`. `Q` contains only
-request-local prompt, situation, declared contextual-time, location, metadata,
-language, and configuration facts represented as typed vectors, scalars,
-identifiers, presence masks, and numerical relations. It retains validated
-source-byte locators, source-buffer content identities, and exact values
-outside lossy representations. It contains no principal, trusted authorization
-time, policy revision, authorization-view identity, disclosure decision, or
+Situation encoding converts `P`, `S`, \(\Xi\), and `K` into a versioned pure
+numerical situation \(Q_{\mathrm{num}}\). It contains only request-local
+prompt, situation, declared contextual-time, location, metadata, derived
+source-language, and observation-quality facts represented as typed vectors,
+scalars, identifiers, presence masks, and numerical relations. It retains
+validated source-byte locators, source-buffer content identities, and exact
+values outside lossy representations. The situation boundary then constructs
+the bound query
+\(Q=\operatorname{bindQuery}(Q_{\mathrm{num}},B_Q)\) without changing those
+semantics. Neither value contains a principal, trusted authorization time,
+policy revision, authorization-view identity, disclosure decision, or
 authorization result.
 
 Normatively:
 
 \[
-Q=\operatorname{encode}(P,S,\Xi;K).
+Q_{\mathrm{num}}=\operatorname{encode}(P,S,\Xi;K),
+\qquad
+Q=\operatorname{bindQuery}(Q_{\mathrm{num}},B_Q).
 \]
 
 The selected encoder and every transform it invokes are pinned inputs within
 `K`. `t_auth`, `I`, policy state, and authorization-view state are not explicit
-or implicit inputs to this function. Holding `P`, ordered `S`, \(\Xi\), and
-`K` fixed must therefore produce identical `Q`, \(B_Q\), source locators, and
-source-buffer content identities even when private authorization state or
-trusted authorization time differs.
+or implicit inputs to either function. Holding `P`, ordered `S`, \(\Xi\), and
+`K` fixed must therefore produce identical \(Q_{\mathrm{num}}\), source
+locators, and source-buffer content identities. Holding the complete request
+and `K` fixed also produces identical \(B_Q\) and bound `Q`, even when private
+authorization state or trusted authorization time differs. A change confined
+to an output-language, budget, or other non-situational compile control may
+change `request_id` and bound `Q` while leaving \(Q_{\mathrm{num}}\) and
+`situation_id` unchanged.
 
 The encoder contract must define:
 
@@ -830,11 +851,15 @@ For each public call, `Compiler::compile` performs this fixed sequence:
    `LocalPlatformAuthenticator`;
 4. authenticate freshness and the exact presentation-to-prompt/request
    binding, then derive a fresh private `InvocationContext` and
-   `AuthenticatedPrompt`;
-5. resolve the requested configuration and any narrower disclosure request
-   through authenticated installed registries;
-6. pin authorization time, policy, configuration, memory, and artifact
-   revisions;
+   `AuthenticatedPrompt` plus an exact request-local authenticated call binding
+   that retains the bound claims and both derived identities without granting
+   configuration or disclosure authority;
+5. invoke the sole `resolveAndPinControls` stage to resolve the requested
+   configuration and disclosure narrowing, policy revision, output language,
+   and effective attention budget through authenticated installed registries;
+6. pin the returned call-control tuple, preflight its immutable artifacts, and
+   acquire the compatible immutable memory revision; `t_auth` remains the
+   exact value already produced by step 4;
 7. construct one sealed \(\widehat B_{\mathrm{in}}\) from the retained
    canonical request content and authenticated pinned configuration, then
    independently project it into situation encoding and shared-set
@@ -998,11 +1023,14 @@ not publicly nameable. Only the authenticator receives compiler-owned
 operating-system or peer handles, authenticated installation and policy
 registries, and the trusted authorization clock. It resolves the principal and
 caller from the selected platform trust mechanism, authenticates the exact
-prompt/request binding, and resolves the disclosure policy, installed
-configuration identity, and capability limits through the installation's
-authenticated registries. It returns either one validated request-local
-`InvocationContext` together with its request-local `AuthenticatedPrompt`, or
-a typed trust/configuration error.
+prompt/request binding, and returns one validated request-local
+`InvocationContext`, `AuthenticatedPrompt`, and exact authenticated call
+binding or a typed trust error. It does not select configuration, policy,
+disclosure, language, or budget. The compiler resolves those controls only
+after successful authentication, using the authenticated registries, the
+bound complete request and claims, and the new private invocation context;
+that separate stage returns typed configuration, policy, or compatibility
+errors.
 
 The selected identity resolves only through the installation's authenticated
 manifest; caller input can transport an identifier but cannot name an

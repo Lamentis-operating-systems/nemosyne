@@ -38,7 +38,7 @@ inner speech, chain of thought, or biologically faithful prediction.
 | --- | --- | --- |
 | **World state** | The external and internal conditions that exist at a time, whether or not the compiler can observe them | A fully known database row |
 | **Trigger** | The new authenticated user prompt that requests one compiler response | The complete situation |
-| **Situation** | The request-local, typed numerical representation \(Q=\operatorname{encode}(P,S,\Xi;K)\) derived from the trigger, up to three caller-provided situation statements, contextual time, optional metadata, and authenticated pinned numerical configuration | A prose summary invented by the compiler, or a container for principal, authorization time, policy, disclosure, or authorization-view state |
+| **Situation** | The request-local, typed numerical representation \(Q_{\mathrm{num}}=\operatorname{encode}(P,S,\Xi;K)\) derived from the trigger, up to three caller-provided situation statements, contextual time, optional metadata, and authenticated pinned numerical configuration; the bound query \(Q=\operatorname{bindQuery}(Q_{\mathrm{num}},B_Q)\) carries the independent exact ingress projection without changing those semantics | A prose summary invented by the compiler, or a container for principal, authorization time, policy, disclosure, or authorization-view state |
 | **Cognitive memory unit** | One immutable, versioned, provenance-bound memory record with authoritative exact data and rebuildable numerical facets | A raw text chunk or one opaque embedding |
 | **Transition memory** | A cognitive memory unit that binds an observed before-state, an explicit condition or absence, an observed/censored after-state, and a horizon | Proof that a condition caused the outcome |
 | **Activation** | A bounded relevance or accessibility score produced by the separately specified activation contract | Probability, truth, utility, safety, or importance in every context |
@@ -436,7 +436,7 @@ used only by the separately owned pre-retrieval authorization path and later
 appear, where required, as opaque lineage identities in \(\Lambda_A\).
 
 ```text
-Situation / numerical query state Q
+Situation Q_num and bound query Q
 ├── ingress projection
 │   ├── request content identity
 │   ├── situation content identity

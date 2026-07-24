@@ -58,9 +58,12 @@ and claims must use registered or visibly qualified symbols.
 | \(P\) | bytes | Retained original prompt | [Product contract](v1-product-contract.md) |
 | \(S\) | zero to three statements | Caller-supplied situation statements | [Product contract](v1-product-contract.md) |
 | \(\Xi\) | typed request evidence | Caller-supplied contextual time, optional declared location, and explicit metadata | [Reference architecture](v1-reference-architecture.md) |
+| \(\mathsf R\) | complete retained request | One intrinsically valid immutable `CompileRequest` containing \(P,S,\Xi\), declared language, budget ceiling, and every field of the registered request schema; call claims remain separately bound in \(\Gamma_A\) | [Reference architecture](v1-reference-architecture.md) |
+| \(\rho_P,\rho_R\) | configuration-independent identities | Prompt-content and complete request-presentation identities derived before authentication from \(\mathsf R\) | [Reference architecture](v1-reference-architecture.md) |
 | \(\Gamma_P\) | untrusted presentation | Prompt-origin presentation and bounded compile claims supplied at the public boundary | [Reference architecture](v1-reference-architecture.md) |
+| \(\Gamma_A\) | authenticated call binding | Request-local proof binding the exact presentation, claims, \(\rho_P\), \(\rho_R\), and \(\mathsf R\); not a configuration or disclosure grant | [Reference architecture](v1-reference-architecture.md) |
 | \(T_{\mathrm{boot}}\) | private trust inputs | Compiler-owned bootstrap trust, platform handles, and trusted clock | [Reference architecture](v1-reference-architecture.md) |
-| \(P_A\) | private authenticated prompt | Request-local binding of exact \(P\) and its complete configuration-independent presentation identity | [Reference architecture](v1-reference-architecture.md) |
+| \(P_A\) | private authenticated prompt | Request-local proof binding exact \(P\), \(\rho_P\), \(\rho_R\), and the retained \(\mathsf R\) pairing | [Reference architecture](v1-reference-architecture.md) |
 | \(I\) | authenticated context | Trusted invocation principal, caller, and authorization facts | [Reference architecture](v1-reference-architecture.md) |
 | \(t_{\mathrm{context}}\) | exact contextual instant | Caller-declared situational time | [Product contract](v1-product-contract.md) |
 | \(t_{\mathrm{auth}}\) | exact trusted instant | One pinned authorization time | [Reference architecture](v1-reference-architecture.md) |
@@ -71,7 +74,8 @@ and claims must use registered or visibly qualified symbols.
 | \(m_i\) | cognitive memory unit | One immutable exact-plus-numerical record version | [Cognitive memory specification](cognitive-memory-activation-and-focus.md) |
 | \(\mathcal G_i\) | finite relation set | Typed numerical memory relations for \(m_i\) | [Cognitive memory specification](cognitive-memory-activation-and-focus.md) |
 | \(\Pi_i\) | typed metadata | Provenance, authority, validity, uncertainty, and policy of \(m_i\) | [Cognitive memory specification](cognitive-memory-activation-and-focus.md) |
-| \(Q\) | numerical query state | Encoding of \(P,S,\Xi\) under pinned \(K\); no trusted authorization input | [Cognitive memory specification](cognitive-memory-activation-and-focus.md) |
+| \(Q_{\mathrm{num}}\) | pure numerical situation | Encoding of \(P,S,\Xi\) under pinned \(K\); no request-control or trusted-authorization input | [Cognitive memory specification](cognitive-memory-activation-and-focus.md) |
+| \(Q\) | bound numerical query | Exact envelope \(\operatorname{bindQuery}(Q_{\mathrm{num}},B_Q)\); binding cannot change numerical semantics | [Cognitive memory specification](cognitive-memory-activation-and-focus.md) |
 | \(\widehat B_{\mathrm{in}}\) | sealed ingress binding | Compiler-owned typed request, situation, identity-schema, and authenticated configuration identities derived once from exact canonical request content | [Cognitive memory specification](cognitive-memory-activation-and-focus.md) |
 | \(B_Q\) | exact query binding | \((request\_id,situation\_id,configuration\_id)\), independently projected from \(\widehat B_{\mathrm{in}}\) into \(Q\); the request and situation fields are complete typed content identities, not caller labels or bare digests | [Cognitive memory specification](cognitive-memory-activation-and-focus.md) |
 | \(B_A\) | exact shared-set binding | Independent request, situation, and configuration projection of \(\widehat B_{\mathrm{in}}\) supplied to shared-set construction | [Cognitive memory specification](cognitive-memory-activation-and-focus.md) |
@@ -139,6 +143,7 @@ and claims must use registered or visibly qualified symbols.
 | \(T'\) | attention bytes | Validated attention text | [Renderer specification](vector-to-attention-renderer.md) |
 | \(O\) | compiled bytes | Exact successful product output | [Product contract](v1-product-contract.md) |
 | \(K\) | immutable artifact identity | Pinned compiler configuration and execution envelope | [Reference architecture](v1-reference-architecture.md) |
+| \(\Theta_{\mathrm{call}}\) | resolved call controls | Pinned \(K\), output language, effective budget, policy revision, and equal-or-narrower disclosure ceiling | [Reference architecture](v1-reference-architecture.md) |
 | \(K_R\) | immutable renderer identity | Exact renderer configuration bound inside \(K\) | [Renderer specification](vector-to-attention-renderer.md) |
 
 The derivation path below is the sole cross-stage composition. Focused
@@ -149,44 +154,55 @@ an alternate authoritative intermediate, or redefine another stage's formula.
 
 Let:
 
-- `P` be the retained original prompt bytes;
-- `S` be zero to three situation statements;
-- \(\Xi\) be validated caller-supplied request evidence containing declared
-  contextual time `t_context`, optional declared location, and explicit
-  metadata;
+- \(\mathsf R\) be one intrinsically validated, retained, immutable complete
+  `CompileRequest`; its exact components are `P`, `S`, \(\Xi\), optional
+  declared output language, optional attention-budget ceiling, and every
+  field of the registered request schema;
 - \(\Gamma_P\) be the untrusted prompt-origin presentation and bounded compile
-  claims;
+  claims, including any requested installed configuration and equal-or-narrower
+  disclosure ceiling;
 - \(T_{\mathrm{boot}}\) be compiler-owned bootstrap trust, platform handles,
-  and trusted-clock inputs that no caller can construct;
-- \(P_A\), `I`, and `t_auth` be request-local private values produced together
-  only by successful prompt-origin authentication;
-- \(\ell\) be the resolved declared output language;
-- `B` be the attention budget resolved by configuration and policy;
-- `M^r` be immutable memory revision `r` with policy revision `p`; and
-- `K` be one authenticated and pinned content-identified compiler
-  configuration, immutable
-  artifact set, and supported execution envelope, including exactly one
-  renderer configuration, runtime, precision policy, and target platform class
-  resolved after prompt-origin authentication and before numerical request
-  processing;
+  authenticated registries, and trusted-clock inputs that no caller can
+  construct;
+- \(P_A\), \(\Gamma_A\), `I`, and `t_auth` be request-local private values
+  produced together only by successful prompt-origin authentication;
+- \(\Theta_{\mathrm{call}}=(K,\ell,B,p,\mathcal D_{\mathrm{eff}})\) be the
+  authenticated, resolved, and pinned configuration, output language,
+  effective attention budget, policy revision, and equal-or-narrower
+  disclosure ceiling;
+- `M^r` be immutable memory revision `r`; and
 - \(K_R\) be the exact renderer configuration bound inside \(K\). A
   V1-deployable \(K\) permits no request-time random input.
 
 The proposed logical stages are:
 
 \[
-P_A,I,t_{\mathrm{auth}} =
-authenticateOrigin(P,\Gamma_P;T_{\mathrm{boot}})
+(\rho_P,\rho_R) =
+derivePresentationIdentities(\mathsf R;T_{\mathrm{boot}})
 \]
 
 \[
-K =
-resolveAndPinConfiguration(P_A,I;T_{\mathrm{boot}})
+(P_A,\Gamma_A,I,t_{\mathrm{auth}}) =
+authenticateOrigin(
+\mathsf R,\rho_P,\rho_R,\Gamma_P;
+T_{\mathrm{boot}}
+)
+\]
+
+\[
+\Theta_{\mathrm{call}}
+=
+(K,\ell,B,p,\mathcal D_{\mathrm{eff}})
+=
+resolveAndPinControls(
+\mathsf R,P_A,\Gamma_A,I;
+T_{\mathrm{boot}}
+)
 \]
 
 \[
 \widehat B_{\mathrm{in}} =
-constructIngress(P_A,S,\Xi;K)
+constructIngress(\mathsf R,P_A,\Gamma_A;K)
 \]
 
 \[
@@ -197,11 +213,24 @@ B_A=\pi_A(\widehat B_{\mathrm{in}})
 
 \[
 M_A^{r,p,t_{\mathrm{auth}},I} =
-authorize(M^r,I,t_{\mathrm{auth}};K)
+authorize(
+M^r,I,t_{\mathrm{auth}},p,\mathcal D_{\mathrm{eff}};
+K
+)
 \]
 
 \[
-Q = encode(P_A,S,\Xi,B_Q;K)
+Q_{\mathrm{num}} =
+encode(
+prompt(\mathsf R),
+situations(\mathsf R),
+evidence(\mathsf R);
+K
+)
+\]
+
+\[
+Q = bindQuery(Q_{\mathrm{num}},B_Q;K)
 \]
 
 \[
@@ -239,6 +268,15 @@ E = expectations(Q,\mathcal A;K)
 \]
 
 \[
+\mathcal V_{\mathrm{plan}} =
+projectExactSurfaces(
+exactBindings(F)\cup exactBindings(E),
+exactSidecars(Q,\mathcal A);
+K
+)
+\]
+
+\[
 \mathcal I_{\mathrm{plan}} =
 planningInput(\ell,B,\mathcal V_{\mathrm{plan}};K)
 \]
@@ -249,7 +287,7 @@ L = plan(\mathcal I_{\mathrm{plan}},F,E;K)
 
 \[
 V_{\mathrm{ctx}}=
-buildValidationContext(P_A,Q,I;K)
+buildValidationContext(\mathsf R,P_A,Q,I;\Theta_{\mathrm{call}})
 \]
 
 \[
@@ -269,21 +307,44 @@ validate(Z_{\mathrm{exact}},L,V_{\mathrm{ctx}},K_R)
 \]
 
 \[
-O=serialize_{\mathrm{product}}(T',promptBytes(P_A)).
+O=serialize_{\mathrm{product}}(T',promptBytes(\mathsf R)).
 \]
 
 `serialize_product` invokes the sole normative successful-output contract in
 the [product specification](v1-product-contract.md#successful-output). This
 proof program does not duplicate its headers, separators, or byte-concatenation
-formula. No prompt-dependent encoding, retrieval, candidate derivation,
-planning, rendering, or validation may run before `authenticateOrigin`
-succeeds. After authentication, exact prompt bytes are available only through
-\(P_A\), including for final byte-identical serialization.
+formula. Before `authenticateOrigin` succeeds, the compiler may only perform
+intrinsic request validation, immutable retention, cancellation checks, and
+the configuration-independent canonical derivation of \(\rho_P\) and
+\(\rho_R\) required by authentication. It may not perform semantic encoding,
+memory access, retrieval, candidate derivation, planning, rendering, or
+validation. After authentication, every use of exact request content validates
+the immutable \((\mathsf R,P_A,\Gamma_A)\) binding; final serialization reads
+the byte-identical prompt from that same retained \(\mathsf R\).
+`derivePresentationIdentities` uses the authenticated installation's
+configuration-independent presentation schema pinned at open; it is a pure
+canonical identity derivation and grants no authority. `authenticateOrigin`
+checks the exact presentation, claims, \(\rho_P\), \(\rho_R\), complete
+\(\mathsf R\), freshness, and compiler-owned platform evidence together.
+`resolveAndPinControls` accepts only the resulting \(\Gamma_A\), not raw
+claims, and is the sole producer of \(K,\ell,B,p,\mathcal D_{\mathrm{eff}}\).
+`constructIngress` revalidates the \(P_A\)-to-\(\mathsf R\) pairing and derives
+the configuration-bound complete-request envelope from all fields of
+\(\mathsf R\); omitting language, budget, or any registered request field is an
+invalid ingress construction. Requested configuration and disclosure are
+call claims bound separately by \(\Gamma_A\) and resolved only by
+`resolveAndPinControls`; they are not silently reclassified as request fields.
 \(\mathcal I_{\mathrm{plan}}\) contains no raw request, \(Q\), principal,
 authorization view, policy handle, or ambient data source. All
 request-derived meaning in `F` and every member of
 \(\mathcal V_{\mathrm{plan}}\) must already be source-bound and permitted by
 its owning upstream branch.
+`projectExactSurfaces` takes only the canonical union of exact-slot bindings
+declared by `F` and `E` plus immutable request/shared-set exact-sidecar
+projections. It checks slot and surface content identities, rejects missing,
+duplicate, inconsistent, or unreferenced surfaces, and emits the minimized
+permissionless inventory in canonical slot order. It cannot query policy,
+raise a ceiling, add a binding, or inspect ambient state.
 `sealActivatedSet` is the shared-set envelope construction owned by the
 cognitive-memory and predictive-attention contracts. It preserves the
 activation result and attaches the independently supplied \(B_A\) plus the
@@ -325,7 +386,7 @@ normative and move only with a same-change registry update.
 | ID | Sole owner | Domain, codomain, totality, and numeric contract | Required property and counterexample class | Executable evidence owner | Obligation and gate |
 | --- | --- | --- | --- | --- | --- |
 | `ALG-SER-01` | [Product output](v1-product-contract.md#successful-output) | Validated attention bytes plus retained prompt bytes to one compiled byte string; exact byte serialization; total after validation | Prompt is the final byte-identical suffix; test normalization, line endings, nested headers, and trailing bytes | `API-01`, `CLI-01`, `SYS-01` | F1, F9; G7 |
-| `ALG-MEM-01` | [Numerical query state](cognitive-memory-activation-and-focus.md#numerical-query-state) | Authenticated pinned \(K\) plus the exact validated compile request produce one sealed \(\widehat B_{\mathrm{in}}\), independently projected \(B_Q=(request,situation,configuration)\), and \(Q\); request/situation IDs are domain-separated typed content identities over injective canonical envelopes; typed failure; presence differs from numeric zero; exact prompt remains outside \(Q\); no caller-owned ID, principal, trusted time, policy, or authorization-view input | Same content/configuration is deterministic; changed content/configuration separates subject to the digest-collision assumption; recomputation mismatch and observed collision evidence fail closed; test prompt/situation/context/control mutations, map permutation, cross-request branch swaps, constant/reused/caller IDs, collision witnesses, configuration substitution, locators, content identities, and ambient/trusted-time noninterference | `SIT-01`, `ENC-01` | F2, F3, F10, F12; G3 |
+| `ALG-MEM-01` | [Numerical query state](cognitive-memory-activation-and-focus.md#numerical-query-state) | Authenticated pinned \(K\) plus the exact validated compile request produce one sealed \(\widehat B_{\mathrm{in}}\), independently projected \(B_Q=(request,situation,configuration)\), pure \(Q_{\mathrm{num}}\), and exact bound \(Q=\operatorname{bindQuery}(Q_{\mathrm{num}},B_Q)\); request/situation IDs are domain-separated typed content identities over injective canonical envelopes; typed failure; presence differs from numeric zero; exact prompt remains outside both query forms; no caller-owned ID, principal, trusted time, policy, or authorization-view input | Same numerical content/configuration produces bit-identical \(Q_{\mathrm{num}}\); same complete request/configuration produces the same bound \(Q\); changed content/configuration separates subject to the digest-collision assumption; recomputation mismatch and observed collision evidence fail closed; test prompt/situation/context/control mutations, numerical/binding noninterference, map permutation, cross-request branch swaps, constant/reused/caller IDs, collision witnesses, configuration substitution, locators, content identities, and ambient/trusted-time noninterference | `SIT-01`, `ENC-01` | F2, F3, F10, F12; G3 |
 | `ALG-MEM-02` | [Eligible memory view](cognitive-memory-activation-and-focus.md#eligible-memory-view) | Authorized snapshot to \(\mathcal M_E\), then \(Q,\mathcal M_E\) to \(\mathcal M_Q\); total for valid policy artifacts; hard gates precede scores | Excluded records cannot crowd candidates; mutate only unauthorized, deleted, invalid, and usage-incompatible records | `MEM-03`, `RET-01`, `SEC-01` | F2, F3, F12; G2-G3 |
 | `ALG-MEM-03` | [Direct cue activation](cognitive-memory-activation-and-focus.md#direct-cue-activation) | Compatible query-memory facets to finite calibrated cues; metric, calibration, missingness, and canonical accumulation are pinned | Inspectable bounded cue lineage; test incompatible spaces, nonfinite values, and duplicated evidence | `SIG-01`, `ACT-00` | F8, F10; G4 |
 | `ALG-MEM-04` | [Base availability](cognitive-memory-activation-and-focus.md#base-availability-from-frequency-and-recency) | Valid history statistics to bounded availability; checked finite arithmetic in canonical event order | Recency and frequency affect accessibility, not truth or authority; test future and duplicate events | `SIG-01`, `EVAL-01` | F4, F8; G4 |
@@ -382,11 +443,11 @@ The architecture must discharge these obligations under explicit assumptions.
 
 #### F1: Prompt preservation
 
-Because `P` is retained independently and appended as the final operand of
-`O`, the final `|P|` bytes of every successful `O` equal `P`, and no byte
-follows them. This proof depends on the serializer using the retained buffer
-directly and on every adapter delivering the original bytes without
-normalization.
+Because \(\mathsf R\) retains `P` independently and the authenticated
+\((\mathsf R,P_A,\Gamma_A)\) pairing is checked before compilation, the final
+`|P|` bytes of every successful `O` equal `P`, and no byte follows them. This
+proof depends on the serializer using `promptBytes(\mathsf R)` directly and on
+every adapter delivering the original bytes without normalization.
 
 #### F2: Authorization before relevance
 
@@ -408,9 +469,9 @@ held fixed:
 \[
 projection_A(M_1)=projection_A(M_2)
 \Rightarrow
-semanticCompile(M_1;P,S,\Xi,I,\ell,B,K)
+semanticCompile(M_1;\mathsf R,\Gamma_A,I,\Theta_{\mathrm{call}})
 =
-semanticCompile(M_2;P,S,\Xi,I,\ell,B,K)
+semanticCompile(M_2;\mathsf R,\Gamma_A,I,\Theta_{\mathrm{call}})
 \]
 
 The physical index and search procedure must therefore enforce authorization
@@ -428,23 +489,24 @@ numerical representations, and indexes are checked against `r`; authorization
 and disclosure expiry, current normative validity, and supersession use
 `t_auth` and `p`; temporal relevance receives both times explicitly, but
 `t_context` cannot revive historical instructions as current authority.
-`Q` carries only caller-supplied `t_context`; `t_auth` reaches authorization,
-validity, and later memory-relevance derivations through pinned private
-compile state and is never an input to `encode`.
+\(Q_{\mathrm{num}}\) carries only caller-supplied `t_context`; `t_auth`
+reaches authorization, validity, and later memory-relevance derivations
+through pinned private compile state and is never an input to `encode`.
 Downstream stages receive no ambient store handle or wall clock. One immutable
 `K` pins the identities of every policy evaluator and content-identified
 artifact handle, execution runtime, precision policy, supported platform
 class, and deterministic inference policy for the same call. Stochastic
 encoding, retrieval, planning, renderer decoding, or validation is not
-V1-deployable. Therefore, for fixed `P`, `S`, \(\Xi\), `I`, `ell`, and `B`, a
-successful call is a function of one logical memory-policy revision, both
-pinned time values, and one compiler-artifact and execution set even when a
-writer or updater publishes a later revision concurrently.
+V1-deployable. Therefore, for fixed \(\mathsf R\), \(\Gamma_A\), `I`, and
+\(\Theta_{\mathrm{call}}\), a successful call is a function of one logical
+memory-policy revision, both pinned time values, and one compiler-artifact and
+execution set even when a writer or updater publishes a later revision
+concurrently.
 
-Compiler ingress authenticates and pins `K` before constructing
-\(\widehat B_{\mathrm{in}}\). Under the injectivity of the registered
-canonical encoding and collision resistance of its authenticated digest
-algorithm:
+After exact request authentication, the compiler resolves and pins `K`;
+`SIT-01` then constructs \(\widehat B_{\mathrm{in}}\) from the same complete
+\(\mathsf R\). Under the injectivity of the registered canonical encoding and
+collision resistance of its authenticated digest algorithm:
 
 \[
 C_R=C_R' \land K=K'

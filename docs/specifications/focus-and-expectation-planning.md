@@ -123,6 +123,28 @@ permits the selected item binding. The inventory is minimized to the canonical
 union of slots referenced by the two branch projections; an unreferenced
 surface is rejected rather than carried through planning.
 
+Before `PlanningInput` construction, the compiler-owned exact-surface
+projection performs the sole deterministic inventory derivation:
+
+\[
+\mathcal V_{\mathrm{plan}} =
+\operatorname{projectExactSurfaces}
+\left(
+exactBindings(F)\cup exactBindings(E),
+exactSidecars(Q,\mathcal A);
+K
+\right).
+\]
+
+The second argument denotes narrowly projected immutable request and
+shared-set sidecar tables, not raw \(Q\), the complete shared set, a store
+handle, or an authorization capability. The projection verifies every slot,
+surface content identity, permitted item binding, and configuration identity;
+rejects missing, duplicate, inconsistent, or unreferenced surfaces; and emits
+only the canonical slot-ordered union. `PlanningInput::new` consumes that
+finished permissionless \(\mathcal V_{\mathrm{plan}}\). Neither raw \(Q\),
+\(\mathcal A\), nor the source sidecar tables cross the planner boundary.
+
 The planner may only:
 
 - compare both complete source receipts field-for-field;

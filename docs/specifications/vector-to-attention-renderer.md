@@ -923,6 +923,7 @@ positions as:
 t\in\{1,\ldots,T\}
 \;\middle|\;
 (t,i)\in\mathcal B_{\mathrm{attr}}
+\land a_{t,i}^\*=1
 \right\}.
 \]
 

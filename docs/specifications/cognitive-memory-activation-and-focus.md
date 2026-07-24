@@ -63,7 +63,7 @@ This table owns symbols reused only inside this specification:
 | --- | --- |
 | \(f=(\tau_f,v_f,\kappa_f,\nu_f)\) | One typed numerical facet and its type, payload, transform identity, and presence state |
 | \(F_i,X_i,H_i\) | Memory-unit facets, exact sidecars, and history/transition references |
-| \(F_Q,X_Q,G_Q,Z_Q\) | Query facets, exact values, active goals, and typed absence/quality state |
+| \(Q_{\mathrm{num}},F_Q,X_Q,G_Q,Z_Q\) | Pure numerical situation plus its facets, exact request-local values, active goals, and typed absence/quality state |
 | \(\widehat B_{\mathrm{in}},B_Q,J_{QA}\) | Compiler-owned ingress content binding, its query projection, and its validated join with shared-set lineage |
 | \(c_{i,f},C_i\) | One calibrated direct cue and the complete direct-cue vector |
 | \(k_{\mathrm{hist}},n_i^{\mathrm{hist}},t_{i,k_{\mathrm{hist}}},\delta_{i,k_{\mathrm{hist}}}^{\mathrm{hist}},\beta_{\mathrm{decay}},b_i^{\mathrm{raw}},b_i\) | History-event index and count, event time, dimensionless age, decay exponent, raw base availability, and calibrated availability |
@@ -176,13 +176,16 @@ source of truth.
 
 ### Numerical query state
 
-Compiler ingress first validates the complete public compile request against
-the authenticated, pinned configuration `K` and retains immutable exact input
-buffers. The request schema does not accept `request_id`, `situation_id`,
+After intrinsic validation and exact prompt/request-origin authentication,
+the compiler-owned `SIT-01` boundary receives the same retained complete
+request paired with its `AuthenticatedPrompt` and authenticated call binding.
+It validates that request against the resolved pinned configuration `K` and
+retains immutable exact input buffers. The request schema does not accept
+`request_id`, `situation_id`,
 `configuration_id`, an identity digest, or an identity-algorithm override.
 Unknown fields attempting to supply any of those values are rejected rather
-than ignored. The compiler-owned `SIT-01` boundary then constructs exactly one
-sealed `IngressRequestBinding`:
+than ignored. `SIT-01` then constructs exactly one sealed
+`IngressRequestBinding`:
 
 \[
 \widehat B_{\mathrm{in}}=
@@ -195,7 +198,9 @@ configuration\_id
 \]
 
 `configuration_id` is the authenticated content identity of the canonical
-compiler-configuration manifest selected before request identity derivation;
+compiler-configuration manifest selected before configuration-bound
+`request_id` derivation; it is not used by the earlier
+configuration-independent `request_presentation_identity`;
 that manifest enumerates the complete artifact set. The installation trust
 root authenticates the manifest, and the compile call pins it for its full
 lifetime. A caller may request one installed configuration through the public
@@ -326,55 +331,74 @@ injectivity and the collision-resistance assumption for `H`, not an absolute
 uniqueness claim.
 
 The sealed binding is forked from compiler ingress to two independent
-consumers. Situation encoding copies its three-field projection
+consumers. The situation boundary retains its three-field projection
 
 \[
 B_Q=(request\_id,situation\_id,configuration\_id)
 \]
 
-into `X_Q`. Shared-set construction independently copies the same three fields
-from \(\widehat B_{\mathrm{in}}\) into the corresponding projection of
+beside the pure numerical situation as the exact query-envelope binding.
+Shared-set construction independently copies the same three fields from
+\(\widehat B_{\mathrm{in}}\) into the corresponding projection of
 \(\Lambda_A\). It must not copy them from `Q`, derive them from lossy query
 facets, reconstruct them from ambient state, or accept them from the caller.
 This common compiler-owned source makes the later join meaningful: the two
 branches can detect corruption, reuse, or cross-request mixing without giving
 the focus branch an authorization dependency.
 
-Situation encoding produces:
+Situation encoding first produces the authority-free numerical situation:
 
 \[
-Q=\operatorname{encode}(P,S,\Xi;K)
+Q_{\mathrm{num}}=\operatorname{encode}(P,S,\Xi;K)
 \]
 
 with:
 
 \[
-Q=(F_Q,X_Q,G_Q,Z_Q)
+Q_{\mathrm{num}}=(F_Q,X_Q,G_Q,Z_Q).
 \]
+
+The situation boundary then constructs the bound query envelope without
+re-running or altering that encoder:
+
+\[
+Q=\operatorname{bindQuery}(Q_{\mathrm{num}},B_Q).
+\]
+
+`bindQuery` is exact envelope construction, not semantic encoding. Therefore a
+language, budget, or other complete-request control that changes `request_id`
+may change \(B_Q\) and the identity of bound \(Q\) while leaving
+\(Q_{\mathrm{num}}\) bit-identical. Conversely, no field of \(B_Q\) may
+change a facet, goal, exact source value, or quality state in
+\(Q_{\mathrm{num}}\).
 
 where:
 
 - `F_Q` contains typed prompt, situation, temporal, spatial, task, social,
   procedural, and risk-related facets;
-- `X_Q` contains exact request-local values, typed prompt, situation, and
-  metadata source bindings, and exactly one validated canonical query binding
-  \(B_Q=(request\_id,situation\_id,configuration\_id)\);
+- `X_Q` contains exact request-local values plus typed prompt, situation, and
+  metadata source bindings that participate in numerical encoding; it does
+  not contain \(B_Q\), resolved call controls, or authorization state;
 - `G_Q` contains explicitly active goal states and their declared priorities;
   and
-- `Z_Q` contains absence, uncertainty, language, and observation-quality
-  metadata.
+- `Z_Q` contains absence, uncertainty, source-language observations derived
+  from the request evidence, and observation-quality metadata. Resolved output
+  language is a compile control outside \(Q_{\mathrm{num}}\).
 
-`Q` retains `t_context` only as caller-supplied, untrusted request evidence.
+`Q_{\mathrm{num}}` retains `t_context` only as caller-supplied, untrusted
+request evidence.
 The same qualification applies to declared location and metadata. Trusted
 authorization time `t_auth` is neither an encoder input nor a facet, exact
-binding, identifier, or hidden dependency of `Q`. Authorization, current
+binding, identifier, or hidden dependency of `Q_{\mathrm{num}}` or \(B_Q\).
+Authorization, current
 normative validity, expiry, and supersession use `t_auth` on their separately
 owned memory path.
 
 Situation encoding does not retrieve memory, assign instruction authority, or
 modify `P`. It does not decide that a facet is a renderable proposition. That
 decision belongs to the focus branch's validated request-proposition
-construction below. `Q` contains no `policy_revision_id`,
+construction below. Neither \(Q_{\mathrm{num}}\) nor bound `Q` contains a
+`policy_revision_id`,
 `authorization_view_id`, principal, authorization decision, disclosure view,
 or memory-eligibility result. Those values are not situation facts and cannot
 be supplied to the focus branch through a request-source binding.
@@ -1664,10 +1688,16 @@ success measures.
 
 Verification must establish:
 
-- deterministic \(Q=\operatorname{encode}(P,S,\Xi;K)\): identical prompt,
+- deterministic
+  \(Q_{\mathrm{num}}=\operatorname{encode}(P,S,\Xi;K)\): identical prompt,
   ordered zero-to-three situation statements, contextual-time, location, and
   metadata presence states, and pinned encoder/configuration inputs produce
-  identical facets, \(B_Q\), locators, and source-buffer content identities;
+  identical facets, locators, and source-buffer content identities, with no
+  \(B_Q\), resolved call control, or authorization state in any component;
+- deterministic exact binding:
+  \(\operatorname{bindQuery}(Q_{\mathrm{num}},B_Q)\) is total for one valid
+  pair, changes no numerical component, and produces identical bound `Q` for
+  identical inputs;
 - deterministic ingress identity: repeated canonical encoding of the exact
   same validated compile request under the same authenticated identity schema
   and configuration produces byte-identical typed `request_id` and
