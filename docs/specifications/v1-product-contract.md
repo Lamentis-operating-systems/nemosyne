@@ -22,7 +22,8 @@ until separately evaluated.
 
 This document specifies the wanted result and its observable requirements. It
 does not make internal technology choices part of the stable product surface.
-Decisions 0014 and 0015 select the current V1 implementation hypothesis:
+Decisions 0014 through 0016 select the current V1 implementation hypothesis
+and its compile-integrity boundaries:
 numerical cognitive-memory activation, parallel focus and expectation
 formation, a qualified combined plan, and evidence-based selection between a
 deterministic lexicalizer and a local vector-prefix candidate. The linked
@@ -518,4 +519,5 @@ still resolve:
 - [Curated activation evidence](curated-activation-evidence.md)
 - [Decision 0014: Adopt memory-grounded predictive attention](../decisions/0014-adopt-memory-grounded-predictive-attention.md)
 - [Decision 0015: Render qualified focus-and-expectation plans](../decisions/0015-render-qualified-focus-and-expectation-plans.md)
+- [Decision 0016: Adopt sealed compile-integrity boundaries](../decisions/0016-adopt-sealed-compile-integrity-boundaries.md)
 - [Nemosyne README](../../README.md)

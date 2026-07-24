@@ -14,7 +14,11 @@ validated product. Decisions 0014 and 0015 select the intended V1
 implementation path: typed numerical memory and query facets, a shared eligible
 activated-memory set, parallel focus and expectation formation, a canonical
 focus-and-expectation plan, and qualification of a deterministic lexicalizer
-against a local vector-prefix candidate.
+against a local vector-prefix candidate. Decision 0016 fixes the sealed
+compile-integrity boundaries that keep complete queries, the one shared
+activated-memory object, invocation membership, canonical plan content, exact
+plan bytes, and renderer configuration distinct and fail closed at their
+joins.
 Physical database, encoder, index, process, packaging, release-model, and
 production-runtime choices remain independently evidence-gated.
 
@@ -33,11 +37,13 @@ The architecture has four maturity labels:
 A compile request contains the original prompt `P`, zero to three situation
 statements `S`, and caller-supplied request evidence \(\Xi\), containing a
 declared contextual time `t_context`, optional declared location, and explicit
-metadata. The compiler authenticates untrusted call claims and derives a
-private invocation context `I` that identifies the trusted local principal and
-caller and supplies a trusted authorization time `t_auth` outside the
-untrusted request payload. A pinned compiler configuration and policy resolve
-the finite attention budget `B`.
+metadata. The compiler authenticates untrusted call claims and constructs one
+sealed crate-private `AuthenticatedInvocation` \(\mathcal I_A\). Its
+inseparable projections include the authenticated prompt, call binding,
+invocation context `I`, trusted authorization time `t_auth`, and one opaque
+generative call brand. Downstream stages consume the aggregate, never an
+independently supplied authentication tuple. A pinned compiler configuration
+and policy resolve the finite attention budget `B`.
 
 The request is evaluated against one immutable logical memory revision `M^r`
 and one immutable, content-identified compiler configuration `K`.
@@ -54,26 +60,44 @@ The proposed compile path is:
 flowchart TD
     IV["Compile invocation"] --> IR["Intrinsic request validation and exact retention"]
     IR --> ID["Configuration-independent prompt/request identity derivation"]
-    ID --> AU["Prompt-origin authentication and private invocation context"]
+    ID --> AU["Prompt-origin authentication and sealed AuthenticatedInvocation"]
     AU --> RC["Policy, configuration, language, budget, and disclosure resolution"]
     RC --> AP["Authenticated immutable artifact preflight"]
+    AU --> SC["Private signal-context projection"]
+    AP --> SC
     AP --> IB["Sealed complete-request ingress binding"]
-    IB --> QS["Bound numerical situation construction"]
+    IB --> Q["Sealed BoundQuery Q with private numerical and exact-binding projections"]
     AP --> MR["Immutable memory revision acquisition"]
-    MR --> AV["Authorization, disclosure, validity, and usage view"]
-    QS --> RET["Authorized bounded candidate retrieval"]
-    AV --> RET
+    MR --> ME["Authorization, disclosure, validity, revision, and integrity eligibility M_E"]
+    ME --> MQ["Request-usage compatibility M_Q"]
+    Q --> MQ
+    AU --> MQ
+    MQ --> RET["Authorized bounded candidate retrieval"]
     RET --> SIG["Signal and gate derivation"]
+    SC --> SV["Context validation against current sealed invocation"]
+    SV --> SIG
     SIG --> ACT["Activation ranking"]
+    AU --> IW["Private invocation-instance witness"]
+    AU --> PS["Private current-call planning scope"]
     ACT --> SH["Eligible activated-memory set"]
-    QS --> FOC["Focus planner"]
+    IB --> SH
+    IW --> SH
+    Q --> FOC["Focus planner"]
     SH --> FOC
-    SH --> EXP["Deterministic expectation kernel"]
+    Q --> EXP["Deterministic expectation kernel"]
+    SH --> EXP
     FOC --> PLN["Focus-and-expectation plan validation and selection"]
     EXP --> PLN
+    PS --> PLN
+    PLN --> VCTX["Post-plan validation-context construction"]
+    AU --> VCTX
+    IR --> VCTX
+    Q --> VCTX
+    RC --> VCTX
     PLN --> LEX["Preselected qualified local lexicalizer: deterministic or vector-prefix"]
     LEX --> SLOT["Exact-slot validation and substitution"]
     SLOT --> VAL["Independent faithfulness and policy validation"]
+    VCTX --> VAL
     VAL --> OUT["Exact compiled-text serialization"]
 ```
 
@@ -88,28 +112,34 @@ sequenceDiagram
     participant Store as Local memory
     participant Focus as Focus branch
     participant Expect as Expectation branch
-    participant Renderer as Renderer and validator
+    participant Renderer as Renderer
+    participant Validator as Independent validator
     Caller->>Compiler: open(InstallationLocator)
     Caller->>Compiler: compile(CompileCallClaims, CompileRequest, CancellationToken)
     Compiler->>Compiler: Retain complete valid request; derive prompt/request identities
-    Compiler->>Auth: Claims + request-presentation identity + prompt content identity
+    Compiler->>Auth: Complete request + claims + both compiler-derived identities
     Auth->>Auth: Authenticate with compiler-owned handles, registries, and clock
-    Auth-->>Compiler: Private context + authenticated prompt + call binding
+    Auth-->>Compiler: One sealed AuthenticatedInvocation
     Compiler->>Compiler: Resolve/pin K, policy, language, budget, disclosure
+    Compiler->>Compiler: Preflight artifacts; project and validate minimized signal context from sealed invocation
     Compiler->>Compiler: SIT-01 constructs sealed complete-request binding
     Compiler->>Store: Open authorized immutable revision
     Store-->>Compiler: Revision, policy, exact data, and numerical views
     Compiler->>Compiler: Encode situation, retrieve, derive signals, activate
     par Shared eligible set
-        Compiler->>Focus: Q, K, and complete shared set carrying Lambda_A
-        Focus-->>Compiler: FocusCandidateSet
+        Compiler->>Focus: Sealed BoundQuery, K, and complete set carrying Lambda_A plus private invocation and fresh set-instance witnesses
+        Focus-->>Compiler: FocusCandidateSet preserving both witnesses
     and
-        Compiler->>Expect: Immutable transition projection
-        Expect-->>Compiler: ExpectationBundle with per-frame results
+        Compiler->>Expect: Sealed BoundQuery, K, and the exact same complete sealed EligibleActivatedMemorySet object and borrow
+        Expect-->>Compiler: ExpectationBundle with per-frame results preserving both witnesses
     end
-    Compiler->>Compiler: Validate and select FocusExpectationPlan
-    Compiler->>Renderer: One canonical plan
-    Renderer-->>Compiler: Accepted attention text or typed failure
+    Compiler->>Compiler: Borrow current-call and exact-set planning scope; validate each branch's two witnesses; select FocusExpectationPlan
+    Compiler->>Compiler: Build witness-erased validation context; recompute content/configuration joins and consume private plan witness
+    Compiler->>Renderer: Plan borrow and authenticated K_R (ID plus exact canonical content)
+    Renderer-->>Compiler: Plan-and-renderer-configuration-bound SubstitutedAttention or typed renderer failure
+    Compiler->>Compiler: Compare equal-ID candidate/context canonical-plan byte capsules; quarantine collision
+    Compiler->>Validator: SubstitutedAttention + shared &AuthenticatedRendererConfiguration K_R + least-privilege ValidationView projected by private context
+    Validator-->>Compiler: AcceptedAttention or typed validation failure
     Compiler->>Compiler: Concatenate framing, attention, and retained prompt
     Compiler-->>Caller: CompiledPrompt bytes or one typed error
 ```
@@ -123,6 +153,7 @@ the table below states otherwise.
 | Exact framing and prompt-byte preservation | Required property from the product contract |
 | Numerical memory, transition records, shared activated set, parallel focus and expectation, and combined plan | Accepted implementation direction from Decision 0014 |
 | Deterministic lexicalizer baseline, vector-prefix candidate, exact slots, local qualification, and non-thinking generation | Accepted implementation direction from Decision 0015 |
+| Aggregate query and shared-set boundaries, invocation witnesses, canonical plan identity, exact-byte collision detection, renderer-configuration identity, and closed renderer joins | Accepted integrity boundaries from Decision 0016 |
 | Ingress, preflight, snapshot, authorization, encoding, retrieval, derivation, expectation, planning, rendering, and validation decomposition | Proposed boundaries governed by the focused specifications |
 | Existing activation kernel, evaluator, and corpus | Experimental implementations and evidence |
 | Physical database and schema, exact encoders and indexes, calibrated parameters, release model and quantization, production runtime, processes, and resource thresholds | Open choices |
@@ -214,8 +245,9 @@ One logical memory revision `M^r` is a self-consistent read view containing:
 - every index used for candidate generation.
 
 For one call, the compiler pins `t_auth`, invocation context `I`, memory
-revision `r`, and policy revision `p`. It derives one call-specific authorized
-view \(M_A^{r,p,t_{\mathrm{auth}},I}\). Authorization expiry and disclosure
+revision `r`, and policy revision \(p_{\mathrm{policy}}\). It derives one
+call-specific authorized
+view \(M_A^{r,p_{\mathrm{policy}},t_{\mathrm{auth}},I}\). Authorization expiry and disclosure
 decisions use that same \(t_{\mathrm{auth}}\); current normative validity and
 supersession are also resolved at \(t_{\mathrm{auth}}\). They do not use
 \(t_{\mathrm{context}}\) or reread the wall clock.
@@ -230,7 +262,7 @@ access-history updates, and cache publication are write or maintenance
 operations; they are not hidden effects of compilation.
 
 The proposed V1 rule is snapshot-stable authorization: a revocation published
-after \(M_A^{r,p,t_{\mathrm{auth}},I}\) is acquired applies to later calls and does not
+after \(M_A^{r,p_{\mathrm{policy}},t_{\mathrm{auth}},I}\) is acquired applies to later calls and does not
 rewrite the authorization view of the in-flight call. Compile duration must
 remain bounded. Immediate cancellation on revocation is an alternative that
 requires a later privacy and concurrency decision before implementation.
@@ -340,9 +372,33 @@ scalars, identifiers, presence masks, and numerical relations. It retains
 validated source-byte locators, source-buffer content identities, and exact
 values outside lossy representations. The situation boundary then constructs
 the bound query
-\(Q=\operatorname{bindQuery}(Q_{\mathrm{num}},B_Q)\) without changing those
-semantics. Neither value contains a principal, trusted authorization time,
-policy revision, authorization-view identity, disclosure decision, or
+\(Q=\operatorname{bindQuery}(\mathsf R,\widehat B_{\mathrm{in}};K)\); that sole
+constructor computes and seals both projections without allowing one to
+change the other's semantics. `BoundQuery` is a sealed aggregate with private numerical and
+binding fields plus a compiler-derived `BoundQueryContentId` over their
+injective canonical envelope:
+
+```text
+BoundQuery {
+  private numerical: NumericalQuery,
+  private binding: ExactQueryBinding,
+  private content_id: BoundQueryContentId
+}
+```
+
+Only `SIT-01` may construct it, and it derives both projections from the same
+retained complete request and pinned `K`. There is no public constructor from
+independently supplied \(Q_{\mathrm{num}}\) and \(B_Q\), no field-replacement
+operation, and no serialization path that can reconstitute an authenticated
+value. Downstream boundaries accept `&BoundQuery`, not the two projections as
+independent parameters. Narrow read-only accessors may lend the numerical
+projection to semantic arithmetic or the exact binding to a structural join,
+but neither accessor returns an independently constructible authenticated
+query value. A mixed, stale, or corrupted projection pair therefore cannot be
+represented by the public API; defensive content-identity and
+canonical-envelope checks fail closed if internal corruption nevertheless
+produces one. Neither projection contains a principal, trusted authorization
+time, policy revision, authorization-view identity, disclosure decision, or
 authorization result.
 
 Normatively:
@@ -350,12 +406,19 @@ Normatively:
 \[
 Q_{\mathrm{num}}=\operatorname{encode}(P,S,\Xi;K),
 \qquad
-Q=\operatorname{bindQuery}(Q_{\mathrm{num}},B_Q).
+Q=\operatorname{bindQuery}(\mathsf R,\widehat B_{\mathrm{in}};K),
+\qquad
+\operatorname{numerical}(Q)=Q_{\mathrm{num}},
+\quad
+\operatorname{binding}(Q)=B_Q.
 \]
 
 The selected encoder and every transform it invokes are pinned inputs within
 `K`. `t_auth`, `I`, policy state, and authorization-view state are not explicit
-or implicit inputs to either function. Holding `P`, ordered `S`, \(\Xi\), and
+or implicit inputs to either function. The private `BoundQueryContentId` is
+derived only from the canonical `BoundQuery` schema, \(Q_{\mathrm{num}}\),
+\(B_Q\), and the pinned identity scheme in `K`; it is structural-integrity
+metadata and never semantic evidence. Holding `P`, ordered `S`, \(\Xi\), and
 `K` fixed must therefore produce identical \(Q_{\mathrm{num}}\), source
 locators, and source-buffer content identities. Holding the complete request
 and `K` fixed also produces identical \(B_Q\) and bound `Q`, even when private
@@ -380,8 +443,11 @@ The encoder does not decide instruction authority and does not retrieve memory.
 ### Authorized candidate generation
 
 Candidate generation searches only the usage-compatible view
-\(\mathcal M_Q\). It accepts \(Q\) and produces the bounded candidate set
-\(C^r\) with source bindings and retrieval diagnostics. The
+\(\mathcal M_Q\). Its boundary accepts one sealed `&BoundQuery`, validates
+that aggregate, and borrows its private numerical projection only inside the
+retrieval implementation. It produces the bounded candidate set \(C^r\) with
+source bindings and retrieval diagnostics. There is no overload accepting
+\(Q_{\mathrm{num}}\), \(B_Q\), or a caller-assembled pair. The
 [proof program](v1-proof-program.md#formal-compile-model) owns the sole
 cross-stage composition and function name for this transition; this
 architecture does not define a second retrieval equation.
@@ -405,14 +471,31 @@ Empty candidates and retrieval failure are not equivalent.
 
 ### Signal and gate derivation
 
-Signal derivation maps \(Q\) and every member of \(C^r\) to the normalized
-candidate inputs \(N\) required by an activation mechanism. The proof program
-owns the sole cross-stage composition and function name for this transition;
-this architecture does not define a second signal-derivation equation.
+The compiler projects one private \(\Sigma_{\mathrm{sig}}\) carrying an opaque
+reference to the sealed invocation's call brand. It then validates that
+reference, every copied trusted value, and both schemas against the current
+`AuthenticatedInvocation`, supplied independently to validation, to obtain
+\(V_{\mathrm{sig}}=(t_{\mathrm{auth}},u_{\mathrm{auth}})\). Signal derivation
+accepts one sealed `&BoundQuery`, validated \(V_{\mathrm{sig}}\), and every
+member of \(C^r\). After aggregate validation, it borrows the query's private
+numerical projection internally and maps those inputs to the normalized
+candidate inputs \(N\) required by an activation mechanism. It has no
+split-query overload and cannot replace or retain either projection. The proof
+program owns the sole cross-stage composition and function names for these
+transitions; this architecture does not define a second signal-derivation
+equation.
 
 It owns channel semantics, gates, evidence signals, inhibition signals, and
-their provenance. It must not assign arbitrary numbers without an authored or
-learned derivation contract and independent evaluation targets. Decision 0014
+their provenance. `SignalDerivationContext` carries pinned context and social
+identity schemas, a non-semantic call brand, trusted authorization instant,
+and typed authenticated social-subject identity; only trusted time and the
+schema-validated subject value reach signal math. Authenticated, declared, and
+memory-participant social identities remain disjoint source tags, and schema
+rotation requires an authenticated one-to-one migration artifact. The context
+carries no authorization, policy, disclosure, store, or ambient-time
+capability. It
+must not assign arbitrary numbers without an authored or learned derivation
+contract and independent evaluation targets. Decision 0014
 retains cue, temporal-context, base-availability, active-goal, procedural,
 hazard, and social-perspective fit as initial focus-channel hypotheses when the
 required facets exist. The focused specifications define their candidate
@@ -450,12 +533,26 @@ schema and ordering are owned only by
 this architecture consumes that contract and does not define a parallel
 version. In summary, it binds the pinned query, memory and policy revisions,
 activated records, source and authority data, exact sidecars, and retrieval
-diagnostics. It is the only branch point.
+diagnostics. Outside its deterministic content-lineage tuple, it also carries
+one private nonserializable `InvocationInstanceWitness` borrowed from the
+current sealed invocation and one fresh private nonserializable
+`EligibleSetInstanceWitness` minted for that exact set object. The first proves
+runtime call membership; the second distinguishes two set constructions even
+inside one call. Neither can affect semantic keys, ordering, scores,
+diagnostics, renderer tensors, or product bytes. The set is the only branch
+point.
 
-The focus planner and expectation kernel consume immutable projections of that
-same set before final focus pruning. The focus planner additionally consumes
-the validated numerical request-local situation \(Q\) and the pinned
-configuration \(K\). The complete shared set carries \(\Lambda_A\);
+The focus planner and expectation kernel receive the exact same complete sealed
+`EligibleActivatedMemorySet<'call>` object and immutable borrow before final
+focus pruning. No projection, filtering, copy, or reconstruction occurs before
+the branch calls. Each called branch may derive only its own private
+least-privilege view inside that aggregate-taking boundary. Both additionally
+consume the same sealed `BoundQuery` and pinned configuration \(K\); neither
+accepts a separately supplied numerical query or exact binding. Semantic
+derivation may borrow only the aggregate's read-only \(Q_{\mathrm{num}}\)
+projection, while exact lineage validation and receipts may borrow only its
+read-only \(B_Q\) projection.
+The complete shared set carries \(\Lambda_A\);
 `policy_revision_id` and `authorization_view_id` originate exclusively there.
 The focus branch has no principal, policy object, `AuthorizationView`,
 authorization-service, authorization-receipt-projection, or policy-store
@@ -463,7 +560,7 @@ input:
 
 - the focus planner first derives the ephemeral canonical
   `RequestPropositionSet` from prompt, situation-statement, and allowed
-  request-metadata evidence in \(Q\), checks the exact
+  request-metadata evidence in \(Q_{\mathrm{num}}\), checks the exact
   \(B_Q=\pi_Q(\Lambda_A)\) join, creates the five-field
   `(request_id, situation_id, policy_revision_id,
   authorization_view_id, configuration_id)` source receipt solely from that
@@ -475,18 +572,57 @@ input:
 - neither component retrieves ambient memory, repeats authorization, or
   mutates persistent state.
 
-The two branch outputs carry immutable `PlanningSourceProjection` fields for
-every consumable item: the exact common \(\Lambda_A\), essential-source
-identities, authority, allowed-use and surface-authority ceilings, mandatory
-qualifiers and relations, and exact-slot bindings. The combined planner
-receives no authority or disclosure view, principal, policy handle, or
-authorization service. It may only compare lineage, take a defined meet, copy
+The two branch outputs preserve the same private invocation and set-instance
+witnesses and carry immutable `PlanningSourceProjection` fields for every
+consumable item: the
+exact common \(\Lambda_A\), essential-source identities, authority,
+allowed-use and surface-authority ceilings, mandatory qualifiers and
+relations, and exact-slot bindings. The compiler invokes the combined planner
+with one private `PlanningInvocationScope<'call>` borrowed independently from
+the current sealed `AuthenticatedInvocation` and the exact shared set selected
+by the compiler before the branch split. Before comparing content lineage, the
+planner requires each branch's invocation witness to match the current-call
+scope and each branch's set witness to match the scope's expected-set witness;
+branch-to-branch equality alone is insufficient. It copies only the
+current-call witness into the plan and erases the set witness after the join. A
+missing, reconstructed, expired, foreign, mixed, or same-call-but-different-set
+witness fails with `PlanCallBindingMismatch` even when \(B_Q\),
+\(\Lambda_A\), and every content-derived identity are equal. The scope and
+witnesses remain outside semantic keys, scores, ordering, tensors,
+diagnostics, serialization, and product bytes.
+
+The planner receives no authority or disclosure view, principal, policy
+handle, or authorization service. It may only compare content lineage, take a
+defined meet, copy
 or lower those upstream ceilings, and join an upstream slot binding to the
 same content identity in a minimized permissionless exact-surface inventory.
 Inventory presence never grants slot use. Missing, inconsistent, or expanded
 projections fail; planning never reauthorizes or widens disclosure. The
 [planning specification](focus-and-expectation-planning.md#immutable-authority-and-disclosure-projections)
 owns the complete projection contract.
+
+Focus contributes a lineage-independent `PropositionSemanticKey`; expectation
+contributes the closed tagged `ExpectationItemSemanticKey` for hypotheses,
+controls, and abstention. Planning wraps these in the branch-tagged
+`PlanItemSemanticKey`, uses `RelationSemanticKey` for relation order, and
+assigns contiguous `RendererSlotId` values only after sorting distinct
+lineage- and exact-content-independent `SlotSemanticKey` values constructed
+from a value-independent `ExactSlotOwnerSemanticKey`, a schema-owned
+`ExactSlotSemanticLocator`, type, role, bounds, permitted bindings, schema,
+and formatter. Upstream branches carry only a value-, lineage-, and
+request-independent `ExactSlotOwnerSemanticDescriptor`. Planning verifies
+that descriptor against the selected item's non-slot semantic meaning and is
+the sole stage that maps it to the final key. An item-owned key derives from
+the owning `PlanItemSemanticKey` plus an owner role; an explicitly shared slot
+instead uses a registered `SharedExactSlotMeaningKey`. Planning groups slots by
+`(owner_semantic_key, locator)`, never by locator alone. Independent items
+using the same schema field therefore remain distinct, while one semantic
+owner and locator carrying incompatible exact values is a typed structural
+conflict. Authoritative values, exact-surface content identities/bytes, and
+request-local instance, transition, receipt, and exact-binding identities
+remain privileged sidecar or audit lineage and cannot decide semantic
+grouping, feasibility, priority, selection, renderer tensor order, or
+pre-substitution model-visible input.
 
 The expectation derivation, support semantics, uncertainty vector, medoids,
 coverage, and abstention are owned only by
@@ -496,11 +632,18 @@ memory nor expectation evidence, and it cannot raise its source authority or
 allowed-use ceiling. The pinned source-ceiling mapping is a pure
 authority-lowering artifact lookup compatible with the policy revision in
 \(\Lambda_A\); it does not authorize memory or disclosure. Situation encoding
-validates exact source-byte locators into \(X_Q\); focus derivation consumes
-those bindings and never rereads or reparses raw request text, reopens an
+validates exact source-byte locators into the private \(X_Q\) projection;
+focus derivation borrows those bindings internally from the sealed
+`BoundQuery` and never rereads or reparses raw request text, reopens an
 authorization view, or repeats authorization. The focus derivation, including
-`deriveRequestPropositions(Q, Lambda_A, K)`, is owned by
+`deriveRequestPropositions(&BoundQuery, &EligibleActivatedMemorySet<'call>, K)`,
+is owned by
 [`cognitive-memory-activation-and-focus.md`](cognitive-memory-activation-and-focus.md).
+The aggregate-only API may destructure \(\Lambda_A\), its private invocation
+witness, and its private set-instance witness internally but cannot accept or
+recombine them independently. It preserves both witnesses; current-call
+membership and exact-selected-set identity are checked only later by a
+boundary that possesses independently derived anchors for both.
 An empty eligible memory set therefore does not force an empty
 `FocusCandidateSet`: authenticated prompt, situation-statement, or allowed
 request-metadata evidence may independently justify focus.
@@ -515,8 +658,12 @@ budget closure, preserves material alternatives, and creates one canonical
 focus even when memory is empty. Predictive-evidence abstention may coexist
 with useful focus.
 
-The plan is the only source of meaning for rendering and diagnostics. It
-contains:
+The plan is the only source of meaning for rendering and diagnostics. Its live
+form retains full runtime receipts for integrity checks, while its canonical
+product identity uses only the planning specification's
+`PlanSemanticSourceProjectionV1` and `SemanticConfigurationId`; full
+configuration-bound query/lineage IDs and \(K_R\) cannot enter
+`PlanContentId`. It contains:
 
 - stable focus and expectation proposition identities;
 - essential request and authorized-memory source references;
@@ -553,12 +700,49 @@ embeddings as the first generative renderer hypothesis. The renderer
 specification owns the experimental dimensions, tensor mapping, training
 phases, and required simple baselines.
 
-Its internal result is a `RenderedAttention` value containing:
+Its internal result is an opaque `RenderedAttention<'plan>` value whose
+lifetime is tied to the borrowed source plan. The Rust lifetime prevents the
+candidate from outliving that borrow and prevents unchecked detachment; it does
+not encode referent identity. The enforceable binding is the deterministic
+`PlanContentId` derived from `PlanCanonicalEnvelopeV1`, the complete canonical
+product-relevant plan content defined by the planning specification. The
+envelope includes every semantic item, relation, control, selected structural
+projection, exact-surface identity, and formatted substitution bytes, while
+excluding both runtime witnesses, every request-local or configuration-bound
+instance identity, the full `configuration_id`, and \(K_R\). It commits to the
+plan-semantic configuration \(K_S\), configuration-independent request and
+situation content digests \(d_R,d_S\), and complete selected
+lineage-independent semantics.
+The exact authenticated renderer configuration \(K_R\) separately yields the
+domain-separated typed `RendererConfigurationId` defined by the renderer
+specification. The shared `nemosyne-artifacts` domain crate represents exactly
+\(K_R\) as an immutable sealed `AuthenticatedRendererConfiguration` whose
+canonical-envelope bytes equal \(\operatorname{CE}_{v1}(K_R)\). Authenticated
+artifact preflight is the only product-path constructor. The type is not
+compiler-private: the compiler, renderer, substitution boundary, and validator
+normally borrow or reborrow the one preflight-created sealed value without
+receiving installation-resolution, trust-root, update, filesystem, network,
+registry, installation, or mutation capabilities. Correctness is exact
+authenticated canonical-content equality, not referent identity: a separately
+authenticated value with identical canonical bytes and
+`RendererConfigurationId` is equivalent, while a projection, narrower
+configuration, unauthenticated reconstruction, or same-ID/different-byte value
+is rejected. The sole checked
+renderer constructor requires a plan borrow and
+`&AuthenticatedRendererConfiguration`, recomputes the plan envelope and both
+identities, and seals `PlanContentId`, `RendererConfigurationId`, a private
+exact canonical-plan byte-comparison capsule, and a private exact canonical
+\(K_R\)-content comparison commitment; neither the model nor a caller can
+supply, replace, or mutate any of them. The value contains:
 
 - the slot-bearing attention text and token-origin map;
 - a complete segmentation into output units; and
 - untrusted bindings from every assertion-bearing output unit to planned
-  proposition identities.
+  proposition identities; and
+- the sealed plan content identity;
+- the sealed renderer-configuration identity; and
+- the private exact canonical-plan byte-comparison capsule; and
+- the private exact canonical-renderer-configuration comparison commitment.
 
 A closed surface-only class permits only whitespace, punctuation, and
 configuration-listed structural delimiters; it cannot carry a connective,
@@ -573,8 +757,27 @@ unsupported action language, and suppressed abstention.
 
 The renderer emits only registered placeholder tokens for loss-sensitive exact
 values. A deterministic resolver rejects unauthorized, unknown, omitted,
-duplicated, or invented slots and substitutes the approved surface bytes
-before final faithfulness validation.
+duplicated, or invented slots and substitutes the approved surface bytes into
+an opaque `SubstitutedAttention<'plan>`. It first recomputes
+`RendererConfigurationId` from the supplied
+`&AuthenticatedRendererConfiguration` representing exact \(K_R\) and
+requires both that identity and the exact canonical \(K_R\)-content commitment
+to equal the candidate's sealed values. Any disagreement, including equal
+identity with different canonical bytes, is
+`RendererSubstitutionError::RendererConfigurationMismatch` and quarantines
+the configuration path before any slot access. Substitution then requires a
+borrowed plan with the same `PlanContentId`, preserves both identities, the
+candidate and supplied renderer-configuration commitments, and the private
+exact canonical-plan byte-comparison capsule without an independent identity
+input, and runs before final faithfulness validation. A separately
+constructed canonical-content-identical plan is valid only under an
+authenticated renderer configuration with the same
+`RendererConfigurationId` and exact canonical \(K_R\) content, and it must
+produce identical substitution bytes. Canonically different plan content is
+`RendererSubstitutionError::PlanIdentityMismatch`. Equal typed plan identity
+associated with different retained canonical plan bytes is
+`RendererSubstitutionError::PlanContentIdentityCollision` and quarantines the
+plan-identity and renderer-configuration path before any slot access.
 
 A model-based renderer remains a fallible, untrusted transformation even when
 it runs locally. Qwen3 is the first integration family, but the model
@@ -590,10 +793,33 @@ no-network compile path.
 
 ### Faithfulness and policy validation
 
-Validation compares the post-substitution `RenderedAttention` with the
-structured plan and receives a read-only view of the retained original prompt
-and prompt-derived intent. It reads output language and budget from the plan
-envelope. It rejects:
+The separate `nemosyne-validator` crate compares the plan- and
+renderer-configuration-bound `SubstitutedAttention<'plan>` through one
+least-privilege read-only `ValidationView<'plan>`. The compiler privately owns
+the underlying `ValidationContext<'plan>` and implements or projects only that
+view at the validator call boundary; the validator never imports, receives, or
+constructs the compiler-private context type.
+
+The private context borrows its source structured plan and carries minimized
+read-only projections of the retained original prompt, prompt-derived intent,
+plan semantics, exact-slot validation data, validator controls, sealed
+`PlanContentId`, sealed `RendererConfigurationId`, and one private exact
+canonical-plan byte-comparison capsule plus one private exact canonical
+renderer-configuration commitment. The view exposes no raw plan, private
+commitment, or invocation witness, and the validator does not depend on
+renderer implementation internals. Immediately before invoking it, the
+compiler-owned callsite compares candidate and context capsules whenever their
+plan identities are equal; same identity with different bytes is standalone
+`PlanContentIdentityCollision`, quarantines the path, and returns
+`InternalInvariantViolation`/exit `70` without invoking the independent
+validator. Before interpreting candidate content, the validator requires the
+candidate and validation-view plan identities to agree and the candidate,
+validation view, and shared supplied
+`&AuthenticatedRendererConfiguration` representing exact \(K_R\) to share one
+`RendererConfigurationId` and byte-identical authenticated canonical \(K_R\)
+content. Equal ID with different canonical bytes is
+`RendererConfigurationMismatch` and quarantines the configuration path. It
+rejects:
 
 - unsupported propositions;
 - omitted mandatory qualifications;
@@ -601,13 +827,24 @@ envelope. It rejects:
 - answer leakage;
 - forbidden or excluded content;
 - language mismatch;
-- budget overflow;
 - malformed leading or trailing line breaks; and
 - output that cannot be mapped back to planned propositions.
 
 Validation verifies complete, nonoverlapping segmentation and known proposition
 identities. It accepts the exact rendered text unchanged or returns an error.
-It is not a second renderer.
+The checked substitution constructor has already enforced the exact expanded
+budget and returned no `SubstitutedAttention<'plan>` on
+`RendererCostBoundViolation`; the validator owns no budget-overflow variant and
+cannot reclassify that substitution error.
+A candidate whose sealed `PlanContentId` differs from the validation view is
+`PlanIdentityMismatch`; a candidate constructed from a separate
+canonical-content-identical plan is valid at this boundary only when
+candidate, view, and supplied authenticated \(K_R\) also have equal
+`RendererConfigurationId` and byte-identical canonical content. A different
+candidate, view, or supplied \(K_R\) configuration identity or
+canonical-content commitment is
+`RendererValidationError::RendererConfigurationMismatch`. The validator never
+repairs or changes an identity. Validation is not a second renderer.
 
 Validation establishes conformance to a bounded plan, not truth of the source
 memory. Decision 0015 retains a fail-closed hybrid contract: deterministic
@@ -716,12 +953,24 @@ compiler-owned `LocalPlatformAuthenticator` from the verified installation
 registries, compiler-owned platform handles, and compiler-owned trusted clock.
 `compile` accepts only bounded untrusted call claims, one intrinsically valid
 but untrusted request, and one read-only cancellation token. It authenticates
-the current call, derives one crate-private `InvocationContext` and one
-crate-private `AuthenticatedPrompt`, and obtains one immutable memory, policy,
-configuration, and artifact revision for that call. The private context-taking
-compile core is not exported. An invocation context or authenticated-prompt
-value is never supplied by the caller, retained by `Compiler`, or reused
-across requests.
+the current call and constructs one sealed crate-private
+`AuthenticatedInvocation`. That aggregate owns one fresh opaque
+runtime-instance brand and inseparably contains the `InvocationContext`,
+`AuthenticatedPrompt`, authenticated call binding, and trusted authorization
+time. Only aggregate-bound borrowed projections exist; no downstream
+constructor accepts those fields independently. The compiler then obtains one
+immutable memory, policy, configuration, and artifact revision for that call.
+The private aggregate-taking compile core is not exported. An authenticated
+invocation or any of its projections is never supplied by the caller, retained
+by `Compiler`, or reused across requests.
+The brand is a private generative capability or lifetime identity. Equality
+means membership in the same runtime instance, not byte, digest, random-number,
+or numerical-feature equality. It is never serialized, persisted, rendered,
+hashed into content identity, or passed to semantic computation. Its
+allocation may differ across otherwise identical calls without violating
+product determinism because every semantic and byte-producing projection
+erases it first. `SEC-00` and `OD-04` must select and verify the concrete
+private lifetime or shared-object representation.
 The compiler can serve sequential or concurrent read-only requests only when
 its adopted storage and model runtime prove safe sharing.
 
@@ -773,9 +1022,9 @@ a platform resource handle. The exact bytes remain untrusted until
 or peer handles, channel or executable identity, trusted clock, and
 authenticated installed registries.
 
-Before producing any `AuthenticatedPrompt`, the authenticator must prove that
-the presentation is valid for this exact compile invocation and is bound to
-both:
+Before constructing an `AuthenticatedInvocation`, the authenticator must prove
+that the presentation is valid for this exact compile invocation and is bound
+to both:
 
 - the content identity of the retained `original_prompt`, computed over its
   exact length and UTF-8 bytes without normalization, trimming, newline
@@ -786,20 +1035,27 @@ both:
   contextual time, location, metadata, output language, and attention-budget
   ceiling.
 
-Neither identity is accepted from the caller as an authority claim. Changing
-any covered prompt byte or request field creates a different identity and
-invalidates the presentation binding. A presentation issued for one
-prompt/request pair cannot authenticate another pair, and a stale presentation
-cannot authenticate a later invocation. `SEC-00` must select the concrete
-authenticated encoding, domain separation, freshness or one-time-use
-mechanism, and platform proof source; this specification fixes the semantic
-binding and fail-closed behavior rather than a cryptographic format.
-`AuthenticatedPrompt` is a crate-private request-local proof that this exact
-binding succeeded. It grants only the prompt-origin precondition and cannot
-carry or raise principal, disclosure, configuration, policy, memory, or
-capability authority. The private core cannot be entered with a raw prompt
-alone: it requires the `AuthenticatedPrompt` paired with the retained request,
-and validates that pair before any prompt-dependent retrieval or rendering.
+Neither identity is accepted from the caller as an authority claim. The
+compiler is their sole authoritative producer. Inside authentication, the
+authenticator computes private comparison witnesses from the same complete
+retained request and exact prompt bytes; those witnesses can only verify the
+compiler-carried identities and can never return, replace, or publish a second
+authoritative identity. Changing any covered prompt byte or request field
+creates a different witness and invalidates the presentation binding. A
+presentation issued for one prompt/request pair cannot authenticate another
+pair, and a stale presentation cannot authenticate a later invocation.
+`SEC-00` must select the concrete authenticated encoding, domain separation,
+freshness or one-time-use mechanism, and platform proof source; this
+specification fixes the semantic binding and fail-closed behavior rather than
+a cryptographic format.
+`AuthenticatedPrompt` is the crate-private request-local prompt projection of
+the sealed `AuthenticatedInvocation` and proves that this exact binding
+succeeded. It grants only the prompt-origin precondition and cannot carry or
+raise principal, disclosure, configuration, policy, memory, or capability
+authority. The private core cannot be entered with a raw prompt or a separable
+authentication tuple: it requires the sealed aggregate paired with the
+retained request and validates that pair before any prompt-dependent retrieval
+or rendering.
 
 `request_presentation_identity` is configuration-independent and exists only
 to authenticate this public request before configuration authority is
@@ -846,26 +1102,44 @@ For each public call, `Compiler::compile` performs this fixed sequence:
 2. retain the request and its byte-identical prompt, then derive the
    compiler-internal prompt content identity and
    `request_presentation_identity`;
-3. give the claims, both derived identities, and only compiler-owned platform
-   handles, authenticated registries, and trusted clock to
-   `LocalPlatformAuthenticator`;
+3. give the same complete retained request, the claims, both compiler-derived
+   identities, and only compiler-owned platform handles, authenticated
+   registries, and trusted clock to `LocalPlatformAuthenticator`;
 4. authenticate freshness and the exact presentation-to-prompt/request
-   binding, then derive a fresh private `InvocationContext` and
-   `AuthenticatedPrompt` plus an exact request-local authenticated call binding
-   that retains the bound claims and both derived identities without granting
-   configuration or disclosure authority;
+   binding, then construct one sealed private `AuthenticatedInvocation` whose
+   inseparable projections are `InvocationContext`, `AuthenticatedPrompt`,
+   the exact request-local authenticated call binding, and `t_auth`; allocate
+   its fresh opaque runtime-instance brand without granting configuration or
+   disclosure authority;
 5. invoke the sole `resolveAndPinControls` stage to resolve the requested
    configuration and disclosure narrowing, policy revision, output language,
    and effective attention budget through authenticated installed registries;
 6. pin the returned call-control tuple, preflight its immutable artifacts, and
    acquire the compatible immutable memory revision; `t_auth` remains the
    exact value already produced by step 4;
-7. construct one sealed \(\widehat B_{\mathrm{in}}\) from the retained
+7. pass only the sealed `AuthenticatedInvocation` and preflighted context and
+   social-identity schemas in `K` to the sole projector; place one reference
+   to its opaque call brand in the immutable `SignalDerivationContext`, copy
+   trusted time plus the typed authenticated social subject from the same
+   aggregate and authenticated registry, and pass the current sealed
+   invocation independently to the sole validator; validate exact
+   same-instance/context-schema/social-schema membership, every copied trusted
+   value, and any required one-to-one identity migration to obtain only
+   \(V_{\mathrm{sig}}\) before signal math; a complete context from another
+   valid call therefore fails against the current aggregate, and mixed
+   invocation-context,
+   trusted-time, or authenticated-binding fields are unrepresentable, and no
+   request field, caller claim, ambient clock, policy, authorization,
+   disclosure, or store capability enters the context or validated values;
+8. construct one sealed \(\widehat B_{\mathrm{in}}\) from the retained
    canonical request content and authenticated pinned configuration, then
    independently project it into situation encoding and shared-set
    construction; and
-8. invoke the private context-taking compile core with the authenticated prompt
-   and the same cancellation token.
+9. invoke the private context-taking compile core with the same retained
+   complete request, sealed `AuthenticatedInvocation`, pinned controls and
+   snapshot, and cancellation token; the core may borrow narrow aggregate
+   projections but accepts no independently constructible authenticated
+   prompt or call-binding tuple.
 
 The authenticator may trust only sources selected by `SEC-00` and supported by
 the frozen runtime topology: operating-system effective-user or peer
@@ -966,9 +1240,25 @@ representability failures: an empty or whitespace-only prompt, a
 whitespace-only situation statement, more than three statements, invalid or
 nonfinite coordinates, an invalid time or offset under the request's declared
 time schema, a syntactically malformed language tag or metadata record, and a
-zero, overflowing, or otherwise unrepresentable budget ceiling. Construction
-does not consult an installation, compiler configuration, model artifact,
-supported-language set, schema registry, or configured resource ceiling.
+zero, overflowing, or otherwise unrepresentable budget ceiling.
+
+It also owns
+`CompileRequestError::AbsoluteInputLimitExceeded { field, observed_lower_bound,
+limit }`. `AbsoluteIngressLimitsV1` is a context-independent versioned public
+constant compiled into the API and CLI. It declares finite positive byte
+ceilings for the prompt, each situation statement, location label, each
+metadata value, origin presentation, every other byte-bearing public field,
+and the complete canonical request. `TGT-01` must freeze the exact values
+before `CORE-02`, `API-01`, or `CLI-01` implementation. A later installed
+configuration may lower, but never raise, these absolute ceilings. The error's
+lower bound is the first proven size beyond the limit; a streaming adapter need
+not read or count the rest of an oversized source.
+
+Construction does not consult an installation, compiler configuration, model
+artifact, supported-language set, schema registry, or configured resource
+ceiling. It enforces only the immutable V1 absolute ceiling and intrinsic
+validity. This bounds internal retention for every public caller; callers
+remain responsible for allocations they perform before calling the API.
 
 `Compiler::compile` separately checks the already valid request against its
 pinned authenticated configuration. Unsupported request schema versions,
@@ -1016,20 +1306,22 @@ language from the original prompt or return `UnsupportedLanguage`; it never
 silently falls back. Explicit selection affects generated attention only and
 never translates or rewrites the retained prompt.
 
-`InvocationContext` is a crate-private value constructed only by the
-compiler-owned `LocalPlatformAuthenticator` in `nemosyne-compiler` and
-`API-01`. The type, constructors, and private context-taking compile core are
+`AuthenticatedInvocation` is a sealed crate-private aggregate constructed
+only by the compiler-owned `LocalPlatformAuthenticator` in `nemosyne-compiler` and
+`API-01`. Its narrow `InvocationContext`, `AuthenticatedPrompt`, authenticated
+call-binding, and trusted-time projections cannot be constructed, returned, or
+passed as an independent tuple. The aggregate type, constructors, and private
+context-taking compile core are
 not publicly nameable. Only the authenticator receives compiler-owned
 operating-system or peer handles, authenticated installation and policy
 registries, and the trusted authorization clock. It resolves the principal and
 caller from the selected platform trust mechanism, authenticates the exact
-prompt/request binding, and returns one validated request-local
-`InvocationContext`, `AuthenticatedPrompt`, and exact authenticated call
-binding or a typed trust error. It does not select configuration, policy,
+prompt/request binding, and returns one validated request-local sealed
+aggregate or a typed trust error. It does not select configuration, policy,
 disclosure, language, or budget. The compiler resolves those controls only
 after successful authentication, using the authenticated registries, the
-bound complete request and claims, and the new private invocation context;
-that separate stage returns typed configuration, policy, or compatibility
+bound complete request and claims, and narrow borrows from the sealed
+aggregate; that separate stage returns typed configuration, policy, or compatibility
 errors.
 
 The selected identity resolves only through the installation's authenticated
@@ -1071,11 +1363,15 @@ nemosyne compile \
 
 Exactly one prompt source is required. `--prompt-file -` is not an alias;
 standard input is selected only by `--prompt-stdin`, which prevents accidental
-blocking. The CLI reads the complete prompt before compilation, validates UTF-8
-without newline stripping, and preserves the bytes it receives. Shell quoting,
-command substitution, and terminal encoding occur before the process boundary;
-for arbitrary line endings or trailing newlines, callers should use
-`--prompt-file` or `--prompt-stdin`.
+blocking. For `--prompt-file` and `--prompt-stdin`, the CLI streams at most the
+public V1 prompt ceiling plus one byte into a bounded buffer. Observing that
+extra byte returns `AbsoluteInputLimitExceeded` immediately, closes the source,
+and never allocates or reads the remainder into memory. Only a source within
+the ceiling is completed, validated as UTF-8 without newline stripping, and
+retained byte-identically. `--prompt TEXT` is checked against the same ceiling
+before request construction. Shell quoting, command substitution, and terminal
+encoding occur before the process boundary; for arbitrary line endings or
+trailing newlines, callers should use `--prompt-file` or `--prompt-stdin`.
 
 `--situation` may occur at most three times. Repeated singleton flags, partial
 coordinate pairs, empty or whitespace-only location and metadata values,
@@ -1103,10 +1399,14 @@ then constructs `CompileCallClaims` with that presentation, the transported
 `--configuration` identity, and no wider disclosure request. The CLI does not
 declare either internal identity, authenticate the presentation, or pass the
 underlying launch, peer, or operating-system handle through the public API.
-`LocalPlatformAuthenticator` independently derives the exact prompt-content
-identity and configuration-independent `request_presentation_identity` from
-the received request, then verifies the presentation binding against the
-compiler-owned side of the selected channel. Only after that succeeds does
+`LocalPlatformAuthenticator` independently computes private comparison
+witnesses from the received complete request and uses them to verify the exact
+prompt-content identity and configuration-independent
+`request_presentation_identity`; the compiler remains their sole producer,
+and the authenticator cannot return, replace, or publish an authoritative
+identity. The authenticator then verifies the presentation binding against the
+compiler-owned side of the selected channel.
+Only after that succeeds does
 `SIT-01` derive the configuration-bound `request_id` and `situation_id` from
 the same retained request under authenticated pinned \(K\). No CLI option can
 set principal, caller verdict, any of those internal identities,
@@ -1127,9 +1427,13 @@ empty unless the selected adapter's explicit verbose diagnostic mode is added
 by a later contract. The adapter buffers the complete compiled prompt before
 starting output and attempts one ordered `write_all` followed by `flush`.
 Failures before that attempt write one concise stable error code and message to
-standard error and write zero bytes to standard output. A transport failure
-during `write_all` or `flush` may leave a partial byte prefix in standard
-output; exit `10` makes that output invalid and callers must discard it.
+standard error and write zero bytes to standard output. Once delivery begins,
+the transport cannot promise rollback: a failure during `write_all` or `flush`
+may leave a partial byte prefix in standard output. The adapter stops without
+writing remaining bytes, returns exit `10`, and treats every emitted prefix as
+invalid; callers must discard it. “No partial result” therefore means zero
+stdout before successful compilation and validation plus no success status for
+a failed transport, not physical atomicity of an external stream.
 
 | Exit | Stable class |
 | ---: | --- |
@@ -1192,9 +1496,46 @@ handles, binds all behavior that can change an output:
 - selection policy;
 - renderer and tokenizer artifacts;
 - deterministic decoding configuration with no request-time random source;
-- runtime, precision, target platform class, and numerical-kernel policy;
+- precision, exact runtime implementation and build, execution backend,
+  quantization format and parameters, math libraries and numerical kernels,
+  fusion/graph choices, deterministic algorithm and threading controls,
+  byte-affecting cache behavior, and byte-affecting device/accelerator
+  architecture, feature-set, driver, and runtime execution identity;
 - language support; and
 - validator and serializer versions.
+
+The configuration has two non-overloaded authenticated projections:
+
+- \(K_S=\pi_{\mathrm{plan}}(K)\) contains every field that can change semantic
+  encoding, eligibility, retrieval, signals, activation, focus, expectation,
+  planning, language resolution, or plan-cost interpretation and yields
+  `SemanticConfigurationId`; and
+- \(K_R=\pi_{\mathrm{renderer}}(K)\) contains every field that can change
+  renderer or validator bytes and yields `RendererConfigurationId`.
+
+Fields that affect both domains appear by value in both projections. \(K_S\)
+excludes renderer-only and validator-execution fields, serializer/transport
+settings, and the full `configuration_id`; \(K_R\) excludes semantic source
+lineage and plan selection. The full configuration identity remains an
+integrity and reproducibility receipt, not plan semantic content. Therefore a
+renderer-only deployment change may change `configuration_id`,
+configuration-bound `request_id`/`situation_id`, \(B_Q\), and \(\Lambda_A\)
+while leaving `PlanCanonicalEnvelopeV1` and `PlanContentId` unchanged. Planning
+uses \(d_R,d_S\), `SemanticConfigurationId`, and selected
+lineage-independent semantics for that comparison.
+
+Every byte-affecting renderer or validator execution field belongs to the exact
+authenticated \(K_R\) canonical envelope and therefore to
+`RendererConfigurationId`. A target platform class is qualification and
+measurement grouping metadata outside that identity: it cannot replace, merge,
+or hide different exact execution identities. Non-byte-affecting hostnames,
+hardware serials, and installation identifiers are excluded. With one plan,
+exact sidecar, `RendererConfigurationId`, and exact canonical \(K_R\) content
+fixed, renderer and validator outputs must be bit-identical; with retained
+prompt bytes, framing, and
+serializer configuration also fixed, complete product bytes must be
+bit-identical. Same-identity drift invalidates and quarantines the configuration
+rather than becoming accepted platform variance.
 
 A V1-deployable configuration permits no stochastic compile stage. Training
 and downstream evaluation may use frozen seeds or random tapes, but those do
@@ -1215,11 +1556,16 @@ The smallest proposed runtime decomposition is:
 flowchart TD
     CLI["nemosyne-cli"] --> COMP["nemosyne-compiler"]
     ADMIN["nemosyne-admin"] --> MEM["nemosyne-memory"]
+    COMP --> ART["nemosyne-artifacts"]
     COMP --> CORE["nemosyne-core"]
     COMP --> MEM
     COMP --> REN["nemosyne-renderer"]
+    COMP --> VAL["nemosyne-validator"]
+    REN --> ART
+    VAL --> ART
     MEM --> CORE
     REN --> CORE
+    VAL --> CORE
     EVAL["nemosyne-evaluation"] --> CORE
     CORPUS["nemosyne-evaluation-corpus"] --> EVAL
 ```
@@ -1227,9 +1573,11 @@ flowchart TD
 | Crate | Owns | Must not own |
 | --- | --- | --- |
 | `nemosyne-core` | Dependency-light validated domain types and deterministic activation, expectation, and plan algorithms | Filesystem, database, network, model runtime, CLI, or telemetry |
+| `nemosyne-artifacts` | Shared sealed immutable authenticated artifact/configuration domain values, including `AuthenticatedRendererConfiguration`, injective canonical envelopes, and typed content identities | Installation selection, trust-root ownership, update authority, compiler orchestration, filesystem or network access, rendering, or validation verdicts |
 | `nemosyne-memory` | Local storage, immutable revisions, authorization views, migrations, indexes, backup, recovery, and provisioning | Rendering, downstream model calls, or semantic planning |
-| `nemosyne-renderer` | Plan adapter, local lexicalizer runtime, exact slots, and independent faithfulness validation | Memory retrieval, hypothesis generation, authority policy, or action selection |
-| `nemosyne-compiler` | `InstallationLocator`, `PromptOriginPresentation`, `CompileCallClaims`, `CancellationSource`, `CancellationToken`, the public callable API, compiler-owned installation resolution and bootstrap trust, the sole `LocalPlatformAuthenticator`, the crate-private `InvocationContext`, `AuthenticatedPrompt`, and context-taking core, ingress, artifact preflight, authenticated installed-configuration resolution, situation encoding, retrieval orchestration, signal derivation, stage errors, and exact serialization | Caller-supplied paths, trust roots, registries, credentials, or platform handles; persistent writes during compile; public trusted-context construction; or adapter-specific terminal behavior |
+| `nemosyne-renderer` | Plan adapter, local lexicalizer runtime, plan- and renderer-configuration-bound candidate construction, deterministic exact substitution, and substitution-owned exact cost enforcement | Memory retrieval, hypothesis generation, authority policy, action selection, validation-context construction, or final faithfulness verdicts |
+| `nemosyne-validator` | Independent structural, semantic, exact-slot, and faithfulness validation over shared opaque candidate and witness-free validation-view contracts | Validation-context construction, compiler-private invocation or plan witnesses, renderer implementation internals, lexical generation, memory retrieval, hypothesis generation, authority policy, or action selection |
+| `nemosyne-compiler` | `InstallationLocator`, `PromptOriginPresentation`, `CompileCallClaims`, `CancellationSource`, `CancellationToken`, the public callable API, compiler-owned installation resolution and bootstrap trust, the sole `LocalPlatformAuthenticator`, the sealed crate-private `AuthenticatedInvocation` and aggregate-taking core, private signal scope/context projection and validation, ingress, artifact preflight, authenticated installed-configuration resolution, situation encoding, retrieval orchestration, signal derivation, compiler-private post-plan `ValidationContext<'plan>` construction and witness erasure, the private exact-byte pre-validator collision join, stage errors, and exact serialization | Caller-supplied paths, trust roots, registries, credentials, or platform handles; persistent writes during compile; public trusted-context or separable authentication-projection construction; or adapter-specific terminal behavior |
 | `nemosyne-cli` | Argument and byte-stream transport; construction of the public untrusted installation locator, origin presentation, bounded call claims, request, cancellation source and token, and requested installed identity; public API invocation, exit mapping, and one buffered stdout delivery attempt | Installation or trust resolution, platform-handle transport, presentation authentication, `InvocationContext` or `AuthenticatedPrompt` construction, private-core access, duplicate compile logic, or claims of transport atomicity |
 | `nemosyne-admin` | Privileged initialization, revision publication, backup, restore, migration, export, deletion, and later correction command transport under explicit management capabilities | Compile transport, implicit writes, or a shared unprivileged invocation context |
 | Evaluation crates | Offline corpora, reports, baselines, calibration, and receipts | Runtime compile dependencies |
@@ -1239,6 +1587,21 @@ crates at once. A work package creates a crate only when its complete public
 contract and tests are ready. Further splits require evidence of an actual
 dependency, build, security, or ownership problem. Cyclic dependencies are
 forbidden.
+
+The separate validator boundary must not create a
+`compiler ↔ validator` dependency cycle. `nemosyne-validator` owns a
+least-privilege read-only validation-view contract over shared opaque candidate
+and domain types. `nemosyne-compiler` owns the private
+`ValidationContext<'plan>`, implements or projects exactly that view, invokes
+the validator, and accepts no externally supplied context or
+`AcceptedAttention`. The validator never depends on the compiler crate and
+cannot construct or rebind the backing context or widen the view. A public Rust
+trait used to realize the view is not an authority token: untrusted code may
+implement or call it for its own purposes, but no such value can enter the
+compiler's private product path. The concrete trait, sealed adapter, or equivalent
+representation remains an implementation decision under `OD-03` and `OD-04`;
+the ownership, one-way dependency, and no-external-injection properties do
+not.
 
 Public Rust items have complete Rustdoc. Domain fields are private; validated
 constructors reject invalid states; getters borrow; IDs use canonical numeric
@@ -1479,15 +1842,17 @@ flowchart LR
         OPEN["Compiler::open"]
         API["Compiler::compile"]
         AUTH["LocalPlatformAuthenticator"]
-        IC["crate-private InvocationContext"]
-        AP["crate-private AuthenticatedPrompt"]
+        AI["sealed crate-private AuthenticatedInvocation"]
+        SC["private signal scope and context"]
+        SV["same-instance and schema validation"]
         CORE["private compile core"]
         OPEN --> API
-        API -->|claims + derived request-presentation and prompt identities| AUTH
-        AUTH --> IC
-        AUTH --> AP
-        IC --> CORE
-        AP --> CORE
+        API -->|complete retained request + claims + compiler-derived prompt-content and request-presentation identities| AUTH
+        AUTH --> AI
+        AI --> SC
+        SC --> SV
+        SV -->|validated signal values only| CORE
+        AI --> CORE
         API --> CORE
     end
 
@@ -1566,7 +1931,10 @@ Measure four phases separately:
 
 Reference hardware includes exact Mac model identifier, chip, CPU/GPU cores,
 unified memory, storage state, macOS version, power mode, thermal state,
-runtime, quantization, and artifact digests. `macos-latest` CI is portability
+`RendererConfigurationId`, its byte-affecting runtime, backend, kernel,
+quantization, device-feature, driver, deterministic-control identities, and
+artifact digests. A broader target platform class groups claims only and never
+substitutes for that exact execution identity. `macos-latest` CI is portability
 evidence, not reference-hardware performance evidence.
 
 Benchmarks use fixed public or synthetic memory revisions, candidate scales,
@@ -1582,26 +1950,29 @@ transport.
 
 The following registry prevents a stage from disappearing from complexity and
 benchmark planning. Let \(b_{\mathrm{in}}\) be validated request bytes,
-\(n_r\) retrieved candidates, \(c_e,c_j\) activation evidence and inhibition
-channels, \(n_g,e_g,k_g\) request-local graph nodes, edges, and propagation
-iterations, \(n_t\) eligible transitions, \(n_p\) planning closures,
+\(n_r\) retrieved direct candidates, \(n_g,e_g,k_g\) request-local graph nodes,
+edges, and propagation iterations, \(n_{\mathrm{act}}\) activation candidates
+after bounded graph expansion, \(c_e,c_j\) activation evidence and inhibition
+channels, \(n_t\) eligible transitions, \(n_p\) planning closures,
 \(m_p\) tagged plan members, \(n_o\) emitted attention units, and
-\(b_{\mathrm{out}}\) output bytes.
+\(b_{\mathrm{out}}\) output bytes. Graph construction establishes
+\(0\leq n_{\mathrm{act}}\leq n_g\); a relation-reached graph node can therefore
+enter activation without being one of the \(n_r\) direct candidates.
 
 | Stage | Sole complexity owner or unresolved pre-selection obligation | Working-space contract | Mandatory measurement |
 | --- | --- | --- | --- |
-| Ingress, origin, and metadata validation | This section: \(O(b_{\mathrm{in}})\) over bounded inputs | \(O(b_{\mathrm{in}})\), including retained prompt | bytes versus wall time; invalid-input early exit |
+| Ingress, origin, and metadata validation | This section: \(O(b_{\mathrm{in}})\) after source-appropriate `AbsoluteIngressLimitsV1` enforcement; file/stdin are bounded while read, whereas already-owned API/direct-argument values are checked before request construction or further internal allocation; installed limits may only lower the public ceiling | \(O(b_{\mathrm{in}})\), including retained prompt, with no file/stdin allocation beyond the prompt ceiling plus one detection byte and no further internal allocation after oversized owned-input detection | bytes versus wall time; absolute-limit max/max+1 cases for each source; invalid-input early exit |
 | Artifact preflight and snapshot acquisition | This section requires a selected implementation to freeze \(T_{\mathrm{open}}\) by artifact count, manifest bytes, and database schema; unresolved before storage/runtime selection; no hidden download | Selected implementation must bound opened handles and authenticated manifest state | cold open, digest verification, database open, cancellation |
-| Situation encoding | The selected encoder must freeze \(T_{\mathrm{enc}}(b_{\mathrm{in}})\) and encoder workspace; unresolved before encoder selection; deterministic formatters are linear in their bounded exact input | Bounded encoder state plus \(Q\) | language/input-length scaling and peak memory |
+| Situation encoding | The selected encoder must freeze \(T_{\mathrm{enc}}(b_{\mathrm{in}})\) and encoder workspace; unresolved before encoder selection; deterministic formatters are linear in their bounded exact input | Bounded encoder state plus \(Q_{\mathrm{num}}\), \(B_Q\), and bound \(Q\), with no duplicated semantic payload | language/input-length scaling, numerical/binding noninterference, and peak memory |
 | Eligibility, retrieval, cue and signal derivation | [Cognitive-memory complexity](cognitive-memory-activation-and-focus.md#computational-complexity), including its exhaustive oracle and selected-index obligations | Bounded candidate heap, revision-bound index view, history traversal, and candidate/channel state | corpus scale, candidate scale, recall, excluded-record noninterference, channels, facets, nonfinite failures |
 | Spreading activation and focus consolidation | [Cognitive-memory complexity](cognitive-memory-activation-and-focus.md#computational-complexity) | Bounded graph and proposition/source state | nodes, edges, iterations, duplicate/conflict density, source cardinality |
-| Activation ranking | [Activation-kernel complexity](situation-conditioned-activation.md#computational-complexity) | \(O(n_r)\) ranking output/workspace; one separate explanation returns \(O(c_e+c_j)\) contribution output | channel/candidate scaling and permutation identity |
+| Activation ranking | [Activation-kernel complexity](situation-conditioned-activation.md#computational-complexity) | \(O(n_{\mathrm{act}})\) ranking output/workspace under \(n_{\mathrm{act}}\leq n_g\); one separate explanation returns \(O(c_e+c_j)\) contribution output | activation-candidate/channel scaling, graph-expansion boundary, and permutation identity |
 | Expectation kernel | [Predictive-attention complexity](predictive-attention-and-expectation.md#computational-complexity) | Bounded frame, group, provenance, medoid, and assessment state defined there | transitions, frames, groups, dependencies, medoid limits |
 | Combined planning | [Planning complexity](focus-and-expectation-planning.md#canonical-unified-selection) and `ALG-PLAN-05` | Streaming oracle workspace and hard closure/member limits defined there | closure/member scales, cost calls, oracle-equivalence, limit rejection |
 | Deterministic lexicalizer baseline | This section requires its selected template/grammar artifact to freeze an exact bound over \(m_p\), slots, language morphology, and output ceiling; unresolved before lexicalizer selection | Selected artifact must bound grammar, output, substitution, and validation buffers | items, slots, language, output length |
 | Vector-prefix renderer candidate | [Renderer complexity](vector-to-attention-renderer.md#computational-complexity), including explicit unresolved model/verifier functions before artifact selection | Model weights, KV cache, prefix, output, exact sidecar, and verifier state defined there | cold/warm load, prefix items, output tokens, precision, peak unified memory |
 | Substitution and independent validation | [Renderer complexity](vector-to-attention-renderer.md#computational-complexity) | Isolated exact sidecar, segment map, validator, and verifier state | output units, bindings, slots, adversarial validator cases |
-| Product serialization and adapter delivery | This section: \(O(b_{\mathrm{out}}+\lvert P\rvert)\) exact copy | Complete buffered output before visible delivery | prompt/output bytes, short writes, broken pipe, no partial stdout |
+| Product serialization and adapter delivery | This section: \(O(b_{\mathrm{out}}+\lvert P\rvert)\) exact copy | Complete buffered output before visible delivery | prompt/output bytes; zero stdout before delivery; short writes and broken pipe invalidate any prefix with exit `10`; no claim of stream rollback |
 
 The end-to-end declared upper bound is the checked sum of the selected stage
 bounds plus transport. A release may use a tighter implementation-specific
@@ -1692,15 +2063,27 @@ class and an inspectable underlying stage or cause.
 | `ArtifactUnavailable` | A pinned configuration, schema, encoder, renderer, validator, or other mandatory artifact is missing, unauthenticated, digest-invalid, or incompatible | `5` |
 | `RepresentationFailure` | An installed compatible encoder or decoder produces an invalid numerical state | `6` |
 | `RetrievalFailure` | Search cannot meet its declared completeness contract | `6` |
-| `ActivationFailure` | Invalid profile, signal, parameter, or numerical evaluation | `6` |
+| `ActivationFailure` | Invalid signal, seed, spreading graph/matrix, profile, parameter, propagation, or numerical evaluation | `6` |
 | `ExpectationFailure` | Invalid transition, frame, grouping, provenance, or expectation derivation | `6` |
 | `PlanningFailure` | Unresolvable selection, qualification, conflict, or plan state | `6` |
 | `InsufficientAttentionBudget` | Mandatory or otherwise justified nonempty qualified attention cannot fit the resolved budget | `8` |
 | `RendererFailure` | An installed compatible renderer produces malformed or unsupported generation | `7` |
-| `FaithfulnessFailure` | Unsupported claim, lost qualification, escalation, answer leakage, or `RendererCostBoundViolation` after exact substitution | `7` |
+| `FaithfulnessFailure` | Unsupported claim, lost qualification, escalation, answer leakage, or substitution-owned `RendererCostBoundViolation` during exact substitution | `7` |
 | `ResourceFailure` | A declared memory, deadline, cancellation, or compute budget is exceeded at any stage | `8` |
 | `PolicyViolation` | A compile component attempts prohibited network or persistent write access | `9` |
 | `InternalInvariantViolation` | Internal state violates a validated constructor or unreachable-state invariant | `70` |
+
+Canonical spreading-graph construction preserves its closed typed source when
+mapping into this public taxonomy. `InvalidGraphLimit` and
+`InvalidRelationRankArtifact` map to `ArtifactUnavailable`;
+`GraphNodeLimitExceeded`, `GraphEdgeLimitExceeded`, and
+`GraphIntegerOverflow` map to `ResourceFailure`; every other
+`SpreadingGraphConstructionError` maps to `ActivationFailure`. A graph resource
+failure is not automatically retryable: these three variants are non-retryable
+for the same request, immutable revision, and configuration and return no
+partial graph. This mapping distinguishes malformed installed artifacts,
+bounded resource exhaustion, and invalid graph data without exposing
+message-text classification.
 
 `PromptOrigin` has closed typed source reasons
 `OriginBindingMismatch`, `OriginPresentationExpired`,
@@ -1737,6 +2120,27 @@ compilation succeeded but an adapter could not deliver the complete text. It
 remains an unsuccessful invocation. CLI standard-output failure is one
 possible adapter-specific mapping.
 
+`SignalDerivationContextError` is also closed and total. An unknown, missing,
+or incompatible pinned `signal_context_schema_id`,
+`social_subject_identity_schema_id`, or required authenticated one-to-one
+social-identity migration maps to
+`ArtifactUnavailable`, exit `5`; retry requires an authorized installation
+repair or compatible configuration. A malformed, duplicate, wrong-owner,
+expired-lifetime, different-instance, cross-call, or otherwise internally
+inconsistent context maps to `InternalInvariantViolation`, exit `70`, and
+quarantines the affected compiler/configuration path. The generative brand is
+never serialized or recomputed as a digest, so it has no content-collision
+variant. An ambiguous or many-to-one social migration, same-schema
+same-principal inconsistency, or same-schema distinct-principal collision
+witness is a social-identity integrity violation and follows the same exit
+`70` quarantine path. An incompatible memory participant is excluded from the
+social comparison with a typed minimized diagnostic before calibration; it is
+not converted to zero and does not reveal the identity. A caller cannot
+construct or repair this object, and neither class falls back to request
+metadata, process identity, an ambient clock, or a live authorization service.
+Numerical signal failures after one valid context exists remain
+`ActivationFailure`.
+
 Classification is deterministic. An internal invariant violation takes its
 dedicated variant; an attempted prohibited capability is `PolicyViolation`; an
 external deadline, cancellation, or resource ceiling is `ResourceFailure`; and
@@ -1753,7 +2157,7 @@ never by message text. The current focused contract contains twelve reasons:
 
 | `RequestPropositionError` reason | Public `CompileError` | CLI exit | Retryability and required disposition |
 | --- | --- | ---: | --- |
-| `InvalidQueryBinding` | `InternalInvariantViolation` | `70` | Not retryable for the same binary and pinned state; `Q` violated its validated three-field binding |
+| `InvalidQueryBinding` | `InternalInvariantViolation` | `70` | Not retryable for the same binary and pinned state; \(B_Q\) or bound `Q` violated the validated three-field binding |
 | `LineageMismatch` | `InternalInvariantViolation` | `70` | Not retryable for the same binary and pinned state; the exact \(B_Q=\pi_Q(\Lambda_A)\) join failed |
 | `InvalidSourceLocator` | `InternalInvariantViolation` | `70` | Not retryable for the same binary and pinned state; focus received a locator that situation encoding was required to validate |
 | `UnknownSourceKind` | `ArtifactUnavailable` | `5` | Retry only after an authorized schema or artifact repair installs a compatible source-kind registry |
@@ -1773,31 +2177,167 @@ of that authenticated artifact is `ArtifactUnavailable`. The error instance
 retains the original reason as its typed `source()`, and the retryability value
 above is deterministic from the variant and relevant pinned identities.
 
+The expectation branch preserves its exact-query join failures in the closed
+`ExpectationQueryBindingError` source:
+
+| `ExpectationQueryBindingError` reason | Public `CompileError` | CLI exit | Required disposition |
+| --- | --- | ---: | --- |
+| `InvalidQueryBinding` | `InternalInvariantViolation` | `70` | Reject missing, malformed, recomputation-inconsistent, configuration-inconsistent, or reused \(B_Q\) paired with different canonical content/configuration or an incompatible call/branch; valid same-content/configuration repetition is deterministic, not an error; no partial expectation bundle |
+| `LineageMismatch` | `InternalInvariantViolation` | `70` | Reject a valid \(B_Q\) that differs from \(\pi_Q(\Lambda_A)\); quarantine the branch inputs |
+| `ContentIdentityCollision` | `InternalInvariantViolation` through `IngressBindingError::ContentIdentityCollision` | `70` | Quarantine the affected identity/configuration path under the canonical collision contract; never regenerate or substitute an identity |
+| `BindingArtifactUnavailable` | `ArtifactUnavailable` | `5` | Retry only after an authorized repair installs the missing, authenticated, compatible identity-schema and digest artifact |
+
+These structural causes are not ordinary predictive insufficiency and never
+map to `ExpectationFailure`. Their typed source is retained through
+`CompileError`.
+
+`buildValidationContext` preserves its closed `ValidationContextError`
+source:
+
+| `ValidationContextError` reason | Public `CompileError` | CLI exit | Required disposition |
+| --- | --- | ---: | --- |
+| `OriginBindingMismatch` | `InternalInvariantViolation` | `70` | Reject a retained request, prompt bytes, or sealed invocation that do not form the authenticated pair; quarantine the call |
+| `BoundQueryMismatch` | `InternalInvariantViolation` | `70` | Reconstruct the expected sealed `BoundQuery` from the retained request and pinned `K`, then reject any numerical projection, exact binding, canonical envelope, or `BoundQueryContentId` mismatch, including a correct \(B_Q\) paired with a stale or foreign \(Q_{\mathrm{num}}\); also require \(B_Q=\pi_Q(\Lambda_A(L))\). A complete equal same-content/configuration `BoundQuery` from a separately valid call is content-equivalent and is not an error |
+| `PlanCallBindingMismatch` | `InternalInvariantViolation` | `70` | Reject a plan whose private `InvocationInstanceWitness` does not belong to the independently supplied current sealed invocation, including a complete plan copied from another valid call with the same \(B_Q\) |
+| `PlanControlMismatch` | `InternalInvariantViolation` | `70` | Reject a plan whose configuration, policy, language, or budget does not equal the already resolved call controls; do not repair or duplicate controls in the validation context |
+| `ValidationArtifactUnavailable` | `ArtifactUnavailable` | `5` | Retry only after an authorized repair installs compatible authenticated validation schemas, limits, and semantic-projection artifacts |
+
+These context errors are resolved before candidate-output validation. The
+compiler-owned builder receives the current sealed invocation, validates the
+plan's private witness against it, and consumes that proof while constructing
+an opaque `ValidationContext<'plan>` borrowing its source plan. The lifetime
+prevents the context from outliving that borrow or being detached unchecked;
+it does not encode the source object's identity. The context contains a
+minimized semantic/validator projection, one sealed deterministic
+`PlanContentId`, one private exact canonical-plan byte-comparison capsule, and
+one sealed `RendererConfigurationId` recomputed from the exact authenticated
+\(K_R\) in the resolved controls, plus a private exact canonical-\(K_R\)
+comparison commitment. It exposes no witness or capsule accessor or identity
+mutator and cannot be changed to represent canonically different plan content
+or renderer configuration. The builder observes only its one plan-byte
+sequence, so `PlanContentIdentityCollision` is not a
+`ValidationContextError`; the later compiler-owned two-capsule join owns that
+classification. Neither the renderer model nor the semantic validator can
+inspect, copy, compare, or reconstruct the witness or either capsule.
+
+Plan-content/configuration binding and substitution preserve their closed typed
+sources:
+
+| Source reason | Public `CompileError` | CLI exit | Required disposition |
+| --- | --- | ---: | --- |
+| standalone compiler-owned pre-validator `PlanContentIdentityCollision` or `RendererSubstitutionError::PlanContentIdentityCollision` | `InternalInvariantViolation` | `70` | Quarantine the observed plan-identity and renderer-configuration path; equal typed plan identity with different retained canonical bytes is never treated as equivalence |
+| `RendererSubstitutionError::RendererConfigurationMismatch` | `InternalInvariantViolation` | `70` | Stop before plan or slot interpretation; a candidate was mixed with a different valid exact renderer configuration |
+| `RendererSubstitutionError::PlanIdentityMismatch` | `InternalInvariantViolation` | `70` | Stop before slot access; a product call mixed a candidate with canonically different plan content |
+| `RendererSubstitutionError::UnknownSlot` | `RendererFailure` | `7` | Reject the complete candidate; do not infer a slot from text |
+| `RendererSubstitutionError::ForbiddenSlot` | `RendererFailure` | `7` | Reject the complete candidate; do not expose a control-only or prohibited surface |
+| `RendererSubstitutionError::SlotBindingMismatch` | `RendererFailure` | `7` | Reject the complete candidate; do not rebind a slot to another proposition or role |
+| `RendererSubstitutionError::SlotOccurrenceMismatch` | `RendererFailure` | `7` | Reject the complete candidate; do not delete or synthesize occurrences |
+| `RendererSubstitutionError::ExactSurfaceUnavailable` | `InternalInvariantViolation` | `70` | Stop; the valid sealed plan no longer contains the authoritative surface promised by its sidecar |
+| `RendererSubstitutionError::InvalidExactSurface` | `InternalInvariantViolation` | `70` | Stop; retained exact bytes disagree with their pinned schema, formatter, language, or UTF-8 contract |
+| `RendererSubstitutionError::InvalidExactPlacement` | `FaithfulnessFailure` | `7` | Reject the complete candidate; no model repair or relocation |
+| `RendererSubstitutionError::RendererCostBoundViolation` | `FaithfulnessFailure` | `7` | Reject the complete candidate and invalidate qualification for that rendering identity |
+
+The first failure follows the fixed substitution-check order in the renderer
+specification. The adapter matches variants only, preserves the exact typed
+source, and never classifies message text. A construction-time
+`PlanContentIdentityCollision` does not exist: construction observes only one
+canonical byte sequence. The standalone compiler-owned collision uses the
+first row and prevents the independent validator call. These
+substitution-owned failures are distinct from validator-owned
+`RendererValidationError::PlanIdentityMismatch` and
+`RendererValidationError::RendererConfigurationMismatch`, which can occur only
+after a successfully substituted candidate reaches the independent validator.
+
+Candidate validation is conceptually
+`validate(candidate, &ValidationView, K_R)`; the compiler projects that
+least-privilege view from its private `ValidationContext`, and the validator
+receives neither the context type, a raw plan, an invocation witness, nor a
+canonical-plan byte capsule. Before that call, the compiler compares private
+candidate/context capsules whenever their
+`PlanContentId` values are equal. Equal identity with different bytes is the
+standalone collision above; different identities proceed to validation.
+`RendererValidationError::PlanIdentityMismatch`
+maps to `InternalInvariantViolation`, exit `70`, when a candidate's sealed plan
+content identity differs from the one exposed by the validation view. The validator
+also recomputes `RendererConfigurationId` from exact authenticated supplied
+\(K_R\), compares its exact canonical content with the candidate and validation
+view,
+and returns
+`RendererValidationError::RendererConfigurationMismatch`, mapped to
+`InternalInvariantViolation`, exit `70`, unless candidate, validation-view, and
+supplied configuration identities and canonical contents are equal. Equal ID with
+different canonical bytes follows the same mismatch and quarantine path. The
+validator never repairs either identity. A missing, unauthenticated,
+digest-invalid, schema-incompatible, or
+otherwise unavailable renderer or validator artifact detected during
+open/preflight remains `ArtifactUnavailable`, exit `5`; it is not a runtime
+configuration mismatch. Two separately valid same-content
+invocations have the same bound-query and plan content identities and may have
+corresponding different nonsemantic instance lineage while producing equal
+semantic validation projections and verdicts. Their separately constructed
+canonical-content-identical plan objects and candidates are intentionally
+interchangeable at the witness-free validation boundary only under equal
+`RendererConfigurationId` and byte-identical authenticated canonical \(K_R\)
+content, and must produce identical substitution, validation, and product
+bytes. Each context builder
+must nevertheless consume the witness belonging to its own current invocation
+before either candidate can reach validation. Canonically different plan
+content always yields `PlanIdentityMismatch`; a different exact valid renderer
+configuration always yields `RendererConfigurationMismatch`.
+
 Planning-stage causes map as follows:
 
-| Internal planning condition | Public `CompileError` | Required disposition |
-| --- | --- | --- |
-| Requested language is absent, undetermined, or outside the installed declared language set | `UnsupportedLanguage` | Reject before selection |
-| Pinned priority table, classifier, schema, cost function, tokenizer identity, slot policy, or other required planning artifact is missing, malformed, digest-invalid, internally inconsistent, or falsely claims the selected language/domain | `ArtifactUnavailable` | Reject and invalidate that installed artifact identity |
-| Validated input has a schema or lineage mismatch, invalid role or disposition, missing qualifier or relation, conflicting controls, invalid exact-slot shape, or no structurally feasible plan | `PlanningFailure` | Return the typed planning source; no partial plan |
-| A source absent from its immutable `PlanningSourceProjection` reaches planning; a projection, exact-slot binding, or exact-surface content identity is missing or inconsistent; or planning would raise an authority, allowed-use, or surface-authority ceiling | `InternalInvariantViolation` | Stop; authorization-before-relevance or lowering-only projection integrity was violated; never query a live authority view |
-| Checked planning-cost arithmetic overflows or exits the domain of a preflight-validated artifact | `InternalInvariantViolation` | Stop; do not saturate or reinterpret as budget pressure |
-| Canonical planning candidates exceed the pinned closure or tagged-member ceiling | `ResourceFailure` | Reject before subset enumeration |
-| A structurally faithful mandatory or otherwise justified nonempty attention projection cannot fit the resolved budget | `InsufficientAttentionBudget` | Return no product result; do not emit budget-driven empty attention |
-| A valid optional closure is individually over budget while another faithful nonempty or faithfully empty plan remains possible | no error by itself | Mark only that closure infeasible |
-| Measured post-substitution cost exceeds the accepted conservative bound or resolved budget | `FaithfulnessFailure` | Return no result and invalidate renderer qualification for the exact artifact identity |
+| `PlanningError` reason | Public `CompileError` | CLI exit | Required disposition |
+| --- | --- | ---: | --- |
+| `SchemaMismatch` | `InternalInvariantViolation` | `70` | Stop; a preflight-validated schema or immutable branch projection no longer matches |
+| `LineageMismatch` | `InternalInvariantViolation` | `70` | Stop; the branch content-lineage join failed |
+| `PlanCallBindingMismatch` | `InternalInvariantViolation` | `70` | Stop; at least one branch invocation witness or eligible-set witness does not match the independently anchored current-call and expected-set planning scope |
+| `UnknownSource` | `InternalInvariantViolation` | `70` | Stop; an item references a source absent from its immutable upstream projection |
+| `SourceProjectionViolation` | `InternalInvariantViolation` | `70` | Stop; a ceiling, qualifier, relation, exact binding, independently rederived exact-slot owner descriptor, or source field differs from its immutable projection |
+| `AuthorityEscalation` | `InternalInvariantViolation` | `70` | Stop; planning attempted to raise an authority or surface-authority ceiling |
+| `AllowedUseEscalation` | `InternalInvariantViolation` | `70` | Stop; planning attempted to broaden permitted use |
+| `InvalidRole` | `PlanningFailure` | `6` | Return the typed planning source; no partial plan |
+| `MissingQualifier` | `PlanningFailure` | `6` | Return the typed planning source; no partial plan |
+| `MissingRelation` | `PlanningFailure` | `6` | Return the typed planning source; no partial plan |
+| `InvalidExpectationDisposition` | `PlanningFailure` | `6` | Return the typed planning source; no partial plan |
+| `InvalidPlanningPriority` | `ArtifactUnavailable` | `5` | Invalidate and repair the malformed or incompatible pinned priority artifact |
+| `InvalidExactSlot` | `PlanningFailure` | `6` | Reject a planning-owned invalid or ambiguous locator, mapped owner, or plan shape after a valid upstream descriptor agrees with its immutable source projection; never flatten an upstream `InvalidExactSlotSemanticDescriptor` construction/schema/shape cause or a later `SourceProjectionViolation` into this variant |
+| `ConflictingExactSlot` | `PlanningFailure` | `6` | Reject incompatible values or metadata under one exact-slot owner-plus-locator; never collapse independent owners or choose an arbitrary value |
+| `InvalidCostContract` | `ArtifactUnavailable` | `5` | Invalidate and repair the malformed, incompatible, or falsely declared pinned cost artifact |
+| `CostOverflow` | `InternalInvariantViolation` | `70` | Stop; checked arithmetic left the domain accepted during artifact preflight; never saturate |
+| `PlanningLimitExceeded` | `ResourceFailure` | `8` | Reject before subset enumeration when canonical closure or member ceilings are exceeded |
+| `ConflictingControl` | `PlanningFailure` | `6` | Reject mutually inconsistent validated planning controls; no partial plan |
+| `UnsupportedRequestedLanguage` | `UnsupportedLanguage` | `2` | Reject before selection because the valid request chose a language outside declared support |
+| `NoFeasiblePlan` | `PlanningFailure` | `6` | Return no partial plan when structural constraints admit none |
+| `InsufficientAttentionBudget` | `InsufficientAttentionBudget` | `8` | Return no product result; do not emit a budget-driven empty attention block |
+
+A valid optional closure that is individually over budget is not an error when
+another faithful nonempty or faithfully empty plan remains possible; only that
+closure becomes infeasible. `RendererCostBoundViolation` remains a distinct
+substitution-time `FaithfulnessFailure`, exit `7`, because it invalidates
+renderer qualification rather than reclassifying planning.
+
+An owning focus or expectation constructor returns the typed
+`InvalidExactSlotSemanticDescriptor` cause before admitting a descriptor with
+an invalid construction, schema, or shape into an immutable branch projection.
+That source error retains its owning stage's public mapping. `PLAN-02` receives
+only admitted projections: disagreement between one such projection and the
+planner's independent owner rederivation from the selected source is
+`SourceProjectionViolation → InternalInvariantViolation → 70`.
 
 Static artifact validation occurs during open/preflight. The planning mappings
 remain defensive so a corrupted in-memory artifact cannot be mislabeled as a
 request or planning error. Neither a rank table nor a cost contract may be
 selected from ambient state after compilation starts.
 
-`RendererCostBoundViolation` is an internal renderer-validation error mapped
-deterministically to public `FaithfulnessFailure`. It means the measured
-post-substitution attention cost exceeded the accepted qualified upper bound or
-resolved budget after planning had accepted the plan. It is not a planning
-failure or ordinary resource exhaustion; it invalidates qualification evidence
-for the pinned rendering identity and returns no product result.
+`RendererCostBoundViolation` is a substitution-owned
+`RendererSubstitutionError` mapped deterministically to public
+`FaithfulnessFailure`. Substitution measures the exact expanded candidate after
+all exact surfaces are inserted and before constructing
+`SubstitutedAttention`; exceeding the accepted qualified upper bound or
+resolved budget returns this error and no candidate. It is not a validator,
+planning, or ordinary resource-exhaustion failure; it invalidates qualification
+evidence for the pinned rendering identity and returns no product result.
 
 Memory import, correction, migration, deletion, and index-build failures belong
 to the separate management plane.
@@ -1920,8 +2460,10 @@ A conforming implementation requires:
   than its essential supporting sources.
 - Every planned and rendered proposition has source bindings and preserves
   material qualifications.
-- Focus and expectation consume the same eligible activated-memory set before
-  final focus pruning.
+- Focus and expectation each borrow the exact same complete sealed
+  `EligibleActivatedMemorySet<'call>` object before final focus pruning; no
+  projection, filtering, copying, or reconstruction precedes either
+  aggregate-taking call.
 - Expectation remains distinct from goal, action, answer, fact, and
   probability.
 - Dependency grouping prevents one known evidence lineage from multiplying its
@@ -1985,25 +2527,63 @@ Architecture conformance requires:
   situation statements, caller-supplied contextual time, optional location,
   explicit metadata, and pinned encoder/configuration identity; perturbing
   only principal, `t_auth`, policy, or authorization-view state must not
-  change `Q`, \(B_Q\), locators, or content identities;
+  change \(Q_{\mathrm{num}}\), \(B_Q\), bound `Q`, locators, or content
+  identities; complete-request/control-only mutations must change only the
+  specified binding layer; public and compile-fail API tests must prove that
+  independently supplied or field-swapped numerical/binding projections
+  cannot form a `BoundQuery`, while defensive corruption fixtures must reject
+  them through `BoundQueryMismatch`;
 - prompt-buffer aliasing or copy-path tests proving byte preservation;
 - authorization-before-retrieval tests;
 - memory-snapshot model tests with concurrent revision publication;
 - authorization-revocation timing tests for the selected cancellation policy;
 - representation and index revision-mismatch tests;
 - cross-context candidate-generation tests and measured retrieval recall;
-- signal-provenance and channel-grounding tests;
+- signal-provenance, minimized-context construction, trusted-time/social-subject
+  use, cross-call rejection, no-ambient-fallback, and channel-grounding tests;
 - existing activation-kernel verification where that kernel is used;
 - transition eligibility, outcome relation, dependency aggregation, coverage,
   unknown-support, alternative, and prediction-abstention tests;
 - focus-and-expectation plan coverage, exclusion, conflict, closure,
-  abstention, and budget tests;
+  abstention, and budget tests, including aggregate-only query/shared-set
+  boundaries, current-call anchoring only where an independent scope exists,
+  fresh eligible-set instance branding and rejection of two reconstructed
+  same-content sets inside one invocation,
+  distinct exact-slot owners sharing one schema locator, and conflicting
+  exact values under one owner-plus-locator;
 - renderer focus/expectation faithfulness, language, probability inflation,
-  action and answer leakage, exact-slot, and qualification evaluation;
+  action and answer leakage, exact-slot, and qualification evaluation,
+  including proof that validation-context construction consumes but never
+  exposes the call witness; the shared
+  `AuthenticatedRendererConfiguration` has byte-identical
+  \(\operatorname{CE}_{v1}(K_R)\), cannot be caller-constructed, field-mutated,
+  or injected, and grants renderer and validator no installation, trust-root,
+  update, filesystem, or network capability; candidate lifetimes prevent
+  unchecked detachment without claiming referent identity;
+  separately authenticated canonical-content-identical \(K_R\) values are
+  equivalent, while projections, narrower values, and equal-ID/different-byte
+  configurations fail `RendererConfigurationMismatch` and quarantine;
+  canonical-content-identical plan
+  candidates under equal `RendererConfigurationId` and byte-identical
+  authenticated canonical \(K_R\) content produce bit-identical renderer
+  traces, substitution bytes, and validation results, and also bit-identical
+  product bytes when retained prompt bytes, framing, and serializer
+  configuration are fixed; every byte-affecting execution-field
+  perturbation creates a distinct renderer configuration and separate
+  qualification, while target-platform claim grouping cannot merge identities;
+  different valid renderer configurations are rejected as configuration
+  mismatches; equal
+  `PlanContentId` values with different retained canonical bytes are
+  quarantined before independent validation; and canonically different
+  `PlanContentId` values are rejected by the validator;
 - compile/management capability separation, migration, backup, restore, and
   corruption tests;
-- CLI prompt-source, byte-preservation, stdout-isolation, exit-map, and
-  cancellation tests;
+- public-constructor and CLI prompt-source tests at every absolute byte ceiling
+  and at ceiling plus one, including bounded file/stdin reads that retain at
+  most max-plus-one bytes and configured lower ceilings that remain
+  compatibility errors;
+- CLI byte-preservation, zero-stdout-before-delivery, partial-prefix
+  invalidation with exit `10`, exit-map, and cancellation tests;
 - network-blocked and persistent-write-detection integration tests;
 - result isolation and transport-failure tests for every adopted adapter;
 - resource measurements on frozen reference hardware; and
@@ -2063,6 +2643,7 @@ omnibus acceptance of those choices.
 - [Superseded Decision 0011: Adopt a local read-only attention compiler for V1](../decisions/0011-adopt-local-read-only-attention-compiler-v1.md)
 - [Decision 0014: Adopt memory-grounded predictive attention](../decisions/0014-adopt-memory-grounded-predictive-attention.md)
 - [Decision 0015: Render qualified focus-and-expectation plans](../decisions/0015-render-qualified-focus-and-expectation-plans.md)
+- [Decision 0016: Adopt sealed compile-integrity boundaries](../decisions/0016-adopt-sealed-compile-integrity-boundaries.md)
 - [SQLite transactions](https://www.sqlite.org/lang_transaction.html)
 - [SQLite write-ahead logging](https://www.sqlite.org/wal.html)
 - [SQLite backup API](https://www.sqlite.org/backup.html)

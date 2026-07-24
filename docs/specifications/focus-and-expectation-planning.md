@@ -48,12 +48,51 @@ The planner joins:
   eligible activated-memory set, including validated ephemeral request
   proposition sources when present;
 - one `ExpectationBundle` containing zero or more canonical per-frame
-  `ExpectationSet` values derived independently from the same eligible
-  activated-memory set;
+  `ExpectationSet` values derived inside the expectation call from an
+  immutable borrow of the exact same complete
+  `EligibleActivatedMemorySet<'call>` object supplied to the focus call;
 - one immutable exact-surface inventory containing bytes but no permissions;
 - one output language;
-- one finite post-substitution attention budget \(B\); and
-- one content-identified planning configuration.
+- one finite post-substitution attention budget \(B\);
+- one content-identified planning configuration; and
+- one compiler-private `PlanningInvocationScope<'call>` independently borrowed
+  from the current sealed `AuthenticatedInvocation` and the exact complete
+  `EligibleActivatedMemorySet<'call>` selected by the compiler before the
+  branch split.
+
+The private scope contains the current call's
+`InvocationInstanceWitness<'call>` and the selected set's
+`EligibleSetInstanceWitness<'call>`. It is not caller input, is not constructed
+from either branch, and has no public constructor, getter, clone, owned form, or
+serialization. `FocusCandidateSet<'call>` and `ExpectationBundle<'call>` each
+carry both exact witnesses propagated from their common
+`EligibleActivatedMemorySet<'call>`. Planning compares both branch witnesses
+with both independently anchored scope witnesses before inspecting candidates.
+This prevents a mutually consistent foreign focus/bundle pair from being
+replayed inside another invocation and prevents two reconstructed sets inside
+one invocation from masquerading as the same branch source, even when \(B_Q\)
+and \(\Lambda_A\) are equal. Because the scope cannot be supplied from outside
+the compile core or reconstructed from branch outputs, a coherent foreign
+scope/branch triple cannot enter the current planning boundary.
+
+The upstream focus and expectation boundaries each borrow the same sealed
+`BoundQuery` produced by the situation boundary. They do not accept
+\(Q_{\mathrm{num}}\) and \(B_Q\) as independently supplied parameters. Inside
+each branch, semantic derivation may borrow only the aggregate's
+\(Q_{\mathrm{num}}\) projection, while exact lineage validation may borrow only
+its \(B_Q\) projection. Neither projection has an owned public form or a public
+constructor from which another aggregate can be assembled. This makes a
+mixed numerical/binding pair unrepresentable at the branch API rather than a
+convention checked after semantic work has begun.
+
+The focus and expectation branches only propagate the opaque
+`InvocationInstanceWitness<'call>` already borrowed by their common
+`EligibleActivatedMemorySet<'call>` and that set's distinct opaque
+`EligibleSetInstanceWitness<'call>`. They do not classify either witness as
+current or selected because they receive no independently anchored planning
+scope. `PLAN-02` owns both classifications through
+`PlanningInvocationScope<'call>`; a branch producer owns only exact
+preservation and private-construction guarantees.
 
 The immutable request and raw numerical situation are not combined-planner
 inputs. Any request-derived meaning that can affect selection must already be
@@ -72,15 +111,31 @@ change support, create a hypothesis, or select an action.
 ```mermaid
 flowchart TD
     A["Eligible activated-memory set"] --> F["Focus planner"]
-    Q["Validated numerical request and situation"] --> F
+    Q["Sealed BoundQuery"] --> F
     A --> E["Expectation kernel"]
+    Q --> E
     F --> FC["FocusCandidateSet"]
     E --> ES["ExpectationBundle of per-frame sets"]
     FC --> J["Combined plan validator and selector"]
     ES --> J
+    I["Private current-call and expected-set scope"] --> J
     C["Language, budget, configuration, and exact surfaces"] --> J
     J --> P["Canonical FocusExpectationPlan"]
 ```
+
+The focus container's request-local shape includes:
+
+```text
+FocusCandidateSet<'call>
+├── <private> invocation_instance_witness: InvocationInstanceWitness<'call>
+├── <private> eligible_set_instance_witness: EligibleSetInstanceWitness<'call>
+├── source_receipt: exact copy of Lambda_A
+└── existing canonical source-bound focus payload
+```
+
+The private fields retain the exact borrowed invocation and set-instance
+handles from the shared eligible activated-memory set before focus pruning.
+Neither is part of any focus item, key, score, receipt, or serialized payload.
 
 ### Immutable authority and disclosure projections
 
@@ -89,7 +144,11 @@ Planning has no separate authority or disclosure view and introduces no
 the authority-bearing focus projection in `FocusCandidateSet`; the expectation
 kernel is the sole producer of the corresponding expectation projection in
 `ExpectationBundle`. Both inputs are immutable and carry the exact same
-\(\Lambda_A\).
+\(\Lambda_A\), exact same private `InvocationInstanceWitness<'call>`, and exact
+same private `EligibleSetInstanceWitness<'call>`. Receipt equality is
+necessary but not sufficient: the two witnesses separately prove call
+membership and exact shared-set continuity without becoming authority,
+lineage, or semantic state.
 
 For every candidate or control that planning may consume, its owning branch
 must already carry this finite projection:
@@ -97,15 +156,22 @@ must already carry this finite projection:
 ```text
 PlanningSourceProjection
 ├── source_receipt: exact copy of Lambda_A
-├── item and essential-source identities
+├── item instance identity and branch semantic key
+├── essential-source identities
 ├── authority_ceiling
 ├── allowed_use_ceiling
 ├── surface_authority_ceiling
 ├── mandatory qualifiers and relations
-└── exact_slot_bindings[]
-    ├── slot identity
-    ├── exact-surface content identity
-    └── permitted item bindings
+└── <private privileged sidecar> exact_slot_bindings[]
+    ├── lineage-bearing ExactSlotBindingInstanceId
+    ├── schema-owned ExactSlotSemanticLocator
+    ├── pre-planning ExactSlotOwnerSemanticDescriptor
+    │   ├── Item(BranchItemOwnerSemanticDescriptor, exact owner role)
+    │   └── Shared(SharedExactSlotMeaningKey)
+    ├── exact-value type, semantic role, and finite occurrence bounds
+    ├── exact-value schema and formatter identities
+    ├── privileged exact-surface content identity
+    └── permitted upstream branch semantic-key and semantic-role bindings
 ```
 
 This is a logical common field projection over the two existing branch-owned
@@ -114,12 +180,117 @@ cardinality cannot exceed the candidate, source, qualifier, relation, and
 exact-binding limits already declared by those inputs and the pinned planning
 configuration.
 
+The branch semantic key is exactly `PropositionSemanticKey` for a focus
+candidate and `ExpectationItemSemanticKey` for an expectation hypothesis,
+control, or abstention. Planning wraps it once in the corresponding
+`PlanItemSemanticKey` tag; it neither derives expectation meaning from an
+instance identity nor strips branch-domain separation.
+
+`ExactSlotSemanticLocator` is the closed schema-owned identity of one logical
+exact-value occurrence before any value is supplied. It contains the
+content-identified owning proposition/facet schema, one registered exact-field
+path, and, only when that schema permits repeated fields, its schema-defined
+semantic occurrence ordinal. It contains no exact value, surface bytes,
+surface content identity, \(B_Q\), \(\Lambda_A\), source receipt,
+`ExactSlotBindingInstanceId`, insertion position, or runtime-generated
+identifier. An unknown field path, an ordinal outside the schema-declared
+domain, or a repeated field without a schema-owned ordinal is a structural
+error.
+
+`ExactSlotOwnerSemanticKey` identifies which semantic owner contains or
+intentionally shares that occurrence. It is the closed tagged union:
+
+```text
+ExactSlotOwnerSemanticKey
+├── Item(PlanItemSemanticKey, ExactSlotOwnerRole)
+└── Shared(SharedExactSlotMeaningKey)
+```
+
+Upstream does not construct that final key. Each branch binding carries the
+closed pre-planning descriptor:
+
+```text
+ExactSlotOwnerSemanticDescriptor
+├── Item(BranchItemOwnerSemanticDescriptor, ExactSlotOwnerRole)
+└── Shared(SharedExactSlotMeaningKey)
+```
+
+The descriptor contains no `PlanItemSemanticKey`, `SlotSemanticKey`,
+`RendererSlotId`, exact value, surface identity, lineage identity, or
+request-local identifier. `BranchItemOwnerSemanticDescriptor` is the
+branch-tagged, lineage-independent description independently derived from the
+owning source item's complete non-slot semantics. It includes the non-slot
+meaning, scope, role, qualifiers, derivation semantics, and authority and
+allowed-use classes required to distinguish that owner. It excludes all exact
+slot descriptors and values, exact-surface identities and bytes, lineage,
+request or configuration identities, insertion position, and runtime
+witnesses.
+
+For each selected binding, planning independently rederives that branch owner
+descriptor from the selected source item, derives the selected branch-tagged
+`PlanItemSemanticKey`, and then performs the sole mapping:
+
+\[
+\operatorname{mapExactSlotOwner}(d,k;s)=
+\begin{cases}
+\operatorname{Item}(k,r),&
+d=\operatorname{Item}(h,r)
+\land
+h=\operatorname{independentlyDerivedOwner}
+(\operatorname{nonSlotSemantics}(s)),\\
+\operatorname{Shared}(h),&
+d=\operatorname{Shared}(h).
+\end{cases}
+\]
+
+Here \(s\) is the source item already fixed by the branch binding being mapped;
+it is not recovered from \(k\) and is not a third caller-selected input. An
+unequal independently derived owner descriptor is
+`SourceProjectionViolation` because an immutable branch projection disagrees
+with its own selected source; it is never downgraded to an ordinary
+`InvalidExactSlot`. The
+mapping is non-recursive because the branch owner descriptor is completed
+before exact-slot descriptors are added, while `PlanItemSemanticKey` is
+constructed only after complete source-item selection. The owning focus or
+expectation constructor rejects an unknown role, an unregistered
+shared-meaning key, or a descriptor with an invalid schema or shape as its
+typed `InvalidExactSlotSemanticDescriptor` cause before an immutable branch
+projection can be admitted. Planning accepts only those admitted projections.
+If an admitted descriptor, owner attachment, or permitted binding later
+disagrees with the planner's independent derivation from the selected source
+item, that disagreement is `SourceProjectionViolation`; it is not
+reclassified as `InvalidExactSlot`. The ordinary planning error
+`InvalidExactSlot` is reserved for a planning-owned invalid or ambiguous
+locator, mapped owner, or plan shape after the valid upstream descriptor and
+immutable source projection agree. No public or upstream input may supply a
+precomputed final owner key.
+
+`Item` is used for an exact occurrence owned by one plan item. Its
+`PlanItemSemanticKey` and registered owner role are independent of the exact
+value. `Shared` is used only when an upstream schema explicitly declares one
+logical exact value shared by multiple items; `SharedExactSlotMeaningKey` is a
+registered, lineage- and value-independent semantic identity. Equal values,
+equal surface bytes, equal locators, or planner observation never create a
+shared owner. Consequently two items using the same proposition schema, field
+path, and schema ordinal coexist when their owner keys differ. Any
+canonicalization cache, duplicate detector, or sidecar join is keyed by the
+complete pair `(ExactSlotOwnerSemanticKey, ExactSlotSemanticLocator)`, never by
+the locator, value, content identity, insertion position, or lineage alone.
+
 The separate exact-surface inventory supplies only the byte-preserving surface,
-its content identity, and language/display metadata for a referenced slot. It
+its content identity, pre-key slot metadata, and language/display metadata for
+a referenced branch binding. It
 contains no authority, disclosure decision, allowed-use grant, item
 permission, principal, or policy handle. A surface becomes usable only when an
-upstream `exact_slot_binding` names the same slot and content identity and
-permits the selected item binding. The inventory is minimized to the canonical
+upstream `exact_slot_binding` and its inventory entry name the same branch
+source semantic key, `ExactSlotOwnerSemanticDescriptor`,
+`ExactSlotSemanticLocator`, exact-value type, semantic role, occurrence bounds,
+schema, formatter, and content identity. The branch binding must also permit
+the upstream semantic-key and role that planning maps to the selected
+`PlanItemSemanticKey`. Neither input contains `ExactSlotOwnerSemanticKey`,
+`SlotSemanticKey`, or `RendererSlotId`. The content identity participates only
+in this privileged pre-planning sidecar join, never in a model-visible slot
+identity. The inventory is minimized to the canonical
 union of slots referenced by the two branch projections; an unreferenced
 surface is rejected rather than carried through planning.
 
@@ -137,8 +308,11 @@ K
 \]
 
 The second argument denotes narrowly projected immutable request and
-shared-set sidecar tables, not raw \(Q\), the complete shared set, a store
-handle, or an authorization capability. The projection verifies every slot,
+shared-set sidecar tables selected through the request-local exact facet
+\(X_Q\) and exact binding \(B_Q\) borrowed internally from the same sealed
+`BoundQuery`, plus activated-set sidecars; it is not an independently supplied
+\(Q_{\mathrm{num}}\)/\(B_Q\) pair, the complete shared set, a store handle, or
+an authorization capability. The projection verifies every slot,
 surface content identity, permitted item binding, and configuration identity;
 rejects missing, duplicate, inconsistent, or unreferenced surfaces; and emits
 only the canonical slot-ordered union. `PlanningInput::new` consumes that
@@ -208,11 +382,11 @@ Every control tag has exactly one closed canonical key domain:
 
 | Control tag | Canonical key after tag rank |
 | --- | --- |
-| `ForbiddenProposition` | ascending `PropositionId` |
+| `ForbiddenProposition` | ascending upstream `PropositionSemanticKey` |
 | `ForbiddenExactSurface` | ascending content-derived `ExactSurfaceId` |
-| `AuthorityCeiling` | `Plan` before `Item(PlanItemId)`, then ascending item identity |
-| `RequiredQualifier` | ascending target `PlanItemId`, then `QualifierId` |
-| `RequiredRelation` | ascending canonical `RelationId` |
+| `AuthorityCeiling` | `Plan` before `Item(PlanItemSemanticKey)`, then ascending semantic item key |
+| `RequiredQualifier` | ascending target `PlanItemSemanticKey`, then `QualifierId` |
+| `RequiredRelation` | ascending canonical `RelationSemanticKey` |
 | `UnknownSupport` | upstream `PredictionFrameKey`, then `AlternativeSetId` |
 | `OmittedSupport` | upstream `PredictionFrameKey`, then `AlternativeSetId` |
 | `EvidenceDependency` | scope tag `Plan`, `FocusItem`, or `ExpectationFamily`; then that scope's canonical identity; then `DependencyGroupId` |
@@ -220,11 +394,21 @@ Every control tag has exactly one closed canonical key domain:
 | `NoActionSelection` | one global singleton key |
 | `ValidationOnlyAbstentionReason` | upstream `PredictionFrameKey`, then registered `AbstentionReasonCode` rank |
 
-For `EvidenceDependency`, `FocusItem` scope identity is `PlanItemId`;
+For `EvidenceDependency`, `FocusItem` scope identity is
+`PlanItemSemanticKey`;
 `ExpectationFamily` scope identity is the tuple of upstream
 `PredictionFrameKey` and `AlternativeSetId`; `Plan` has no additional
 component. Sum-type tag order is the declaration order shown in the table.
-Every identifier is typed and canonical. A plan contains at most one control
+`PlanItemSemanticKey` is the closed branch-tagged sum
+`Focus(PropositionSemanticKey)` or
+`Expectation(ExpectationItemSemanticKey)`, copied from the selected upstream
+focus proposition or expectation item. `RelationSemanticKey` is the complete
+lineage-independent tuple of relation tag, source `PlanItemSemanticKey`,
+target `PlanItemSemanticKey`, mandatory qualifiers, and semantic role; any
+request-local `RelationInstanceId` remains receipt metadata only. `PlanItemId`
+remains the request-local lineage-bearing instance identity and may appear in
+payload references or receipts, but never in ordering, priority, feasibility,
+or selection. Every identifier is typed and canonical. A plan contains at most one control
 for a complete tag-specific key. Unknown, missing, inapplicable, or duplicate
 key components are structural errors; no text, insertion position, optional
 sentinel, or ambient value participates in comparison.
@@ -239,7 +423,8 @@ neither may be substituted for the other.
 
 Every renderable item binds one canonical proposition meaning to:
 
-- stable proposition and plan-item identities;
+- one lineage-independent `PlanItemSemanticKey` plus request-local proposition
+  and plan-item instance identities;
 - role, surface-authority ceiling, and final surface disposition;
 - essential request or authorized-memory sources;
 - request-source identities or authorized-memory provenance roots and
@@ -251,6 +436,8 @@ Every renderable item binds one canonical proposition meaning to:
 - a conservative rendering-cost upper bound;
 - the exact derived upstream `FocusCandidateOrderKey` or
   `ExpectationBundleOrderKey`, according to branch; and
+- the independently derived lineage-free plan serialization key for its
+  branch; and
 - omission policy.
 
 The plan never contains independently authored prose as its source of meaning.
@@ -264,6 +451,7 @@ An expectation item additionally binds:
 ```rust
 pub struct PlannedExpectation {
     id: PlanItemId,
+    semantic_key: PlanItemSemanticKey,
     frame: PredictionFrameKey,
     kind: ExpectationKind,
     alternative_set: AlternativeSetId,
@@ -300,6 +488,7 @@ An abstaining upstream set contributes exactly one canonical
 ```rust
 pub struct PlannedExpectationAbstention {
     id: PlanItemId,
+    semantic_key: PlanItemSemanticKey,
     source_id: ExpectationAbstentionId,
     meaning: AbstentionMeaningId,
     frame: PredictionFrameKey,
@@ -330,9 +519,10 @@ or recommend a downstream action.
 ### Combined plan wireframe
 
 ```text
-FocusExpectationPlan
+FocusExpectationPlan<'call>
+├── <private> invocation_instance_witness: InvocationInstanceWitness<'call>
 ├── envelope
-│   ├── schema and configuration fingerprints
+│   ├── schema, full runtime configuration, and planning fingerprints
 │   ├── source_receipt: exact copy of Lambda_A
 │   ├── focus_candidate_set_id
 │   ├── expectation_bundle_id
@@ -350,9 +540,21 @@ FocusExpectationPlan
 │   ├── competes_with
 │   ├── contradicted_by
 │   └── supported_by
-├── exact_sidecar
-│   ├── upstream-bound slot identity
-│   ├── byte-preserving surface
+├── <private privileged> exact_sidecar
+│   ├── lineage-bearing ExactSlotBindingInstanceId for receipts only
+│   ├── schema-owned ExactSlotSemanticLocator
+│   ├── lineage- and value-independent ExactSlotOwnerSemanticKey
+│   │   ├── Item(PlanItemSemanticKey, exact owner role)
+│   │   └── Shared(SharedExactSlotMeaningKey)
+│   ├── lineage-independent SlotSemanticKey
+│   │   ├── exact-value type
+│   │   ├── owner, locator, and semantic role
+│   │   ├── occurrence bounds
+│   │   ├── permitted semantic item-role bindings
+│   │   └── exact-value schema and formatter identities
+│   ├── canonical RendererSlotId
+│   ├── privileged exact-surface content identity
+│   ├── byte-preserving surface for substitution and validation only
 │   ├── language and display policy
 │   └── permitted item bindings
 └── validator_controls
@@ -374,6 +576,187 @@ The plan constructor validates all three receipts field-for-field, including
 `retrieval_result_id` and `activation_set_id`. It neither reconstructs them
 from ambient state nor accepts partial identity equality. The renderer has no
 independently editable copy.
+
+Before receipt or semantic validation, the constructor performs invariant
+same-instance comparison among the independently anchored current-call witness,
+the focus witness, and the expectation-bundle witness. It stores that exact
+borrowed current-call witness unchanged in the plan. A missing, reconstructed,
+foreign, mixed, or lifetime-invalid witness is
+`PlanCallBindingMismatch`, including when all content-derived identities
+match. It then compares the independently anchored expected-set witness with
+the focus and expectation set witnesses. A missing, reconstructed, mixed,
+foreign, or same-call-but-different-set witness is also
+`PlanCallBindingMismatch`. The closed error carries no witness value and is
+either witness's only
+observable effect; accepted calls receive no witness-derived diagnostic. A
+later compiler-owned renderer handoff independently compares the
+plan's witness with the then-current sealed invocation before projecting any
+renderer input. The renderer and faithfulness validator do not receive,
+serialize, inspect, or reproduce the witness.
+
+\[
+\begin{aligned}
+sameInstance(W_{\mathrm{current}},W_F)&=\mathrm{true},\\
+sameInstance(W_{\mathrm{current}},W_E)&=\mathrm{true},\\
+sameInstance(W_{\mathrm{set}},W_{F,\mathrm{set}})&=\mathrm{true},\\
+sameInstance(W_{\mathrm{set}},W_{E,\mathrm{set}})&=\mathrm{true},\\
+W_{\mathrm{plan}}&:=W_{\mathrm{current}}.
+\end{aligned}
+\]
+
+`sameInstance` is identity comparison over the opaque sealed capability, not
+`Eq` over bytes or a content-derived identifier. There is no fallback from a
+failed comparison to \(B_Q\), \(\Lambda_A\), or any digest.
+
+Both witnesses are outside the envelope, \(B_Q\), and \(\Lambda_A\). Neither
+can affect semantic grouping, closure construction, feasibility, selection,
+canonical order, costs, scores, tensors, accepted-call diagnostics, plan
+content identity, serialization, or product bytes. Only the invocation witness
+is retained in the plan; the set-instance witness is consumed by the planning
+join and erased. The remaining borrow lifetime makes the plan nonpersistable
+and unusable after the originating invocation ends.
+
+### Canonical plan-content identity
+
+`PlanContentId` identifies the complete product-relevant content of a valid
+plan, not the plan allocation, invocation, or receipt instance. Planning owns
+the canonical content projection; the checked renderer constructor recomputes
+and seals its typed identity before candidate bytes can exist. No caller,
+renderer model, deserializer, or downstream validator may supply or override
+the identity.
+
+Let `CE_v1` be the authenticated versioned, injective, type-length-value
+encoding defined by the ingress identity contract. `PlanCanonicalEnvelopeV1`
+is the domain-tagged canonical encoding of exactly:
+
+1. the plan-content schema version, plan schema identity,
+   `SemanticConfigurationId`, plan-semantic configuration schema identity,
+   cost-contract identity, and every semantic registry fingerprint used to
+   interpret a plan;
+2. `PlanSemanticSourceProjectionV1`, containing the
+   configuration-independent request and situation content digests \(d_R,d_S\)
+   plus the complete lineage-independent semantic content from the query,
+   focus, expectation, and eligible activated-memory inputs that was actually
+   selected or retained as a validator control;
+3. resolved output language, post-substitution budget, empty-attention
+   disposition, selected plan shape, and the checked conservative plan cost;
+4. every renderable focus item and expectation item, including its complete
+   `PlanItemSemanticKey`, role, meaning, qualification, condition, horizon,
+   alternative-family membership, uncertainty, authority and allowed-use
+   ceilings, final surface disposition, supporting semantic source identities,
+   dependency groups, and rendering-cost bound;
+5. every mandatory relation as its complete `RelationSemanticKey` and all
+   relation semantics;
+6. every validator control, exclusion, authority ceiling, dependency,
+   qualification, omitted/unknown-support record, and no-answer/no-action
+   boundary;
+7. every exact-sidecar entry's `SlotSemanticKey`, `RendererSlotId`, exact-value
+   schema and formatter identities, occurrence contract, permitted
+   item-and-role bindings, exact-surface content identity, authoritative
+   byte-preserving formatted surface, language, and display policy; and
+8. the canonical selected structural closure and the complete \(G(X)\) and
+   validator-only \(V(X)\) projections, represented by their canonical
+   semantic identities rather than request-local instance identities.
+
+Fields are emitted only in the total canonical orders defined below. Sum types
+carry their registered variant tags; sequences carry their lengths; sets and
+maps are sorted by their declared canonical keys; optional values carry
+explicit absent/present tags; finite numbers use the one canonical
+representation selected by the schema. Unknown, duplicate, noncanonical,
+nonfinite, or unregistered fields are errors. Runtime map iteration, insertion
+order, allocation layout, display prose, and platform endianness are never
+semantic inputs.
+
+The canonical envelope explicitly excludes:
+
+- `InvocationInstanceWitness<'call>`,
+  `EligibleSetInstanceWitness<'call>`, and every allocation address, borrow
+  lifetime, runtime brand, capability, principal, or ambient authority value;
+- request-local `PlanItemId`, `RelationInstanceId`,
+  `ExactSlotBindingInstanceId`, frame-instance, transition-instance,
+  proposition-instance, and every other lineage-bearing instance identity;
+- full `configuration_id`, renderer configuration \(K_R\),
+  `RendererConfigurationId`, configuration-bound `request_id` and
+  `situation_id`, `BoundQueryContentId`, raw \(B_Q\), raw \(\Lambda_A\),
+  focus-candidate-set and expectation-bundle instance identities, raw receipt
+  serializations, diagnostic event IDs, access counters, trace order, and
+  receipt-only provenance that does not change authorized plan semantics; and
+- renderer-candidate, runtime, hardware, execution, validator-verdict, and
+  release identities.
+
+The excluded identities may remain in privileged receipts and the live plan,
+but they cannot affect canonical bytes. `PlanSemanticSourceProjectionV1`
+recomputes its query content from \(d_R,d_S\), not the bound digests \(b_R,b_S\)
+or the containing typed request/situation IDs. It recomputes branch and memory
+content from complete selected semantic keys, meanings, qualifiers, controls,
+authority/allowed-use classes, and essential lineage-independent source
+semantics, not from any source receipt or instance ID.
+
+Let \(K_S=\pi_{\mathrm{plan}}(K)\) be the authenticated canonical projection
+containing every schema, registry, encoder, representation, retrieval, signal,
+activation, focus, expectation, and planning field that can change plan
+meaning, eligibility, scoring, closure, selection, language resolution, or
+cost interpretation. It excludes \(K_R\), renderer/validator execution,
+serializer and transport fields, and the full configuration identity.
+`SemanticConfigurationId` is the domain-separated typed content identity of
+the exact canonical \(K_S\) bytes. Any field that can change both planning and
+rendering appears in both projections by value; neither projection references
+the other's identity.
+
+Canonical references inside the envelope use `PlanItemSemanticKey`,
+`RelationSemanticKey`, `ExpectationItemSemanticKey`, `SlotSemanticKey`, and
+the other lineage-independent semantic identities. Exact values are different:
+their authoritative content identities and formatted bytes are included
+because substitution and final product bytes depend on them, even though those
+values remain absent from pre-substitution model-visible semantics.
+
+For the pinned identity schema and collision-resistant digest `H`:
+
+\[
+C_L =
+\operatorname{CE}_{v1}
+\left(
+\texttt{"nemosyne/plan-content-envelope/v1"},
+\operatorname{PlanCanonicalEnvelopeV1}(L)
+\right),
+\]
+
+\[
+\operatorname{PlanContentId}(L)
+=
+\operatorname{TypedContentIdentity}
+\left(
+\texttt{"nemosyne/plan-content/v1"},
+H(C_L)
+\right).
+\]
+
+The concrete typed-identity fields and digest algorithm follow the same
+authenticated `TypedContentIdentity` scheme as `BoundQueryContentId`, but the
+plan identity binds to `SemanticConfigurationId`, never the full
+configuration-bound query identity. The distinct domain and type tags prevent
+interchangeability. Renderer configuration \(K_R\) has its own content
+identity and is checked separately. It is not silently folded into
+`PlanContentId`, because one plan may be rendered by more than one separately
+qualified compatible renderer configuration.
+
+Holding \(K_S\), \(d_R,d_S\), every selected semantic/control field, exact
+surface, language, and budget fixed while changing only \(K_R\) must leave
+`PlanCanonicalEnvelopeV1` and `PlanContentId` bit-identical. The same change
+must alter `RendererConfigurationId` whenever canonical \(K_R\) changes. A
+change to \(K_S\) may alter plan content identity even when \(K_R\) is fixed.
+
+Validation recomputes both canonical bytes and identity. Equal canonical bytes
+must yield equal `PlanContentId`; changing any included field must yield a
+different identity subject to the stated digest-collision assumption. If the
+compiler or a verification harness observes one `PlanContentId` associated
+with different canonical bytes, it returns
+`PlanContentIdentityCollision`, quarantines the affected identity and
+configuration path, and permits no rendering, substitution, validation, or
+product result. A true digest collision not exposed by retained-byte comparison
+cannot be ruled out mathematically; changed-content separation is conditional
+on canonical-encoding injectivity and the named collision-resistance
+assumption.
 
 ### Structural plan and renderable projection
 
@@ -473,30 +856,115 @@ tables below do not alter this serialization order.
 
 Every focus item has a nonempty duplicate-free role set and copies the exact
 derived `FocusCandidateOrderKey` owned by the focus specification. Focus items
-are ordered by that key and then ascending canonical `PlanItemId`.
+are ordered by that key. Duplicate complete keys are structural errors;
+request-local `PlanItemId` cannot break a tie.
 
-Every expectation item copies the exact derived
-`ExpectationBundleOrderKey` owned by the predictive-attention specification.
-Expectation items are ordered by that key, registered expectation-role rank,
-and ascending canonical `PlanItemId`. The planner validates every copied key
-against the source item; it never reconstructs a rank from prose or an
-insertion position.
+Every expectation item copies and validates the exact derived
+`ExpectationBundleOrderKey` owned by the predictive-attention specification
+as source serialization lineage, but that key does not order the renderer
+plan. Planned expectation items use `PlanningExpectationItemOrderKey`, the
+closed lineage-independent tuple:
+
+1. ascending `PredictionFrameKey`;
+2. the complete registered expectation-role rank vector; and
+3. ascending `ExpectationItemSemanticKey`.
+
+The role vector is nonempty, duplicate-free, and sorted by the same total
+registered role rank used by planning.
+Duplicate complete plan-order keys are structural errors; neither
+`PlanItemId`, `ExpectationAbstentionId`, representative `TransitionId`, source
+receipt, support magnitude, nor upstream serialized position can break a tie.
+The planner validates every copied upstream and plan key against the source
+item; it never reconstructs a rank from prose or insertion position.
 
 The complete renderer item sequence contains all focus items in that order,
 followed by all expectation items in that order. The remaining plan
 collections use these total orders:
 
-- mandatory relations: relation-tag rank, source `PlanItemId`, target
-  `PlanItemId`, then canonical relation identity;
-- exact sidecar: ascending authorized slot identity; and
+- mandatory relations: relation-tag rank, source `PlanItemSemanticKey`, target
+  `PlanItemSemanticKey`, then canonical lineage-independent relation-semantic
+  identity;
+- exact sidecar: ascending canonical `RendererSlotId`; and
 - validator controls: control-tag rank followed by the complete tag-specific
   key in the table above.
 
 All identifiers in these keys are typed canonical numeric or content
 identities, never display text or insertion position. Duplicate complete keys
-are errors. This order determines plan serialization, content identity,
-renderer tensor sequence, and receipts. It does not rank support across
+are errors. This order determines the semantic collections inside
+`PlanCanonicalEnvelopeV1`, renderer tensor sequence, and canonical receipt
+projections. Request-local identities may still appear in privileged receipts
+but never in the plan-content envelope. The order does not rank support across
 prediction frames or alternative families and carries no planning priority.
+`InvocationInstanceWitness<'call>` is not an identifier and is excluded from
+every key, comparison, collection order, receipt, digest, and serialization.
+
+For the selected plan, planning canonicalizes exact slots before assigning
+model-visible identities. For every selected exact binding it:
+
+1. derives the owning branch-tagged `PlanItemSemanticKey`;
+2. independently derives `BranchItemOwnerSemanticDescriptor` from the
+   selected source item's non-slot semantics and requires an `Item` descriptor
+   to contain that identical descriptor together with the declared exact-owner
+   role, without copying or inspecting the exact value;
+3. calls
+   `mapExactSlotOwner(descriptor, selected_item_key; fixed_source_item)`
+   exactly once to produce the final `ExactSlotOwnerSemanticKey`; and
+4. maps each permitted upstream branch semantic-key and role pair to its
+   selected `PlanItemSemanticKey` and role pair.
+
+An item descriptor cannot name a different item, and a shared descriptor can
+join multiple selected items only through the same explicitly registered
+`SharedExactSlotMeaningKey`. A caller cannot bypass this mapping by supplying
+a final owner or slot key.
+
+`SlotSemanticKey` is then the closed canonical tuple of:
+
+1. exact-value type;
+2. `ExactSlotOwnerSemanticKey`;
+3. `ExactSlotSemanticLocator`;
+4. lineage-independent semantic role;
+5. finite occurrence bounds;
+6. the canonical set of permitted `PlanItemSemanticKey` and semantic-role
+   bindings; and
+7. the content-identified exact-value schema and deterministic formatter
+   identities.
+
+It excludes the authoritative exact value, exact-surface bytes, exact-surface
+content identity, \(B_Q\), \(\Lambda_A\), source receipts,
+`ExactSlotBindingInstanceId`, and every request-local instance identity.
+It also excludes the pre-planning owner descriptor as a separate field because
+its complete meaning has already been mapped into the final owner key. Before
+key construction, planning groups mapped selected bindings by
+`(ExactSlotOwnerSemanticKey, ExactSlotSemanticLocator)`. Every member of one
+group must agree on value type, semantic role, occurrence bounds, exact-value
+schema, formatter, authoritative exact content, formatted bytes, and display
+policy. Exact duplicate bindings collapse; permitted selected item-role
+bindings form one canonical set union. Any disagreement under one complete
+owner/locator pair is `ConflictingExactSlot`, even when the values share a type
+or formatter. Equal locators with different owners form distinct groups and
+are not conflicts.
+
+Planning constructs one `SlotSemanticKey` per validated owner/locator group,
+sorts the distinct keys, and assigns the contiguous fixed renderer identities
+`RendererSlotId(0)..RendererSlotId(n-1)`; the configured schema requires
+\(n\leq N_R^{slot,max}\). A duplicate complete key after locator
+canonicalization is a structural error, not an ordering tie.
+`ExactSlotBindingInstanceId` and exact-surface content identity remain only in
+the privileged sidecar and provenance receipts.
+
+Consequently, across separately valid same-content calls, changing only
+permitted request-local instance identities while holding \(B_Q\),
+\(\Lambda_A\), semantic keys, and exact content fixed cannot alter sidecar
+order, renderer slot tokens, slot tensors, substitution, validation, or
+product bytes. Across separately valid calls, changing only one exact value and
+its content identity while preserving its type, semantic owner, semantic
+locator, role, bounds, permissions, schema, and formatter must preserve
+semantic selection,
+`PlanItemSemanticKey`, `SlotSemanticKey`, `RendererSlotId`, renderable-item
+order, exact-sidecar order, and every pre-substitution model-visible input.
+The privileged sidecar payload, plan content identity and serialization that
+commit to it, deterministic substituted bytes, corresponding
+post-substitution offsets, and final product bytes may change.
 
 ### Planning priority contract
 
@@ -505,8 +973,8 @@ different contracts. `ExpectationBundleOrderKey` remains the upstream
 serialization key and cannot decide which optional frame or alternative family
 survives a budget constraint.
 
-The content-identified planning configuration supplies static semantic classes
-and three closed rank tables:
+The content-identified planning configuration supplies one static semantic
+classifier and three closed rank tables:
 
 - a total deterministic `framePriorityClass` classifier over the supported
   prediction-frame schema, returning one `PlanningFramePriorityClassId`;
@@ -555,7 +1023,7 @@ PlanningFocusCandidatePriorityKey(i)=
   first(roleRanks(i)),
   roleRanks(i),
   descendingFiniteActivation(i),
-  PropositionId(i)
+  PropositionSemanticKey(i)
 ).
 \]
 
@@ -581,16 +1049,17 @@ PlanningClosurePriorityKey(c)=
 first(roleRanks(c)),
 roleRanks(c),
 closureKindRank(kind(c)),
-semanticKey(c),
-ClosureId(c)
+semanticKey(c)
 \right).
 \]
 
 `semanticKey` is a closed tagged sum. Values with different tags are compared
 by the already registered closure-kind rank; values with the same tag use
-their owning key contract. `ClosureId` is a content-derived final tie-break.
-No activation value or expectation support value is compared across branches,
-frames, or families.
+their owning lineage-independent key contract. Duplicate complete
+`PlanningClosurePriorityKey` values are structural errors after canonical
+closure consolidation; lineage-bearing `ClosureId` remains receipt metadata
+and never breaks a selection tie. No activation value or expectation support
+value is compared across branches, frames, or families.
 
 Identifiers are deterministic tie components only within one equal semantic
 class. A missing or unknown class, a classifier not total over the supported
@@ -809,9 +1278,10 @@ The first insufficient-budget condition is
 \(\widehat c_K(G(X_{\min}))>B\). The second is
 \(\mathcal J\ne\varnothing\) with no budget-feasible member, as defined below.
 Either returns `InsufficientAttentionBudget`. A final measured cost that exceeds either the
-accepted upper bound or \(B\) is the renderer/validation error
+accepted upper bound or \(B\) is the renderer-substitution error
 `RendererCostBoundViolation`; it invalidates the renderer qualification
-evidence and is not a `PlanningError`. Neither failure silently shortens
+evidence and is not a `PlanningError`. The independent validator owns no
+budget-overflow or renderer-cost variant. Neither failure silently shortens
 qualifiers or returns a partial product result.
 
 Let `structuralFeasible` contain every feasibility predicate below except the
@@ -941,12 +1411,15 @@ monotone cost or downward-closed feasibility: a focus closure can make an
 abstention surface valid, and a qualified cost contract need not infer a
 superset bound from a subset bound.
 
-Focus activation is used only inside the focus branch's owned semantic key.
-Expectation support is used only to form material alternatives inside its
-owned family contract. The selector never adds, subtracts, or compares those
-values across branches, frames, or families. Cost is a feasibility ceiling,
-not a utility proxy or final tie-break. `ExpectationBundleOrderKey` is used
-only after selection to serialize records.
+Focus activation is used only inside the focus branch's owned
+`FocusCandidateOrderKey` and planning focus-priority key; it is excluded from
+semantic identity. Expectation support is used only to form material
+alternatives inside its owned family contract. The selector never adds,
+subtracts, or compares those values across branches, frames, or families.
+Cost is a feasibility ceiling, not a utility proxy or final tie-break. The
+upstream `ExpectationBundleOrderKey` remains validation and source-receipt
+lineage; selected renderer-plan records use the lineage-independent
+`PlanningExpectationItemOrderKey`.
 
 The exhaustive selector is the canonical executable reference. An optimized
 dynamic program or branch-and-bound implementation must produce the identical
@@ -1055,41 +1528,67 @@ flowchart LR
 The future internal boundary is conceptually:
 
 ```text
+PlanningInvocationScope<'call>
+├── <private> current InvocationInstanceWitness<'call>
+├── <private> expected EligibleSetInstanceWitness<'call>
+└── <private, noncanonical> expected full-configuration lineage identity
+
 PlanningInput
 ├── output_language
 ├── post_substitution_budget
-├── planning_configuration_id
-├── planning_configuration_fingerprint
-└── exact_surface_inventory[]
-    ├── slot_identity
-    ├── content_identity
+├── authenticated_plan_semantic_configuration
+│   ├── SemanticConfigurationId
+│   └── <private> exact canonical K_S commitment
+└── <private privileged sidecar> exact_surface_inventory[]
+    ├── branch source semantic key and source reference
+    ├── ExactSlotOwnerSemanticDescriptor
+    │   ├── Item(BranchItemOwnerSemanticDescriptor, exact owner role)
+    │   └── Shared(SharedExactSlotMeaningKey)
+    ├── ExactSlotSemanticLocator
+    ├── exact-value type, semantic role, and finite occurrence bounds
+    ├── exact-value schema and formatter identities
+    ├── permitted upstream branch semantic-key and semantic-role bindings
+    ├── privileged exact-surface content identity
     ├── byte_preserving_surface
     └── language_and_display_metadata
 ```
 
 ```rust
-pub fn plan_attention(
+fn plan_attention<'call>(
+    scope: &PlanningInvocationScope<'call>,
     input: &PlanningInput,
-    focus: &FocusCandidateSet,
-    expectations: &ExpectationBundle,
-) -> Result<FocusExpectationPlan, PlanningError>;
+    focus: &FocusCandidateSet<'call>,
+    expectations: &ExpectationBundle<'call>,
+) -> Result<FocusExpectationPlan<'call>, PlanningError>;
 ```
 
 This signature is illustrative until a focused implementation ADR accepts a
 crate boundary. Inputs are borrowed immutable views. The result owns canonical
-request-local data. Public fields are private; constructors validate all
-cross-object identities and getters cannot mutate state. `PlanningInput`
+request-local plan data and borrows only the opaque invocation witness; the
+set-instance witness is consumed by the join and is not retained.
+The function and `PlanningInvocationScope` remain compiler-private; no caller
+can supply or retain the scope. Exposed data fields remain private;
+constructors validate all cross-object identities, and getters cannot mutate
+state. `PlanningInput`
 contains no principal, authority or disclosure view, policy handle,
 authorization service, source ceiling, allowed-use grant, or slot permission.
-Its configuration identity must equal `configuration_id` in the exact common
-\(\Lambda_A\) carried by `focus` and `expectations`. The plan envelope copies
-that \(\Lambda_A\) from the branch inputs rather than accepting another lineage
-input.
+The `configuration_id` values in the exact common full-configuration lineage
+\(\Lambda_A\) carried by `focus` and `expectations` must equal each other and
+the noncanonical current-call identity retained in
+`PlanningInvocationScope`. This is a runtime consistency join only. The
+authenticated plan-semantic configuration in `PlanningInput` is the exact
+\(K_S=\pi_{\mathrm{plan}}(K)\) projection of that same current configuration;
+its `SemanticConfigurationId` and canonical \(K_S\) commitment govern planning
+semantics. The planner derives `PlanSemanticSourceProjectionV1` from selected
+lineage-independent branch content. `PlanCanonicalEnvelopeV1` includes that
+projection and `SemanticConfigurationId`, and never copies raw \(\Lambda_A\),
+the full `configuration_id`, or either runtime witness.
 
 Representative errors are:
 
 - `SchemaMismatch`;
 - `LineageMismatch`;
+- `PlanCallBindingMismatch`;
 - `UnknownSource`;
 - `SourceProjectionViolation`;
 - `AuthorityEscalation`;
@@ -1100,6 +1599,7 @@ Representative errors are:
 - `InvalidExpectationDisposition`;
 - `InvalidPlanningPriority`;
 - `InvalidExactSlot`;
+- `ConflictingExactSlot`;
 - `InvalidCostContract`;
 - `CostOverflow`;
 - `PlanningLimitExceeded`;
@@ -1109,9 +1609,22 @@ Representative errors are:
 - `InsufficientAttentionBudget`.
 
 Each error carries a closed reason code and the relevant content identities; no
-public classification depends on message text. `InvalidPlanningPriority` and
-`InvalidCostContract` distinguish a malformed pinned artifact from a
-well-formed input outside that artifact's declared domain.
+public classification depends on message text. The error contract assigns each
+variant exactly one disposition class before public adaptation:
+
+| Planning error | Disposition class |
+| --- | --- |
+| `SchemaMismatch`, `LineageMismatch`, `PlanCallBindingMismatch`, `UnknownSource`, `SourceProjectionViolation`, `AuthorityEscalation`, and `AllowedUseEscalation` | Internal invariant violation |
+| `InvalidPlanningPriority` and `InvalidCostContract` | Unavailable or invalid pinned artifact |
+| `CostOverflow` | Internal invariant violation after successful preflight |
+| `PlanningLimitExceeded` | Resource limit |
+| `UnsupportedRequestedLanguage` | Unsupported requested language |
+| `InvalidRole`, `MissingQualifier`, `MissingRelation`, `InvalidExpectationDisposition`, `InvalidExactSlot`, `ConflictingExactSlot`, `ConflictingControl`, and `NoFeasiblePlan` | Ordinary planning failure after every invariant and artifact check has passed |
+| `InsufficientAttentionBudget` | Insufficient attention budget |
+
+`InvalidPlanningPriority` and `InvalidCostContract` distinguish a malformed
+pinned artifact from a well-formed input outside that artifact's declared
+domain.
 `UnsupportedRequestedLanguage` means the request selected a language outside
 declared support. A renderer artifact that falsely claims that language but
 lacks its required table or cost function is `InvalidCostContract`, not an
@@ -1124,10 +1637,22 @@ inconsistent with its canonical upstream projection. No planning error means
 that a live authority service was unavailable because planning has no such
 dependency.
 
+`InvalidExactSlotSemanticDescriptor` is not a `PlanningError`: the owning
+focus or expectation constructor returns that typed source cause before it can
+seal a branch projection. `InvalidExactSlot` therefore cannot flatten or
+replace an upstream descriptor-construction, schema, or shape failure. Once a
+projection has been admitted, any descriptor or owner-attachment disagreement
+with the selected source is `SourceProjectionViolation`, while
+`InvalidExactSlot` covers only a planning-owned locator, mapped-owner, or
+plan-shape failure after source equality has passed.
+
 The public `CompileError` mapping is owned by the
 [reference architecture](v1-reference-architecture.md#failure-taxonomy).
-Planning never maps errors itself and never collapses an artifact, invariant,
-budget, or language failure into generic `PlanningFailure`.
+Its adapter must preserve the disposition classes above. Planning never maps
+errors itself and never collapses an artifact, invariant, resource, budget, or
+language failure into generic `PlanningFailure`. In particular,
+`PlanCallBindingMismatch` belongs only to the current-call check in `PLAN-02`;
+`PLAN-01` propagates the opaque witness and cannot produce that classification.
 
 Expectation evidence abstention is data inside a valid plan and is not a
 `PlanningError`.
@@ -1357,6 +1882,11 @@ using its own tools, authority, and current environment.
   exact complete \(\Lambda_A\) tuple, including request, situation, memory,
   policy, authorization-view, retrieval-result, activation-set, and
   configuration identities.
+- The compiler supplies one private current-call scope independently borrowed
+  from both the sealed `AuthenticatedInvocation` and the exact selected
+  `EligibleActivatedMemorySet<'call>`; both branch inputs carry the exact same
+  `InvocationInstanceWitness<'call>` and `EligibleSetInstanceWitness<'call>`
+  propagated from that shared set.
 - Every request source inside the focus input carries the exact
   request/situation/policy/authorization-view/configuration projection of that
   same \(\Lambda_A\); a request-only item has no invented persistent
@@ -1371,7 +1901,8 @@ using its own tools, authority, and current environment.
 - Every renderable language has a qualified conservative cost-bound function.
 - Every exact slot has a content-identical byte-preserving surface in the
   immutable inventory and permitted item bindings in its upstream source
-  projection.
+  projection. Both carry only the pre-planning owner descriptor and pre-key
+  metadata; neither can inject a final owner, slot, or renderer identity.
 - Every mandatory qualifier, relation, alternative, and authority ceiling is
   represented explicitly.
 - Candidate cardinalities and exhaustive reference limits are finite.
@@ -1381,6 +1912,10 @@ using its own tools, authority, and current environment.
 - Focus, expectation, goal, action, answer, and fact roles never collapse.
 - The combined planner consumes upstream semantics and does not retrieve,
   rerank activation, regroup outcomes, or invent propositions.
+- Planning accepts only focus and expectation inputs whose invocation and
+  eligible-set witnesses both equal the independently anchored witnesses in
+  `PlanningInvocationScope`. It propagates only the invocation witness into
+  the plan and never lets either witness influence semantic or product state.
 - Every selected item retains complete essential support and authority ceiling.
 - The planner can only copy, meet, or lower upstream authority, allowed-use,
   and surface-authority ceilings. It cannot authorize, reauthorize, query
@@ -1397,9 +1932,25 @@ using its own tools, authority, and current environment.
   probability.
 - Control-only exclusions never enter the generative prefix.
 - Exact values come only from authorized slots.
+- Only planning may map an `ExactSlotOwnerSemanticDescriptor` and selected
+  `PlanItemSemanticKey` into a final `ExactSlotOwnerSemanticKey`; upstream
+  projections and `PlanningInput` contain no final owner, slot, or renderer
+  identity. An item descriptor maps only after its
+  `BranchItemOwnerSemanticDescriptor` equals the value independently derived
+  from the selected source item's non-slot semantics.
+- Exact values, exact-surface content identities, and exact-binding instance
+  identities cannot influence `PlanItemSemanticKey`,
+  `ExactSlotOwnerSemanticKey`, `SlotSemanticKey`, `RendererSlotId`, semantic
+  selection, renderable-item or exact-sidecar order, or any pre-substitution
+  model-visible input.
 - Selection and output remain within finite item, alternative, slot, token,
   time, and memory limits.
 - The renderer receives one canonical plan; no parallel renderer truth exists.
+- `PlanCanonicalEnvelopeV1` depends on \(K_S\), \(d_R,d_S\), selected
+  lineage-independent semantics, exact surfaces, language, budget, controls,
+  and structure; it never depends on full configuration-bound query/lineage
+  identities or \(K_R\). A \(K_R\)-only perturbation leaves
+  `PlanContentId` unchanged and changes only renderer-configuration identity.
 - The plan contains no answer, action selection, tool call, or persistent
   mutation.
 
@@ -1417,10 +1968,25 @@ using its own tools, authority, and current environment.
   itself supplies all necessary scope and qualification.
 - A mandatory exact value whose authorized surface exceeds the budget causes
   `InsufficientAttentionBudget`.
+- Two valid invocations that differ only in an exact value for the same
+  `ExactSlotOwnerSemanticKey` and `ExactSlotSemanticLocator` retain identical
+  model-visible slot identities and may differ only after deterministic
+  substitution. Two different exact values claiming the same owner/locator
+  pair within one plan are `ConflictingExactSlot`; equal locators under
+  different owners coexist.
+- Two byte-identical invocations may share \(B_Q\), \(\Lambda_A\), semantic
+  projections, rankings, and product bytes while retaining unequal invocation
+  witnesses. A branch or plan from either invocation is rejected against the
+  other's independently anchored current-call scope.
+- Two independently constructed eligible activated sets inside one invocation
+  may have equal content, \(B_Q\), and \(\Lambda_A\), but have distinct
+  `EligibleSetInstanceWitness` values. Mixing their branch outputs is rejected
+  against the planning scope's independently anchored expected-set witness.
 - A relative-support tie preserves alternatives in canonical ID order; it does
   not let the renderer choose one.
-- Bundle serialization uses `ExpectationBundleOrderKey`. Optional frame
-  selection uses `PlanningFramePriorityKey`. Neither compares support across
+- Upstream bundle serialization uses `ExpectationBundleOrderKey`; renderer-plan
+  serialization uses `PlanningExpectationItemOrderKey`. Optional frame
+  selection uses `PlanningFramePriorityKey`. None compares support across
   frames.
 - Conflicting focus and expectation authority labels cause an error or
   explicit qualified separation, never silent promotion.
@@ -1432,8 +1998,9 @@ using its own tools, authority, and current environment.
   required omitted-support qualification.
 - A plan containing only validator controls produces empty attention.
 - An unsupported output language fails before rendering.
-- Renderer cost underestimation is a qualification failure even when final
-  validation catches the overflow.
+- Renderer cost underestimation is a qualification failure. Exact
+  substitution returns `RendererCostBoundViolation` before constructing
+  `SubstitutedAttention` or invoking final validation.
 - Prompt text containing `attention:` or `user prompt:` remains byte-identical
   in the outer framing.
 
@@ -1442,9 +2009,29 @@ using its own tools, authority, and current environment.
 Required evidence includes:
 
 - constructor and cross-object identity tests;
+- invocation-witness tests proving exact shared-set-to-focus and shared-set-to-
+  expectation-set/bundle preservation without a branch-local current/foreign
+  classification, followed by branch-to-plan propagation, same-instance
+  equality against the independently anchored `PlanningInvocationScope`, and
+  `PLAN-02` rejection of a missing, reconstructed, expired, mixed, or foreign
+  witness;
+- set-instance-witness tests proving one fresh witness per constructed
+  `EligibleActivatedMemorySet`, exact propagation into both branch outputs,
+  independent anchoring from the selected set rather than either branch, and
+  rejection of two content-identical reconstructed sets within one invocation;
+- equal-content two-call tests in which \(B_Q\) and \(\Lambda_A\) are equal but
+  witnesses differ, a foreign branch or whole foreign plan fails against the
+  current sealed invocation, and witness-only variation across separately
+  valid calls leaves semantic projections, selection, order, scores, tensors,
+  diagnostics, plan serialization, and product bytes unchanged;
 - static dependency and API-shape tests proving that planning accepts no
   principal, authority/disclosure view, policy handle, or authorization
   service and performs no live authorization or policy lookup;
+- compile-fail API tests proving that focus and expectation accept one borrowed
+  sealed `BoundQuery`, not independently owned \(Q_{\mathrm{num}}\) and \(B_Q\)
+  arguments; callers cannot construct the aggregate, extract owned
+  projections, rebind one numerical projection to another binding, or invoke a
+  branch with a cross-aggregate mixture;
 - projection tests for exact \(\Lambda_A\) equality, closed authority/
   allowed-use/surface-ceiling meets, lowering-only behavior, and rejection of
   missing or expanded ceilings;
@@ -1455,8 +2042,19 @@ Required evidence includes:
   authorization service, or disclosure state without changing the immutable
   branch inputs, exact-surface inventory, or planning configuration cannot
   change the plan;
+- canonical-content tests proving that \(K_R\)-only and full
+  configuration-bound query/receipt-ID changes leave
+  `PlanCanonicalEnvelopeV1` and `PlanContentId` unchanged when \(K_S\),
+  \(d_R,d_S\), selected semantics, exact surfaces, language, and budget are
+  fixed; every included \(K_S\) field changes `SemanticConfigurationId` and
+  any affected plan content, while forbidden full IDs never enter a semantic
+  key or source projection;
 - arbitrary permutation tests over focus items, expectations, sources,
   relations, slots, and controls;
+- branch-tagged `PlanItemSemanticKey` and `RelationSemanticKey` tests,
+  including focus/expectation domain separation, upstream expectation-key
+  mismatch, duplicate semantic relations, and request-local instance-lineage
+  renaming with invariant selection;
 - exhaustive reference selection on small candidate sets;
 - equivalence tests for every optimized planner;
 - closure and mandatory-qualifier property tests;
@@ -1476,6 +2074,39 @@ Required evidence includes:
   expectation creation;
 - dependency and authority non-amplification cases;
 - exact-slot projection, item-binding, and byte-preservation cases;
+- owner-descriptor boundary cases proving
+  `Item(BranchItemOwnerSemanticDescriptor, role)` maps only to the selected
+  owning `PlanItemSemanticKey` after equality with an independent derivation
+  from that item's non-slot semantics, explicit `Shared(key)` maps without
+  embedding an item key, owner-descriptor mismatch fails specifically as
+  `SourceProjectionViolation`, schema-incompatible descriptors fail through
+  their owning typed cause, and a permitted branch semantic-key mismatch
+  cannot be rebound to another selected item;
+- recursion-avoidance fixtures proving branch owner derivation excludes slot
+  descriptors while final plan-item and slot keys remain deterministic, plus
+  cross-item fixtures proving a valid descriptor from one source item cannot
+  be attached to another otherwise selected item;
+- compile-fail API cases proving that neither a branch source projection nor
+  `PlanningInput` can supply `ExactSlotOwnerSemanticKey`, `SlotSemanticKey`, or
+  `RendererSlotId`, and that only the planner-private `mapExactSlotOwner`
+  operation can create the final owner key;
+- exact-slot lineage-renaming cases proving stable `SlotSemanticKey`,
+  contiguous `RendererSlotId`, tensor order, permissions, and substituted
+  bytes despite changed binding-instance receipts;
+- exact-value noninterference pairs proving that a valid exact-value/content-ID
+  substitution at fixed type, `ExactSlotOwnerSemanticKey`,
+  `ExactSlotSemanticLocator`, role, bounds, semantic bindings, schema, and
+  formatter preserves the owning
+  `PlanItemSemanticKey`, `SlotSemanticKey`, `RendererSlotId`, canonical plan
+  item/slot order, and pre-substitution model input while changing only the
+  privileged sidecar, its committing plan identity/serialization, and
+  deterministic substituted bytes;
+- locator/owner-domain tests for unknown paths, absent or out-of-range
+  schema-defined occurrence ordinals, insertion-order-derived ordinals,
+  duplicate final owner/locator pairs, unauthorized `Shared` descriptors,
+  same schema/path mapped under different selected `Item` owners, explicit
+  sharing mapped from one `SharedExactSlotMeaningKey`, and conflicting exact
+  values under one final owner/locator pair;
 - no-answer and no-action adversarial cases;
 - renderer/validator fixtures for every plan role and relation;
 - multilingual cost and lexicalization cases;
@@ -1518,3 +2149,4 @@ No answer is selected without frozen evaluation evidence.
 - [Local renderer model qualification](local-renderer-model-qualification.md)
 - [Decision 0014: Adopt memory-grounded predictive attention](../decisions/0014-adopt-memory-grounded-predictive-attention.md)
 - [Decision 0015: Render qualified focus-and-expectation plans](../decisions/0015-render-qualified-focus-and-expectation-plans.md)
+- [Decision 0016: Adopt sealed compile-integrity boundaries](../decisions/0016-adopt-sealed-compile-integrity-boundaries.md)

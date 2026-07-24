@@ -38,7 +38,7 @@ inner speech, chain of thought, or biologically faithful prediction.
 | --- | --- | --- |
 | **World state** | The external and internal conditions that exist at a time, whether or not the compiler can observe them | A fully known database row |
 | **Trigger** | The new authenticated user prompt that requests one compiler response | The complete situation |
-| **Situation** | The request-local, typed numerical representation \(Q_{\mathrm{num}}=\operatorname{encode}(P,S,\Xi;K)\) derived from the trigger, up to three caller-provided situation statements, contextual time, optional metadata, and authenticated pinned numerical configuration; the bound query \(Q=\operatorname{bindQuery}(Q_{\mathrm{num}},B_Q)\) carries the independent exact ingress projection without changing those semantics | A prose summary invented by the compiler, or a container for principal, authorization time, policy, disclosure, or authorization-view state |
+| **Situation** | The sealed request-local `BoundQuery` \(Q\), constructed only by `bindQuery` from one validated request, its independently derived ingress binding, and authenticated pinned \(K\); it privately carries the typed numerical \(Q_{\mathrm{num}}=\operatorname{encode}(P,S,\Xi;K)\), exact \(B_Q\), and their content identity without allowing either projection to alter the other | A prose summary invented by the compiler; a separately supplied \(Q_{\mathrm{num}}/B_Q\) pair; or a container for principal, authorization time, policy, disclosure, or authorization-view state |
 | **Cognitive memory unit** | One immutable, versioned, provenance-bound memory record with authoritative exact data and rebuildable numerical facets | A raw text chunk or one opaque embedding |
 | **Transition memory** | A cognitive memory unit that binds an observed before-state, an explicit condition or absence, an observed/censored after-state, and a horizon | Proof that a condition caused the outcome |
 | **Activation** | A bounded relevance or accessibility score produced by the separately specified activation contract | Probability, truth, utility, safety, or importance in every context |
@@ -432,38 +432,67 @@ one contextual time, and explicit optional metadata. The compiler resolves and
 pins the authenticated numerical configuration \(K\) before encoding.
 Principal, trusted authorization time, policy, disclosure, and
 authorization-view state remain outside the numerical situation. They are
-used only by the separately owned pre-retrieval authorization path and later
-appear, where required, as opaque lineage identities in \(\Lambda_A\).
+used by the separately owned pre-retrieval authorization path. Trusted
+authorization time and the authenticated social-subject identity may also
+reach signal mathematics only after the minimized private
+\(\Sigma_{\mathrm{sig}}\) is validated against the independently supplied
+current sealed `AuthenticatedInvocation` to produce
+\(V_{\mathrm{sig}}\). The raw context and brand never reach
+mathematics; policy, disclosure, and authorization capabilities never enter
+either object. Required downstream authority lineage appears only as opaque
+identities in \(\Lambda_A\).
 
 ```text
-Situation Q_num and bound query Q
-├── ingress projection
+BoundQuery Q =
+  bindQuery(&ValidatedCompileRequest, &IngressRequestBinding, &K)
+├── <private> numerical projection Q_num
+│   ├── typed prompt-derived trigger facets
+│   ├── 0..3 ordered situation-statement projections
+│   ├── contextual time and explicit optional metadata projections
+│   └── typed presence, confidence, and exact request-local sidecars
+├── <private> exact projection B_Q
 │   ├── request content identity
 │   ├── situation content identity
 │   └── authenticated configuration identity
-├── trigger projection
-│   └── typed prompt-derived numerical facets
-├── caller context
-│   ├── 0..3 situation statements
-│   ├── contextual time
-│   └── explicit optional location/project/application metadata
-└── presence and confidence
-    ├── known
-    ├── unknown
-    ├── absent
-    └── inapplicable
+└── <private> content_id: BoundQueryContentId
+    └── domain-separated typed wrapper over the TypedContentIdentity of
+        canonical Q_num and B_Q
 ```
+
+`bindQuery` is the only constructor. It derives both private projections from
+the same retained request and authenticated `K`, revalidates their shared
+ingress origin, and seals their canonical content identity. There is no field
+constructor, deserializer, or overload accepting \(Q_{\mathrm{num}}\) and
+\(B_Q\). Downstream focus, expectation, planning, and validation boundaries
+accept `&BoundQuery` or already validated branch outputs, never the two
+projections separately. Registered stages may privately borrow the numerical
+projection for semantic mathematics and the exact projection for structural
+joining only after validating the aggregate and
+`BoundQueryContentId`. `BoundQueryContentId` is the same closed,
+domain-separated typed wrapper over `TypedContentIdentity` defined by the
+cognitive-memory contract; this specification introduces no alias or competing
+query-content identity.
 
 Prompt-derived and caller-provided signals retain different provenance.
 The byte-identical original prompt buffer is retained separately by the
-compiler and is not a field of \(Q\).
+compiler and is not a field of either private projection or the aggregate.
 Caller-provided contextual time affects relevance and historical scope but not
 authorization expiry or current instruction authority. Location may be an
 exact sidecar plus typed numerical facets; absence never permits environment
 discovery. Changing principal, trusted authorization time, policy, disclosure,
 or authorization-view state without changing \(P,S,\Xi,K\) cannot change
-\(Q\) or an expectation query's numerical situation; it may change which
-memory records are eligible before the shared set is constructed.
+\(Q_{\mathrm{num}}\), \(B_Q\), bound \(Q\), or an expectation query's
+numerical situation; it may change which memory records are eligible before
+the shared set is constructed and, through the minimized signal context, the
+registered recency or social-match channels. Changing only \(B_Q\) cannot
+be represented as a valid operation at fixed retained request content and
+configuration: the content-derived binding is unique, private, and covered by
+the aggregate identity. A corrupt test harness that changes either private
+projection or pairs projections from different requests/configurations is
+`InvalidQueryBinding`. \(B_Q\) is excluded from every semantic function;
+separately valid same-content calls therefore reproduce the same private
+projections and content identity and cannot differ semantically because of
+that binding.
 
 **EXP-QRY-001 — expectation-query tuple.**
 
@@ -492,7 +521,11 @@ General authorization, disclosure, deletion, request-usage, revision, and
 representation-integrity checks precede retrieval and activation. They do not
 apply expectation-kind, observation-status, condition, or horizon predicates:
 those predicates belong to the expectation projection after the focus and
-expectation branches receive the same shared set. The shared branch input is:
+expectation branches receive immutable borrows of the exact same complete
+sealed `EligibleActivatedMemorySet<'call>` object. The compiler does not
+project, filter, copy, reconstruct, or independently materialize either branch
+input before the split. Each aggregate-taking branch may derive a private view
+only inside its own call; that private view never replaces the shared input.
 
 The general request-usage gate retains a record when its authenticated
 allowed-use ceiling permits at least one requested branch use and carries that
@@ -500,9 +533,13 @@ ceiling into the set. Each branch then enforces its own permitted use as a
 projection predicate without reopening authorization. A record permitted only
 for one branch remains invisible to the other.
 
+The shared branch input is:
+
 ```text
-EligibleActivatedMemorySet
-├── source_receipt
+EligibleActivatedMemorySet<'call>
+├── <private> invocation_instance_witness: InvocationInstanceWitness<'call>
+├── <private> eligible_set_instance_witness: EligibleSetInstanceWitness<'call>
+├── <private> source_receipt: Lambda_A
 │   ├── request_id
 │   ├── situation_id
 │   ├── memory_revision_id
@@ -523,6 +560,50 @@ EligibleActivatedMemorySet
     ├── completeness class
     └── index and representation identities
 ```
+
+`EligibleActivatedMemorySet<'call>` is a sealed aggregate constructed only by
+the shared authorization/retrieval/activation boundary. It has no public field
+constructor, deserializer, or constructor accepting \(\Lambda_A\),
+\(\omega_A\), records, or diagnostics independently. Registered branch
+functions receive `&EligibleActivatedMemorySet<'call>` and may destructure its
+lineage and witnesses only inside the validated aggregate lifetime. No branch
+API accepts either witness as a separate argument or returns an independently
+reusable copy. `COMP-01` mints one fresh
+`EligibleSetInstanceWitness<'call>` for each constructed set object after all
+content has been fixed. It has no public constructor, bytes, digest, clone,
+`Eq`, hash, order, log, owned form, or serialization; its only operation is
+private same-instance comparison. The compiler passes one object and two
+immutable borrows of that exact object to the registered focus and expectation
+functions. Byte-identical, lineage-identical, or otherwise equivalent
+reconstructed objects, including a second construction inside the same
+authenticated invocation, carry a different set witness and do not satisfy
+this boundary.
+
+The sealed `AuthenticatedInvocation` owns one fresh opaque runtime-instance
+brand. `InvocationInstanceWitness<'call>` is its sole compiler-private,
+nonserializable, nonowning borrowed projection. It has no bytes, digest,
+numeric value, hash, ordering, logging, diagnostic, or product representation.
+It carries no principal, time, policy, disclosure, memory, or semantic value.
+Its only operation is invariant same-instance comparison with another witness
+borrowed from that exact sealed invocation.
+
+The witness is outside both \(B_Q\) and \(\Lambda_A\). The eligible activated
+set retains the exact borrowed witness; it cannot derive, clone into an
+independent lifetime, serialize, persist, or reconstruct one from content.
+The set-instance witness is likewise outside \(B_Q\), \(\Lambda_A\), content,
+and semantics. The focus and expectation branches propagate both witnesses
+unchanged into `FocusCandidateSet<'call>` and `ExpectationBundle<'call>`.
+Consequently, two separate invocations with byte-identical inputs may
+intentionally have equal \(B_Q\) and \(\Lambda_A\) while retaining different
+invocation and set witnesses; two sets inside one invocation share the first
+but differ in the second. Neither branch has an independently supplied
+current-call or expected-set anchor. A whole, internally consistent
+reconstructed set therefore cannot be classified as foreign or reconstructed
+by `PLAN-01` or the expectation kernel; they validate content lineage and
+preserve both witnesses. The later combined-planning boundary must compare the
+invocation witness with the current sealed invocation and the set witness with
+the exact set independently selected by the compiler. Agreement between the
+two branch outputs is insufficient.
 
 **EXP-LIN-001 — shared branch-lineage tuple.**
 
@@ -550,19 +631,80 @@ evidence or diagnostic prose.
 
 ```mermaid
 flowchart TD
-    R["Authorized revision"] --> G["General authorization, integrity, and usage gates"]
-    Q["Numerical situation"] --> G
-    G --> RET["Bounded candidate retrieval"]
+    R["Authorized revision"] --> G["Authorization and integrity eligibility gates"]
+    G --> U["Request-usage compatibility"]
+    Q["Sealed BoundQuery"] --> U
+    U --> RET["Bounded candidate retrieval"]
     RET --> ACT["Activation and explanations"]
     ACT --> SET["Canonical eligible activated-memory set"]
-    SET --> F["Focus planner"]
-    SET --> E["Expectation kernel"]
+    Q --> F["Focus planner"]
+    SET --> F
+    Q --> E["Expectation kernel"]
+    SET --> E
 ```
 
 The set is canonically ordered by stable record identity for deterministic
 processing. It remains logically unordered for any later learned set model.
 The focus planner and expectation kernel may project different views but may
 not independently repeat authorization or retrieve ambient memory.
+
+The expectation boundary receives only aggregate references:
+
+```text
+expectations(
+    query: &BoundQuery,
+    activated: &EligibleActivatedMemorySet<'call>,
+    K
+)
+```
+
+Before deriving a frame query or projecting one transition, it validates both
+sealed aggregates, then internally borrows private \(Q_{\mathrm{num}}\) and
+\(B_Q\) from \(Q\), and \(\Lambda_A\), the private invocation witness
+\(\omega_A\), and the private `EligibleSetInstanceWitness<'call>` from
+\(\mathcal A\). No expectation or validation API accepts those projections or
+witnesses independently. Both witnesses are propagated unchanged into the
+bundle, cannot affect semantics or bytes, and are checked only later against
+independent current-invocation and exact-selected-set anchors in the private
+planning scope. It then validates:
+
+\[
+B_Q=
+\pi_{request,situation,configuration}
+\left(\Lambda_A(\mathcal A)\right).
+\]
+
+Both sides were independently anchored by their owning constructors and are
+compared as complete typed content identities, including schema, algorithm,
+content digest, and configuration-bound digest. This boundary receives neither
+the sealed ingress nor the current-call or expected-set planning anchors;
+exact content equality therefore authenticates neither witness. The closed
+`ExpectationQueryBindingError` preserves cause:
+
+- `InvalidQueryBinding` covers missing, malformed, recomputation-inconsistent,
+  configuration-inconsistent, or corrupt private \(B_Q\) or
+  `BoundQueryContentId`, including a private harness pairing different
+  canonical content/configuration or an incompatible aggregate; repeated
+  byte-identical content under the same configuration intentionally reproduces
+  the same content-derived binding and is not an error;
+- `LineageMismatch` covers a valid \(B_Q\) that differs from
+  \(\pi_Q(\Lambda_A)\);
+- `ContentIdentityCollision` covers an observed same-identity/different-
+  canonical-content witness and is routed through the canonical ingress
+  collision path; and
+- `BindingArtifactUnavailable` covers a missing, unauthenticated, or
+  incompatible identity-schema or digest artifact.
+
+Every variant fails the whole bundle and maps through the canonical compiler
+error table; it is never flattened into an ordinary `ExpectationFailure`.
+The kernel never repairs one branch from the other. After the check, the
+private \(Q_{\mathrm{num}}\) projection is the sole semantic query input and
+\(B_Q\) is retained
+only in the exact content receipt. At fixed \(Q_{\mathrm{num}}\) and canonical
+request/configuration content, the one valid matching \(B_Q\) and its
+\(\Lambda_A\) projection cannot change frame queries, hypotheses, scores,
+qualifications, alternatives, or abstention reasons. A different binding at
+that fixed content is an error, not a noninterference fixture.
 
 Bounded retrieval covers the configured union of general focus cues and every
 validated prediction-frame cue before activation. A branch-specific cue may
@@ -838,7 +980,13 @@ inapplicable tuple component is represented by its typed absence tag, not an
 invented sentinel identifier.
 
 The frame is partitioned into explicit alternative families \(a\), identified
-by versioned `AlternativeSetId` values. Every family also carries one
+by versioned `AlternativeSetId` values. Despite the API suffix, this value is
+the registered lineage-independent semantic key of the alternative set: it is
+derived only from the outcome-variable schema, alternative-family meaning,
+family-classifier semantics, and their content-identified schema/configuration
+identities. It contains no frame-local set instance, request, source,
+transition, support magnitude, insertion position, or serialization rank.
+Every family also carries one
 `AlternativeFamilyClassId` derived by a versioned total classifier from its
 registered `OutcomeVariableSchemaId`. The class is a closed semantic planning
 category, not a request-local identity, equivalence claim, support scale, or
@@ -1281,7 +1429,12 @@ This complete per-set tuple is `ExpectationRecordOrderKey`. The bundle-wide
 Every expectation record projected into planning copies its bundle-wide key
 unchanged; a mismatch between record content and key is a structural error.
 These are serialization keys only. The planning specification owns separate
-content-identified frame and family priorities.
+content-identified frame and family priorities. Neither
+`ExpectationRecordOrderKey` nor one of its tag-specific components is an
+`ExpectationItemSemanticKey`: per-set identifiers such as
+`RetrievalDiagnosticId`, `ActionId`, `ExpectationAbstentionId`,
+`DerivationReferenceId`, or representative `TransitionId` remain serialization
+or audit identity even when they provide a deterministic tie-break.
 
 For each registered alternative-family class, the content-identified
 expectation configuration supplies one total classifier \(class(a)\) and
@@ -1369,13 +1522,165 @@ closure under \(B\) belongs to planning. Planning returns
 otherwise justified nonempty attention exists but no faithful nonempty
 projection fits; this expectation stage does not classify that budget result.
 
+### Expectation semantic and instance identities
+
+Every hypothesis, frame abstention, and control projected toward planning has
+two disjoint identities:
+
+- one request-local instance identity retaining exact \(\Lambda_A\), source
+  receipts, transition/provenance references, and derivation lineage; and
+- one lineage-independent `ExpectationItemSemanticKey` used for semantic
+  grouping, planning permissions, priority, and duplicate detection.
+
+`ExpectationItemSemanticKey` is the following closed tagged sum:
+
+```text
+ExpectationItemSemanticKey
+├── Hypothesis
+│   ├── ExpectationKind
+│   ├── PredictionFrameKey
+│   ├── AlternativeSetId and AlternativeFamilyClassId
+│   ├── OutcomeVariableSchemaId and OutcomeMeaningId
+│   ├── condition, horizon, scope, and semantic role
+│   ├── mandatory qualifier and relation-meaning keys
+│   ├── authority, allowed-use, and surface-authority ceilings
+│   └── exact-slot descriptors: owner semantic descriptor, locator, value type,
+│       semantic role, occurrence bounds, schema, and formatter
+├── FrameAbstention
+│   ├── PredictionFrameKey and AbstentionMeaningId
+│   ├── condition, horizon, scope, and semantic role
+│   ├── ordered reason codes and supporting-control semantic keys
+│   ├── authority, allowed-use, and surface-authority ceilings
+│   ├── render disposition ceiling
+│   └── exact-slot descriptors: owner semantic descriptor, locator, value type,
+│       semantic role, occurrence bounds, schema, and formatter
+└── Control(ExpectationControlSemanticKey)
+
+ExpectationControlSemanticKey
+├── UnknownSupport
+│   ├── PredictionFrameKey
+│   ├── AlternativeSetId and AlternativeFamilyClassId
+│   └── OutcomeVariableSchemaId
+├── OmittedSupport
+│   ├── PredictionFrameKey
+│   ├── AlternativeSetId and AlternativeFamilyClassId
+│   ├── OutcomeVariableSchemaId
+│   └── BelowMaterialityKnownSupport
+├── CounterSupport
+│   ├── PredictionFrameKey
+│   ├── AlternativeSetId and AlternativeFamilyClassId
+│   ├── OutcomeVariableSchemaId
+│   └── OutcomeMeaningId
+├── CoverageDiagnostic
+│   ├── PredictionFrameKey
+│   └── FacetId
+├── RetrievalDiagnostic
+│   ├── PredictionFrameKey
+│   └── RetrievalDiagnosticSemanticKey
+├── ExcludedActionSemantic
+│   ├── PredictionFrameKey
+│   └── ActionSemanticKey
+├── AbstentionReason
+│   ├── PredictionFrameKey
+│   └── AbstentionReasonCode
+└── DerivationReference
+    ├── PredictionFrameKey
+    └── DerivationSemanticKey
+```
+
+The eight displayed control variants are the complete Control domain.
+`Hypothesis` and `FrameAbstention` cannot appear inside
+`ExpectationControlSemanticKey` because they already have distinct outer
+variants. Every control key begins with the exact owning
+`PredictionFrameKey`; equal frame-local components in two frames therefore
+remain different semantic items.
+
+`RetrievalDiagnosticSemanticKey` is the registered lineage-independent tuple
+of retrieval-diagnostic schema, completeness/status meaning, and diagnostic
+role. `ActionSemanticKey` is the registered action schema plus action meaning.
+`DerivationSemanticKey` is the registered derivation kind, semantic schema, and
+content-identified algorithm/configuration semantics. None contains the
+corresponding per-set record identity, source reference, runtime artifact
+handle, or serialized position.
+
+The semantic key excludes \(B_Q\), \(\Lambda_A\), request-, set-, bundle-,
+transition-, representative-, provenance-, dependency-, source-receipt-, and
+derivation-instance identities; it also excludes support magnitudes,
+diagnostic values, exact values, exact-surface bytes and content identities,
+serialized rank, and insertion order.
+
+Before adding exact-slot descriptors, the constructor derives one non-slot
+`BranchItemOwnerSemanticDescriptor` from the item's displayed tag and all of
+its non-slot semantic components. That descriptor excludes exact-slot
+descriptors, exact values, exact-surface content identities, lineage,
+request/configuration identities, insertion positions, and runtime witnesses.
+An independent slot carries
+`ExactSlotOwnerSemanticDescriptor::Item(BranchItemOwnerSemanticDescriptor,
+ExactSlotOwnerRole)`. A slot shared across items carries the explicitly
+registered
+`ExactSlotOwnerSemanticDescriptor::Shared(SharedExactSlotMeaningKey)`;
+sharing is never inferred from equal schema, locator/path, value, or
+similarity. This staged construction avoids recursion between an item semantic
+key and the slot descriptors it contains.
+
+An exact-slot component contains that upstream owner semantic descriptor plus
+only the schema-owned `ExactSlotSemanticLocator`, registered exact-value type
+and semantic role, finite occurrence bounds, and content-identified
+exact-value schema and deterministic formatter identities. Consequently,
+otherwise valid independent items with the same slot schema and locator/path
+remain distinct when their non-slot owner semantics differ. The branch never
+constructs the planning-owned `ExactSlotOwnerSemanticKey`. After selection,
+planning verifies that an `Item` descriptor matches the independently derived
+descriptor of its source item and maps it with the selected
+`PlanItemSemanticKey` to
+`ExactSlotOwnerSemanticKey::Item(PlanItemSemanticKey, ExactSlotOwnerRole)`.
+It maps `Shared(SharedExactSlotMeaningKey)` unchanged to
+`ExactSlotOwnerSemanticKey::Shared(SharedExactSlotMeaningKey)`. The mapping is
+deterministic and independent of exact value, lineage, request identity, and
+surface content identity. Planning later forms `SlotSemanticKey` by adding the
+canonical permitted item-role bindings; those bindings are not recursively
+embedded into the item key they reference.
+Authoritative content identity remains in the privileged sidecar. The fixed
+control tag and the complete components displayed above, not
+`ExpectationRecordOrderKey`, are the sole semantic construction.
+`ExpectationHypothesisInstanceId`, `ExpectationAbstentionId`, and control
+instance identities retain those exact lineage fields for audit only.
+
+The constructor derives both identities and validates them against the
+payload. Distinct semantic meanings with one semantic key, duplicate complete
+semantic keys within one bundle, a control key missing or disagreeing with its
+owning frame, a key containing forbidden lineage, or a key inconsistent with
+its item is `InvalidExpectationSemanticIdentity`. Different support
+magnitudes or diagnostic measurements may retain the same semantic key because
+those values are payload, not identity. Reusing one
+`(ExactSlotOwnerSemanticDescriptor, ExactSlotSemanticLocator)` with an
+incompatible descriptor is `InvalidExactSlotSemanticDescriptor`; using it
+with different authoritative exact values or surface bytes is
+`ExactSlotValueConflict`. Different independent owner descriptors coexist,
+while an explicit shared descriptor with the same
+`SharedExactSlotMeaningKey` deliberately requires byte-for-byte equality.
+Planning repeats the same conflict check under the mapped
+`(ExactSlotOwnerSemanticKey, ExactSlotSemanticLocator)`. These typed exact-slot
+causes remain nested under the expectation structural error rather than
+flattened into diagnostic text.
+
+Changing only an authoritative exact value or consistently renaming only
+request-local lineage may change binding/instance identities, receipts,
+formatted bytes, and exact content identities, but cannot change any owner,
+descriptor, `ExpectationItemSemanticKey`, slot permission, relation semantic
+key, plan semantic key, or renderer-slot semantic key/order.
+A lineage-only change additionally cannot change plan selection, renderer
+tensor, validation verdict, or product bytes.
+
 ### ExpectationSet contract
 
 One `ExpectationSet` describes exactly one `PredictionFrameKey`. It cannot
 contain hypotheses, controls, or abstention records from another frame.
 
 ```text
-ExpectationSet
+ExpectationSet<'call>
+├── <private> invocation_instance_witness: InvocationInstanceWitness<'call>
+├── <private> eligible_set_instance_witness: EligibleSetInstanceWitness<'call>
 ├── schema and configuration fingerprint
 ├── source_receipt: exact copy of Lambda_A
 ├── prediction frame
@@ -1388,6 +1693,8 @@ ExpectationSet
 │   ├── OutcomeVariableSchemaId
 │   └── complete known-plus-unknown member identities
 ├── hypotheses[0..Kmax]
+│   ├── ExpectationHypothesisInstanceId
+│   ├── lineage-independent ExpectationItemSemanticKey::Hypothesis
 │   ├── ExpectationKind
 │   ├── AlternativeSetId
 │   ├── AlternativeFamilyClassId
@@ -1401,6 +1708,7 @@ ExpectationSet
 │   └── authority and allowed-use ceiling
 ├── frame_abstention[0..1]
 │   ├── ExpectationAbstentionId and AbstentionMeaningId
+│   ├── lineage-independent ExpectationItemSemanticKey::FrameAbstention
 │   ├── exact PredictionFrameKey, condition, horizon, and scope
 │   ├── nonempty reason-code set
 │   ├── supporting diagnostics and derivation references
@@ -1408,10 +1716,13 @@ ExpectationSet
 │   ├── RendererEligible or ValidatorOnly disposition
 │   └── ExpectationBundleOrderKey
 └── controls
+    ├── request-local control instance identity
+    ├── frame-qualified ExpectationItemSemanticKey::Control
     ├── unknown support
     ├── omitted support and count
+    ├── counter-support
     ├── coverage and retrieval status
-    ├── excluded action semantics
+    ├── excluded action semantics and abstention reasons
     └── complete derivation references
 ```
 
@@ -1464,7 +1775,9 @@ additional frames. Each validated frame query is evaluated independently into
 one `ExpectationSet`, and the compiler returns their bounded collection:
 
 ```text
-ExpectationBundle
+ExpectationBundle<'call>
+├── <private> invocation_instance_witness: InvocationInstanceWitness<'call>
+├── <private> eligible_set_instance_witness: EligibleSetInstanceWitness<'call>
 ├── schema fingerprint
 ├── source_receipt: exact copy of Lambda_A
 ├── frame_limit: F_max
@@ -1482,6 +1795,20 @@ embedded frame differs from its map key are errors. A valid evidence
 abstention affects only its frame and remains in the bundle; it does not
 suppress a valid set for another frame. A structural or dependency error
 aborts construction of the whole bundle, so no partial bundle is returned.
+
+Every set retains both exact witnesses borrowed from its shared
+activated-memory set. Bundle construction copies those source-set witnesses,
+requires same-instance equality with every member-set witness, then retains
+them unchanged. A missing, reconstructed, mixed, or lifetime-invalid member
+witness is a structural error even when every content-derived identity and
+every field of \(\Lambda_A\) matches. This comparison detects internal mixing
+but has no independent current-call or expected-set anchor: a wholly foreign
+or same-call reconstructed, internally consistent source set produces a
+corresponding bundle that this boundary must preserve for later anchored
+rejection. Neither witness can affect frame derivation, support, abstention,
+canonical order, scores, tensors, content identities, serialization, product
+bytes, or accepted-call diagnostics; an internal mismatch fails closed without
+exposing a witness value.
 
 Normalization, alternative ordering, counter-support, materiality, and
 abstention are frame-local. The bundle never renormalizes, adds, ranks, or
@@ -1501,6 +1828,9 @@ Representative error classes include:
 - duplicate prediction frame, frame-count overflow, inconsistent bundle
   lineage, or set/frame-key mismatch;
 - incompatible vector or distance space;
+- `InvalidExpectationExactSlot` preserving either
+  `InvalidExactSlotSemanticDescriptor` or `ExactSlotValueConflict` as its typed
+  source;
 - missing or forged provenance/dependency identity;
 - invalid outcome equivalence or contradiction relation;
 - corrupt or revision-mismatched evidence;
@@ -2100,8 +2430,16 @@ tests include immediately below, at, and above each boundary.
 ## Preconditions
 
 - The compile call pins one immutable memory revision, authorization view,
-  policy revision, query, and content-identified configuration.
-- Authorization and usage gating occur before candidate competition.
+  policy revision, sealed `BoundQuery`, and content-identified configuration.
+  `bindQuery` alone derives the private \(Q_{\mathrm{num}}\), private \(B_Q\),
+  and `BoundQueryContentId` from the same retained request, ingress binding,
+  and authenticated `K`; both branches consume `&BoundQuery` and validate its
+  private exact projection against `&EligibleActivatedMemorySet<'call>` before
+  semantic derivation.
+- Authorization/disclosure/validity eligibility produces \(\mathcal M_E\);
+  request-usage compatibility then privately borrows \(Q_{\mathrm{num}}\) from
+  validated `BoundQuery` and produces \(\mathcal M_Q\); both precede candidate
+  competition.
 - The expectation query has one supported kind, subject/scope, condition
   semantics, and horizon schema.
 - A compile supplies no more than the configured finite positive
@@ -2130,8 +2468,22 @@ tests include immediately below, at, and above each boundary.
 
 ## Invariants
 
-- Focus and expectation branch from the same eligible activated-memory set
-  before final focus pruning.
+- Focus and expectation each borrow the exact same complete sealed
+  `EligibleActivatedMemorySet<'call>` object before final focus pruning.
+  Neither branch receives a precomputed projection, filtered copy, or
+  reconstruction; branch-private views are created only inside the respective
+  aggregate-taking call.
+- Focus, expectation, and any query-binding validation consume
+  `&BoundQuery`; no valid interface or serialized form can accept, replace, or
+  pair \(Q_{\mathrm{num}}\) and \(B_Q\) separately.
+- The shared set, `FocusCandidateSet`, every `ExpectationSet`, and its
+  `ExpectationBundle` retain the same private invocation and eligible-set
+  instance witnesses borrowed from the source set. Focus and expectation can
+  reject internal witness mixing but cannot authenticate a wholly foreign
+  same-content set or distinguish a same-call reconstructed set without
+  independent current-call and expected-set anchors; the later planning
+  boundary owns both rejections. The witnesses are outside semantic and product
+  state and cannot affect any derived value or order.
 - Hard policy exclusion is never represented by a low soft score.
 - Unknown, absent, inapplicable, explicit none, and zero remain distinct.
 - Only a compatible typed `Derived` reliability value can enter
@@ -2145,6 +2497,16 @@ tests include immediately below, at, and above each boundary.
 - Each `ExpectationSet` contains exactly one frame; one
   `ExpectationBundle` contains at most one set for each frame and never
   compares support across frames.
+- Every control semantic key carries its owning `PredictionFrameKey`; a
+  per-set serialization or instance identity never substitutes for semantic
+  identity.
+- Every exact-slot descriptor carries a value-, lineage-, and request-
+  independent `ExactSlotOwnerSemanticDescriptor`. Equal locator/path under
+  different independent owner descriptors remains distinct; only an explicit
+  `SharedExactSlotMeaningKey` aliases slots, and one
+  descriptor-plus-locator cannot carry conflicting descriptors or
+  authoritative values. Planning alone maps that descriptor to its canonical
+  `ExactSlotOwnerSemanticKey`, without consulting value or lineage.
 - One dependency group contributes at most one total support budget across the
   mutually exclusive outcomes in one alternative family.
 - Relative support is never labeled or consumed as probability.
@@ -2224,17 +2586,62 @@ The first executable implementation requires:
 
 - constructor tests for every identifier, presence state, status, typed
   reliability state, horizon, relation, sidecar reference, and finite number;
+- sealed `BoundQuery` API/compile-fail tests prove `bindQuery` is the only
+  constructor and no downstream signature can accept or pair
+  \(Q_{\mathrm{num}}\) with \(B_Q\); private corruption fixtures swap each
+  projection, retained request/configuration, and `BoundQueryContentId`
+  independently and require `InvalidQueryBinding`;
+- exact expectation-query binding tests consume
+  `(&BoundQuery, &EligibleActivatedMemorySet<'call>)` and check private
+  \(B_Q=\pi_Q(\Lambda_A)\), including malformed aggregates, cross-request
+  joins, reuse against different canonical content/configuration, valid
+  same-content repetition, recomputation/configuration mismatch, collision
+  witness, and semantic noninterference after permitted nonsemantic
+  request-local instance identities are erased;
 - property tests for boundedness, permutation invariance, canonical ordering,
   dependency budgets, exact-duplicate invariance, submaximum and
   maximum-budget behavior, medoid membership, and reconstructibility;
 - fixtures for every record-tag rank, tag-specific tie-break, and duplicate
   control-key rejection;
+- semantic/instance identity fixtures for every hypothesis, control, and frame
+  abstention tag; at fixed semantic payload, sealed query, and \(\Lambda_A\),
+  changing only permitted request-local instance identities must preserve
+  every `ExpectationItemSemanticKey`, while distinct semantic payloads sharing
+  a key and duplicate semantic keys fail closed;
+- exact-slot owner fixtures prove that exact-value or lineage mutation
+  preserves every upstream descriptor and downstream
+  owner/item/relation/plan/renderer-slot semantic key; planner mapping produces
+  `Item(PlanItemSemanticKey, ExactSlotOwnerRole)` for item descriptors and
+  `Shared(SharedExactSlotMeaningKey)` for shared descriptors; equal schema/path
+  under separate independent owners coexists and maps to separate item keys;
+  explicit shared-owner bindings converge; same descriptor/path or mapped
+  owner/path with differing values returns `ExactSlotValueConflict`; and an
+  incompatible descriptor returns `InvalidExactSlotSemanticDescriptor`;
+- invocation- and set-instance-witness propagation tests from the sealed
+  `AuthenticatedInvocation` and fresh `COMP-01` set construction through both
+  branch outputs; private-state tests reject missing, forged, expired, or
+  internally mixed witnesses, prove two same-content sets inside one invocation
+  receive distinct set witnesses, and preserve a wholly foreign or
+  same-call-reconstructed internally consistent set through these unanchored
+  branches until the later independent current-call and expected-set anchors
+  are supplied;
+- equal-content two-call fixtures prove that equal \(B_Q\) and equal
+  \(\Lambda_A\) do not imply equal invocation witnesses, and that changing only
+  the witness across separately valid calls cannot change semantic projection,
+  ordering, support, scores, tensors, diagnostics, serialization, or product
+  bytes;
+- exhaustive control-key fixtures for all eight
+  `ExpectationControlSemanticKey` variants, proving that two otherwise equal
+  controls in distinct `PredictionFrameKey` values have distinct keys, that
+  same-frame duplicates fail, that changing a registered semantic component
+  changes the key, and that changing only support magnitude, diagnostic value,
+  instance identity, or serialized position does not;
 - abstention-candidate fixtures for content identity, exact lineage,
   source/control closure, nonempty canonical reasons, positive/abstention
   exclusivity, and renderer-eligibility non-escalation;
 - bundle tests for unique frames, the \(F_{\max}\) boundary, canonical frame
   order, inconsistent lineage, frame-local abstention, and absence of
-  cross-frame ranking or normalization;
+  cross-frame ranking, normalization, or control-key collision;
 - exact hand calculations for support splitting across contradictory outcomes;
 - threshold tests immediately below, at, and above every configured boundary;
 - all four `MissingFacetPolicy` variants for query absence, transition
@@ -2346,6 +2753,7 @@ defines no production coefficient, threshold, model, or probability claim.
 - [V1 reference architecture](v1-reference-architecture.md)
 - [V1 proof program](v1-proof-program.md)
 - [V1 delivery program](v1-delivery-program.md)
+- [Decision 0016: Adopt sealed compile-integrity boundaries](../decisions/0016-adopt-sealed-compile-integrity-boundaries.md)
 
 ### Research evidence
 
