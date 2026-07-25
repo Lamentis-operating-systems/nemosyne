@@ -187,6 +187,30 @@ expect_strict_failure() {
   fi
 }
 
+expect_linear_failure() {
+  local fixture_repository="$1"
+  local expected_message="$2"
+  local output="$fixture_root/linear-output.txt"
+  local fixture_document="$fixture_repository/docs/specifications/v1-delivery-program.md"
+  local fixture_checker="$fixture_repository/scripts/check-v1-delivery-program.py"
+
+  if python3 "$fixture_checker" \
+    --require-receipts \
+    --linear-integration \
+    "$fixture_document" >"$output" 2>&1; then
+    printf 'expected linear-integration checker failure for %s\n' \
+      "$fixture_repository" >&2
+    exit 1
+  fi
+
+  if ! grep -F "$expected_message" "$output" >/dev/null; then
+    printf 'missing expected linear-integration failure message: %s\n' \
+      "$expected_message" >&2
+    cat "$output" >&2
+    exit 1
+  fi
+}
+
 structural_base="$fixture_root/structural-base"
 mkdir -p \
   "$structural_base/docs/specifications" \
@@ -495,11 +519,11 @@ PY
 }
 
 new_structural_case finding
-sed 's#`FND-382` / P1#`FND-999` / P1#' \
+sed 's#`FND-383` / P1#`FND-999` / P1#' \
   "$current_document" >"$current_document.tmp"
 mv "$current_document.tmp" "$current_document"
 expect_failure "$current_document" \
-  'finding IDs must be exactly 1..382 in source order'
+  'finding IDs must be exactly 1..383 in source order'
 
 new_structural_case wave-label
 sed 's#^| `W33` |#| `W32` |#' \
@@ -749,7 +773,7 @@ expect_failure "$current_document" \
 new_structural_case decision-count
 rm "$current_case/docs/decisions/0039-validate-documentation-history-per-commit.md"
 expect_failure "$current_document" \
-  'decision IDs must be exactly 1..39 in source order'
+  'decision IDs must be exactly 1..40 in source order'
 
 new_structural_case specification-count
 rm "$current_case/docs/specifications/curated-activation-evidence.md"
@@ -774,7 +798,7 @@ sed 's#^Status: Accepted$#Status: Superseded#' \
   "$new_decision" >"$new_decision.tmp"
 mv "$new_decision.tmp" "$new_decision"
 expect_failure "$current_document" \
-  'Superseded decisions must be exactly 0011, 0012, 0013, 0015, 0016, 0019, 0023, and 0028'
+  'Superseded decisions must be exactly 0011, 0012, 0013, 0015, 0016, 0019, 0022, 0023, and 0028'
 
 new_structural_case proof-definition
 proof_file="$current_case/docs/specifications/v1-proof-program.md"
@@ -954,18 +978,18 @@ path = Path(sys.argv[1])
 text = path.read_text()
 line_start = text.index("| `CONSOL-03` / Content-bound attestation |")
 line_end = text.index("\n", line_start)
-line = text[line_start:line_end].replace("`FND-152..382`", "`FND-152..381`", 1)
+line = text[line_start:line_end].replace("`FND-152..383`", "`FND-152..382`", 1)
 path.write_text(text[:line_start] + line + text[line_end:])
 PY
 expect_failure "$current_document" \
-  'consolidation registry must bind the canonical current finding range FND-152..382 exactly once'
+  'consolidation registry must bind the canonical current finding range FND-152..383 exactly once'
 
 new_structural_case stale-current-conformance-range
 mutate_current_conformance \
-  '`FND-152..382`. `FND-001..380`' \
-  '`FND-152..381`. `FND-001..380`'
+  '`FND-152..383`. `FND-001..382`' \
+  '`FND-152..382`. `FND-001..382`'
 expect_failure "$current_document" \
-  "active $active_conformance_id must contain canonical current-state fragment exactly once: \`FND-152..382\`"
+  "active $active_conformance_id must contain canonical current-state fragment exactly once: \`FND-152..383\`"
 
 new_structural_case protected-history-crlf-checkout
 python3 - "$current_document" <<'PY'
@@ -1031,8 +1055,8 @@ expect_failure "$current_document" \
 
 new_structural_case stale-current-finding-count
 mutate_current_conformance \
-  'There are 382 unique sequential findings' \
-  'There are 381 unique sequential findings'
+  'There are 383 unique sequential findings' \
+  'There are 382 unique sequential findings'
 expect_failure "$current_document" \
   "active $active_conformance_id complete structural inventory differs from the canonical inventory"
 
@@ -1066,15 +1090,15 @@ expect_failure "$current_document" \
 
 new_structural_case stale-current-evidence-counts
 mutate_current_conformance \
-  '28 append-only conformance receipts, 18 external review paths, 12 non-template specifications' \
-  '27 append-only conformance receipts, 17 external review paths, 11 non-template specifications'
+  '29 append-only conformance receipts, 18 external review paths, 12 non-template specifications' \
+  '28 append-only conformance receipts, 17 external review paths, 11 non-template specifications'
 expect_failure "$current_document" \
   "active $active_conformance_id complete structural inventory differs from the canonical inventory"
 
 new_structural_case stale-current-decision-counts
 mutate_current_conformance \
-  '39 numbered decisions: 31 `Accepted` and 8 `Superseded`' \
-  '38 numbered decisions: 30 `Accepted` and 9 `Superseded`'
+  '40 numbered decisions: 31 `Accepted` and 9 `Superseded`' \
+  '39 numbered decisions: 30 `Accepted` and 10 `Superseded`'
 expect_failure "$current_document" \
   "active $active_conformance_id complete structural inventory differs from the canonical inventory"
 
@@ -1099,7 +1123,7 @@ sed 's#`FND-378` / P2#`FND-378` / P1#' \
   "$current_document" >"$current_document.tmp"
 mv "$current_document.tmp" "$current_document"
 expect_failure "$current_document" \
-  'finding severities must match the canonical FND-001..FND-382 ledger'
+  'finding severities must match the canonical FND-001..FND-383 ledger'
 
 new_structural_case completion-target
 sed \
@@ -1276,7 +1300,7 @@ write_receipt_set() {
       "consolidator-0${index}" \
       'Integration owner for the named consolidation pass.' \
       'Independent consolidation pass.' \
-      'FND-152..382 reconciliation.' \
+      'FND-152..383 reconciliation.' \
       "$replaces"
   done
 
@@ -1683,11 +1707,11 @@ expect_strict_failure "$strict_case" \
 new_strict_case stale-consolidation-evidence-range
 receipt="$strict_case/docs/receipts/consolidations/consol-03.md"
 sed \
-  's#FND-152..382 reconciliation.#FND-152..381 reconciliation.#' \
+  's#FND-152..383 reconciliation.#FND-152..382 reconciliation.#' \
   "$receipt" >"$receipt.tmp"
 mv "$receipt.tmp" "$receipt"
 expect_strict_failure "$strict_case" \
-  'attestation CONSOL-03 Evidence references must be FND-152..382 reconciliation.'
+  'attestation CONSOL-03 Evidence references must be FND-152..383 reconciliation.'
 
 new_strict_case duplicate-review-actor
 receipt="$strict_case/docs/receipts/reviews/rev-18.md"
@@ -1949,7 +1973,113 @@ GIT_AUTHOR_DATE='2026-07-24T13:35:00Z' \
 GIT_COMMITTER_DATE='2026-07-24T13:35:00Z' \
   git -C "$strict_case" commit -qm 'Record evidence after an intermediate commit'
 expect_strict_failure "$strict_case" \
-  'the canonical attestation evidence commit must have exactly the attested Source commit as its parent'
+  'the canonical attestation evidence commit must have exactly the recorded Source commit as its parent'
+
+linear_repository="$fixture_root/linear-repository"
+cp -R "$strict_repository" "$linear_repository"
+exact_evidence_commit="$(git -C "$linear_repository" rev-parse HEAD)"
+exact_source_commit="$(git -C "$linear_repository" rev-parse HEAD^)"
+exact_source_tree="$(git -C "$linear_repository" rev-parse "$exact_source_commit^{tree}")"
+exact_evidence_tree="$(
+  git -C "$linear_repository" rev-parse "$exact_evidence_commit^{tree}"
+)"
+rewritten_source_commit="$(
+  printf '%s\n' 'Rebase reviewed source' |
+    GIT_AUTHOR_DATE='2026-07-24T13:36:00Z' \
+    GIT_COMMITTER_DATE='2026-07-24T13:36:00Z' \
+      git -C "$linear_repository" commit-tree "$exact_source_tree"
+)"
+rewritten_evidence_commit="$(
+  printf '%s\n' 'Rebase DOC-00 attestations' |
+    GIT_AUTHOR_DATE='2026-07-24T13:37:00Z' \
+    GIT_COMMITTER_DATE='2026-07-24T13:37:00Z' \
+      git -C "$linear_repository" commit-tree \
+        "$exact_evidence_tree" \
+        -p "$rewritten_source_commit"
+)"
+git -C "$linear_repository" checkout -q -B linear-main \
+  "$rewritten_evidence_commit"
+expect_strict_failure "$linear_repository" \
+  'the canonical attestation evidence commit must have exactly the recorded Source commit as its parent'
+python3 "$linear_repository/scripts/check-v1-delivery-program.py" \
+  --require-receipts \
+  --linear-integration \
+  "$linear_repository/docs/specifications/v1-delivery-program.md"
+
+linear_unbound_repository="$fixture_root/linear-unbound-history"
+cp -R "$linear_repository" "$linear_unbound_repository"
+printf '%s\n' 'unrelated linear history' \
+  >"$linear_unbound_repository/linear-history.txt"
+git -C "$linear_unbound_repository" add linear-history.txt
+GIT_AUTHOR_DATE='2026-07-24T13:38:00Z' \
+GIT_COMMITTER_DATE='2026-07-24T13:38:00Z' \
+  git -C "$linear_unbound_repository" commit -qm 'Advance linear history'
+python3 "$linear_unbound_repository/scripts/check-v1-delivery-program.py" \
+  --require-receipts \
+  --linear-integration \
+  "$linear_unbound_repository/docs/specifications/v1-delivery-program.md"
+
+linear_drift_repository="$fixture_root/linear-bound-path-drift"
+cp -R "$linear_repository" "$linear_drift_repository"
+printf '\nTemporary linear integration change.\n' \
+  >>"$linear_drift_repository/docs/specifications/v1-proof-program.md"
+git -C "$linear_drift_repository" add docs/specifications/v1-proof-program.md
+GIT_AUTHOR_DATE='2026-07-24T13:39:00Z' \
+GIT_COMMITTER_DATE='2026-07-24T13:39:00Z' \
+  git -C "$linear_drift_repository" commit -qm 'Change bound linear source'
+git -C "$linear_drift_repository" checkout HEAD~1 -- \
+  docs/specifications/v1-proof-program.md
+git -C "$linear_drift_repository" add docs/specifications/v1-proof-program.md
+GIT_AUTHOR_DATE='2026-07-24T13:40:00Z' \
+GIT_COMMITTER_DATE='2026-07-24T13:40:00Z' \
+  git -C "$linear_drift_repository" commit -qm 'Revert bound linear source'
+expect_linear_failure "$linear_drift_repository" \
+  'history after DOC-00 evidence must not modify a DOC-00-bound path'
+
+linear_intermediate_repository="$fixture_root/linear-intermediate-commit"
+cp -R "$linear_repository" "$linear_intermediate_repository"
+git -C "$linear_intermediate_repository" checkout -q -B linear-intermediate \
+  "$rewritten_source_commit"
+printf '%s\n' 'intermediate linear history' \
+  >"$linear_intermediate_repository/intermediate.txt"
+git -C "$linear_intermediate_repository" add intermediate.txt
+GIT_AUTHOR_DATE='2026-07-24T13:41:00Z' \
+GIT_COMMITTER_DATE='2026-07-24T13:41:00Z' \
+  git -C "$linear_intermediate_repository" commit -qm \
+    'Insert commit between source and evidence'
+git -C "$linear_intermediate_repository" checkout \
+  "$rewritten_evidence_commit" -- \
+  docs/receipts/doc-00-g0.md \
+  docs/receipts/consolidations \
+  docs/receipts/reviews
+git -C "$linear_intermediate_repository" add docs/receipts
+GIT_AUTHOR_DATE='2026-07-24T13:42:00Z' \
+GIT_COMMITTER_DATE='2026-07-24T13:42:00Z' \
+  git -C "$linear_intermediate_repository" commit -qm \
+    'Record evidence after intermediate commit'
+expect_linear_failure "$linear_intermediate_repository" \
+  'attested Source tree does not match Source commit'
+
+squash_repository="$fixture_root/squash-repository"
+cp -R "$strict_repository" "$squash_repository"
+empty_tree="$(printf '' | git -C "$squash_repository" mktree)"
+squash_base_commit="$(
+  printf '%s\n' 'Synthetic integration base' |
+    GIT_AUTHOR_DATE='2026-07-24T13:43:00Z' \
+    GIT_COMMITTER_DATE='2026-07-24T13:43:00Z' \
+      git -C "$squash_repository" commit-tree "$empty_tree"
+)"
+squash_commit="$(
+  printf '%s\n' 'Squash DOC-00 source and evidence' |
+    GIT_AUTHOR_DATE='2026-07-24T13:44:00Z' \
+    GIT_COMMITTER_DATE='2026-07-24T13:44:00Z' \
+      git -C "$squash_repository" commit-tree \
+        "$exact_evidence_tree" \
+        -p "$squash_base_commit"
+)"
+git -C "$squash_repository" checkout -q -B squash-main "$squash_commit"
+expect_linear_failure "$squash_repository" \
+  'attested Source tree does not match Source commit'
 
 merge_repository="$fixture_root/merge-repository"
 cp -R "$strict_repository" "$merge_repository"
@@ -1998,7 +2128,7 @@ GIT_AUTHOR_DATE='2026-07-24T14:00:00Z' \
 GIT_COMMITTER_DATE='2026-07-24T14:00:00Z' \
   git -C "$post_merge_revert_repository" commit -qm 'Revert bound source change'
 expect_strict_failure "$post_merge_revert_repository" \
-  'history after the preserving merge must not modify a DOC-00-bound path'
+  'history after DOC-00 evidence must not modify a DOC-00-bound path'
 
 post_merge_side_repository="$fixture_root/post-merge-side-branch-change"
 cp -R "$merge_repository" "$post_merge_side_repository"
@@ -2025,7 +2155,7 @@ GIT_AUTHOR_DATE='2026-07-24T14:05:00Z' \
 GIT_COMMITTER_DATE='2026-07-24T14:05:00Z' \
   git -C "$post_merge_side_repository" commit -qm 'Resolve bound source to original'
 expect_strict_failure "$post_merge_side_repository" \
-  'history after the preserving merge must not modify a DOC-00-bound path'
+  'history after DOC-00 evidence must not modify a DOC-00-bound path'
 
 pre_merge_side_repository="$fixture_root/pre-merge-side-branch-change"
 cp -R "$merge_repository" "$pre_merge_side_repository"

@@ -1,7 +1,8 @@
 # 0022: Establish content-bound DOC-00 attestations
 
-Status: Accepted
+Status: Superseded
 Date: 2026-07-24
+Superseded by: 0040-integrate-doc-00-through-content-equivalent-rebase.md
 
 ## Context
 

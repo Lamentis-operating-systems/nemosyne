@@ -93,8 +93,14 @@ ATTESTATION_HISTORY_CONTRACT = (
     "including its file mode. At every earlier history head, the canonical set "
     "is either wholly absent or contains all 22 records. A present set must "
     "resolve to one common last-modified evidence commit whose direct parent is "
-    "its attested source commit, whose only changes are those 22 records, and "
-    "whose source, archive, schema, and replacement bindings are valid. "
+    "its source counterpart, whose only changes are those 22 records, and "
+    "whose source tree, schema, and replacement bindings are valid. Exact "
+    "pull-request mode requires that parent to equal the recorded `Source "
+    "commit` and reconstructs its archive digest. Explicit linear-integration "
+    "mode instead requires its content-equivalent rebased counterpart, the "
+    "exact recorded source tree, and byte-identical receipt archive bindings; "
+    "it does not reconstruct a commit-metadata-sensitive archive from the "
+    "rewritten commit. "
     "Historical G0 check requirements are read as exactly one module-level "
     "literal binding per contract name from that set's own source checker; "
     "every additional AST binding is invalid, current policy is not substituted, "
@@ -119,9 +125,12 @@ ATTESTATION_HISTORY_CONTRACT = (
     "or truncated. Documentation CI checks out full history before strict "
     "validation. Validation traverses every commit reachable from HEAD and "
     "every merge parent with memoized canonical receipt-tree states; it rejects "
-    "partial states, deletion after introduction, and any nonidentical parent "
-    "states unless a two-parent preserving merge selects the exact evidence "
-    "commit as its second parent and that set replaces the first-parent set. "
+    "partial states, deletion after introduction, and any nonidentical "
+    "merge-parent states unless a two-parent preserving merge selects the exact "
+    "evidence commit as its second parent and that set replaces the first-parent "
+    "set. Linear integration additionally requires single-parent source/evidence "
+    "counterparts, unchanged source-tree and receipt bindings, and no later "
+    "bound-path change. "
     "Validation "
     "follows source/evidence pairs recursively to that genuine first-attestation "
     "state. Each historical source also carries this schema as a non-executable "
@@ -170,12 +179,12 @@ EXPECTED_V1_GRAPH_DEPENDENCY_COUNT = 123
 EXPECTED_INTERFACE_COUNT = 49
 EXPECTED_REVIEW_COUNT = 18
 EXPECTED_WAVE_COUNT = 34
-EXPECTED_FINDING_COUNT = 382
-EXPECTED_CONFORMANCE_COUNT = 28
+EXPECTED_FINDING_COUNT = 383
+EXPECTED_CONFORMANCE_COUNT = 29
 EXPECTED_SPECIFICATION_COUNT = 12
-EXPECTED_DECISION_COUNT = 39
+EXPECTED_DECISION_COUNT = 40
 EXPECTED_ACCEPTED_DECISION_COUNT = 31
-EXPECTED_SUPERSEDED_DECISION_COUNT = 8
+EXPECTED_SUPERSEDED_DECISION_COUNT = 9
 CANONICAL_G0_RECORD_ID = "DOC-CONF-24"
 EXPECTED_CURRENT_FINDING_RANGE = f"FND-152..{EXPECTED_FINDING_COUNT:03d}"
 EXPECTED_PROTECTED_CONFORMANCE_SHA256 = (
@@ -298,7 +307,7 @@ EXPECTED_FINDING_PRIORITY_DIGITS = (
     "11211212"
     "22222122"
     "12"
-    "11"
+    "111"
 )
 
 WORK_BREAKDOWN_HEADER = (
@@ -1179,10 +1188,10 @@ def validate_decisions(repository_root: Path) -> None:
         for decision_id, status in statuses.items()
         if status == "Superseded"
     )
-    if superseded_ids != [11, 12, 13, 15, 16, 19, 23, 28]:
+    if superseded_ids != [11, 12, 13, 15, 16, 19, 22, 23, 28]:
         raise ContractError(
             "Superseded decisions must be exactly 0011, 0012, 0013, 0015, "
-            "0016, 0019, 0023, and 0028"
+            "0016, 0019, 0022, 0023, and 0028"
         )
 
 
@@ -1886,6 +1895,26 @@ def checker_g0_contract(checker_text: str, label: str) -> tuple[tuple[str, ...],
     return tuple(required_references), prefix_node.value
 
 
+def checker_attestation_history_contract(checker_text: str, label: str) -> str:
+    """Parse the canonical receipt-history prose from one checker revision."""
+
+    node = checker_literal_bindings(
+        checker_text,
+        {"ATTESTATION_HISTORY_CONTRACT"},
+        label,
+    )["ATTESTATION_HISTORY_CONTRACT"]
+    if (
+        not isinstance(node, ast.Constant)
+        or not isinstance(node.value, str)
+        or not node.value
+    ):
+        raise ContractError(
+            f"{label} ATTESTATION_HISTORY_CONTRACT must be one nonempty "
+            "string literal"
+        )
+    return node.value
+
+
 def checker_protected_digests(checker_text: str, label: str) -> dict[str, str]:
     """Parse the protected-history digests from one checker revision."""
 
@@ -1927,6 +1956,18 @@ def source_checker_g0_contract(
     """Read historical G0 literals from the bound checker without executing it."""
 
     return checker_g0_contract(
+        source_checker_text(repository_root, source_commit),
+        "prior source checker",
+    )
+
+
+def source_checker_attestation_history_contract(
+    repository_root: Path,
+    source_commit: str,
+) -> str:
+    """Read historical receipt-history prose without executing its checker."""
+
+    return checker_attestation_history_contract(
         source_checker_text(repository_root, source_commit),
         "prior source checker",
     )
@@ -2238,6 +2279,7 @@ def validate_historical_evidence_pair(
     source_state: AttestationHistoryState | None,
     tree_entries: dict[str, str],
     expected_records: list[tuple[str, str, str]],
+    allow_rebased_source_identity: bool,
 ) -> AttestationHistoryState:
     """Validate one historical source/evidence pair without executing its code."""
 
@@ -2254,33 +2296,48 @@ def validate_historical_evidence_pair(
         record_list.append((record_id, record_kind, fields))
     reference = record_list[0][2]
 
-    if reference["Source commit"] != source_commit:
+    recorded_source_commit = reference["Source commit"]
+    if (
+        re.fullmatch(r"[0-9a-f]+", recorded_source_commit) is None
+        or len(recorded_source_commit) != len(source_commit)
+    ):
+        raise ContractError(
+            "prior attested Source commit must be the full Git object ID"
+        )
+    if (
+        recorded_source_commit != source_commit
+        and not allow_rebased_source_identity
+    ):
         raise ContractError(
             "prior canonical attestation evidence commit must directly follow "
             "its recorded Source commit"
         )
     if (
-        re.fullmatch(r"(?:[0-9a-f]{40}|[0-9a-f]{64})", source_commit)
+        re.fullmatch(
+            r"(?:[0-9a-f]{40}|[0-9a-f]{64})",
+            recorded_source_commit,
+        )
         is None
     ):
         raise ContractError(
             f"prior attestation {reference['Record ID']} has invalid Source commit"
         )
-    object_type = git_output(repository_root, "cat-file", "-t", source_commit)
-    if object_type != "commit":
-        raise ContractError(
-            "prior attested Source commit is not a Git commit object"
+    if recorded_source_commit == source_commit:
+        object_type = git_output(repository_root, "cat-file", "-t", source_commit)
+        if object_type != "commit":
+            raise ContractError(
+                "prior attested Source commit is not a Git commit object"
+            )
+        resolved_commit = git_output(
+            repository_root,
+            "rev-parse",
+            "--verify",
+            f"{source_commit}^{{commit}}",
         )
-    resolved_commit = git_output(
-        repository_root,
-        "rev-parse",
-        "--verify",
-        f"{source_commit}^{{commit}}",
-    )
-    if resolved_commit != source_commit:
-        raise ContractError(
-            "prior attested Source commit must be the full Git object ID"
-        )
+        if resolved_commit != source_commit:
+            raise ContractError(
+                "prior attested Source commit must be the full Git object ID"
+            )
 
     for governance_path in SOURCE_GOVERNANCE_PATHS:
         relative_path = governance_path.as_posix()
@@ -2320,7 +2377,13 @@ def validate_historical_evidence_pair(
         source_commit,
         readme_relative_path,
     )
-    validate_receipt_readme_text(prior_readme_text)
+    validate_receipt_readme_text(
+        prior_readme_text,
+        source_checker_attestation_history_contract(
+            repository_root,
+            source_commit,
+        ),
+    )
 
     source_checker_digests = source_checker_protected_digests(
         repository_root,
@@ -2441,12 +2504,13 @@ def validate_historical_evidence_pair(
         )
     validate_replacement_bindings(records, source_state, "prior attestation")
 
-    actual_digest = git_archive_digest(repository_root, source_commit)
-    if actual_digest != reference["Archive SHA-256"]:
-        raise ContractError(
-            "prior attested Archive SHA-256 does not match the reconstructed "
-            "Git archive"
-        )
+    if recorded_source_commit == source_commit:
+        actual_digest = git_archive_digest(repository_root, source_commit)
+        if actual_digest != reference["Archive SHA-256"]:
+            raise ContractError(
+                "prior attested Archive SHA-256 does not match the reconstructed "
+                "Git archive"
+            )
     if source_state is not None:
         validate_conformance_successor_for_changed_archive(
             repository_root,
@@ -2465,6 +2529,7 @@ def validate_attestation_history(
     repository_root: Path,
     history_head: str | None,
     expected_records: list[tuple[str, str, str]],
+    allow_rebased_source_identity: bool = False,
 ) -> AttestationHistoryState | None:
     """Validate every reachable canonical attestation state in the Git DAG."""
 
@@ -2580,6 +2645,7 @@ def validate_attestation_history(
             parent_states[0],
             tree_entries,
             expected_records,
+            allow_rebased_source_identity,
         )
 
     state = states.get(history_head)
@@ -2588,7 +2654,10 @@ def validate_attestation_history(
     return state
 
 
-def validate_receipt_readme_text(text: str) -> None:
+def validate_receipt_readme_text(
+    text: str,
+    history_contract: str = ATTESTATION_HISTORY_CONTRACT,
+) -> None:
     """Require README text to declare the exact strict attestation schema."""
 
     declared_fields = re.findall(r"^[0-9]+\. `([^`]+)`$", text, re.MULTILINE)
@@ -2627,7 +2696,7 @@ def validate_receipt_readme_text(text: str) -> None:
             "`Principal integrator for DOC-00 merge authorization; "
             "not the accountable human or an independent reviewer.`"
         ),
-        ATTESTATION_HISTORY_CONTRACT,
+        history_contract,
     )
     for fragment in required_normalized_fragments:
         if fragment not in normalized_text:
@@ -2649,6 +2718,7 @@ def validate_receipts(
     repository_root: Path,
     required_check_references: tuple[str, ...],
     change_aware_check_prefix: str,
+    linear_integration: bool,
 ) -> None:
     """Validate complete content-bound DOC-00 receipt evidence."""
 
@@ -2737,7 +2807,49 @@ def validate_receipts(
     )
     reference = records[0][2]
 
-    source_commit = reference["Source commit"]
+    recorded_source_commit = reference["Source commit"]
+    evidence_commits = {
+        git_output(
+            repository_root,
+            "log",
+            "-1",
+            "--format=%H",
+            "HEAD",
+            "--",
+            path.relative_to(repository_root).as_posix(),
+        )
+        for path, _, _ in expected_records
+    }
+    if "" in evidence_commits or len(evidence_commits) != 1:
+        raise ContractError(
+            "all 22 canonical attestations must share one last-modified "
+            "evidence commit"
+        )
+    evidence_commit = evidence_commits.pop()
+    evidence_parents = commit_parents(repository_root, evidence_commit)
+    if len(evidence_parents) != 1:
+        raise ContractError(
+            "the canonical attestation evidence commit must have exactly "
+            "one source parent"
+        )
+    source_commit = evidence_parents[0]
+    if (
+        re.fullmatch(r"[0-9a-f]+", recorded_source_commit) is None
+        or len(recorded_source_commit) != len(source_commit)
+    ):
+        raise ContractError("attested Source commit must be the full Git object ID")
+    if linear_integration:
+        if source_commit == recorded_source_commit:
+            raise ContractError(
+                "linear integration must use rewritten source and evidence "
+                "commit identities"
+            )
+    elif source_commit != recorded_source_commit:
+        raise ContractError(
+            "the canonical attestation evidence commit must have exactly "
+            "the recorded Source commit as its parent"
+        )
+
     source_tree = reference["Source tree"]
     object_type = git_output(repository_root, "cat-file", "-t", source_commit)
     if object_type != "commit":
@@ -2762,6 +2874,7 @@ def validate_receipts(
         repository_root,
         source_parent,
         history_records,
+        allow_rebased_source_identity=linear_integration,
     )
     if prior_history is None:
         prior_records = None
@@ -2831,32 +2944,6 @@ def validate_receipts(
     except (OSError, subprocess.CalledProcessError) as error:
         raise ContractError("attested Source commit is not an ancestor of HEAD") from error
 
-    evidence_commits = {
-        git_output(
-            repository_root,
-            "log",
-            "-1",
-            "--format=%H",
-            "HEAD",
-            "--",
-            path.relative_to(repository_root).as_posix(),
-        )
-        for path, _, _ in expected_records
-    }
-    if "" in evidence_commits or len(evidence_commits) != 1:
-        raise ContractError(
-            "all 22 canonical attestations must share one last-modified "
-            "evidence commit"
-        )
-    evidence_commit = evidence_commits.pop()
-    evidence_commit_line = git_output(
-        repository_root, "rev-list", "--parents", "-n", "1", evidence_commit
-    ).split()
-    if len(evidence_commit_line) != 2 or evidence_commit_line[1] != source_commit:
-        raise ContractError(
-            "the canonical attestation evidence commit must have exactly "
-            "the attested Source commit as its parent"
-        )
     try:
         subprocess.run(
             git_command(
@@ -2979,11 +3066,13 @@ def validate_receipts(
                 f"attested source differs from HEAD at {included_path}"
             )
 
-    actual_digest = git_archive_digest(repository_root, source_commit)
-    if actual_digest != reference["Archive SHA-256"]:
-        raise ContractError(
-            "attested Archive SHA-256 does not match the reconstructed Git archive"
-        )
+    if not linear_integration:
+        actual_digest = git_archive_digest(repository_root, source_commit)
+        if actual_digest != reference["Archive SHA-256"]:
+            raise ContractError(
+                "attested Archive SHA-256 does not match the reconstructed "
+                "Git archive"
+            )
     if prior_history is not None:
         validate_conformance_successor_for_changed_archive(
             repository_root,
@@ -3002,37 +3091,45 @@ def validate_receipts(
         raise ContractError("canonical DOC-00 attestations have uncommitted changes")
     head_commit = git_output(repository_root, "rev-parse", "--verify", "HEAD^{commit}")
     if head_commit != evidence_commit:
-        merge_candidates = git_output(
-            repository_root,
-            "rev-list",
-            "--merges",
-            "--ancestry-path",
-            f"{evidence_commit}..{head_commit}",
-        ).splitlines()
-        preserving_merges: list[str] = []
-        for merge_commit in merge_candidates:
-            merge_line = git_output(
+        if linear_integration:
+            later_commits = git_output(
                 repository_root,
                 "rev-list",
-                "--parents",
-                "-n",
-                "1",
-                merge_commit,
-            ).split()
-            if len(merge_line) == 3 and merge_line[2] == evidence_commit:
-                preserving_merges.append(merge_commit)
-        if len(preserving_merges) != 1:
-            raise ContractError(
-                "HEAD after the evidence commit must descend from a "
-                "two-parent merge commit whose second parent is the exact "
-                "evidence commit"
-            )
-        later_commits = git_output(
-            repository_root,
-            "rev-list",
-            "--ancestry-path",
-            f"{preserving_merges[0]}..{head_commit}",
-        ).splitlines()
+                "--ancestry-path",
+                f"{evidence_commit}..{head_commit}",
+            ).splitlines()
+        else:
+            merge_candidates = git_output(
+                repository_root,
+                "rev-list",
+                "--merges",
+                "--ancestry-path",
+                f"{evidence_commit}..{head_commit}",
+            ).splitlines()
+            preserving_merges: list[str] = []
+            for merge_commit in merge_candidates:
+                merge_line = git_output(
+                    repository_root,
+                    "rev-list",
+                    "--parents",
+                    "-n",
+                    "1",
+                    merge_commit,
+                ).split()
+                if len(merge_line) == 3 and merge_line[2] == evidence_commit:
+                    preserving_merges.append(merge_commit)
+            if len(preserving_merges) != 1:
+                raise ContractError(
+                    "HEAD after the evidence commit must descend from a "
+                    "two-parent merge commit whose second parent is the exact "
+                    "evidence commit"
+                )
+            later_commits = git_output(
+                repository_root,
+                "rev-list",
+                "--ancestry-path",
+                f"{preserving_merges[0]}..{head_commit}",
+            ).splitlines()
         for later_commit in later_commits:
             commit_line = git_output(
                 repository_root,
@@ -3042,10 +3139,17 @@ def validate_receipts(
                 "1",
                 later_commit,
             ).split()
-            if len(commit_line) < 2:
+            expected_length = 2 if linear_integration else None
+            if (
+                len(commit_line) < 2
+                or (
+                    expected_length is not None
+                    and len(commit_line) != expected_length
+                )
+            ):
                 raise ContractError(
-                    "history after the preserving merge contains an "
-                    "unresolvable commit parent"
+                    "history after DOC-00 evidence has a non-linear or "
+                    "unresolvable parent"
                 )
             bound_changes = git_output(
                 repository_root,
@@ -3061,7 +3165,7 @@ def validate_receipts(
             )
             if bound_changes:
                 raise ContractError(
-                    "history after the preserving merge must not modify a "
+                    "history after DOC-00 evidence must not modify a "
                     "DOC-00-bound path"
                 )
 
@@ -3069,6 +3173,7 @@ def validate_receipts(
         repository_root,
         head_commit,
         history_records,
+        allow_rebased_source_identity=linear_integration,
     )
     if (
         head_history is None
@@ -3081,7 +3186,11 @@ def validate_receipts(
         )
 
 
-def validate(path: Path, require_receipts: bool = False) -> None:
+def validate(
+    path: Path,
+    require_receipts: bool = False,
+    linear_integration: bool = False,
+) -> None:
     """Validate all mechanically checkable DOC-00 registry invariants."""
 
     repository_root = repository_root_for(path)
@@ -3441,6 +3550,7 @@ def validate(path: Path, require_receipts: bool = False) -> None:
         "0037-resolve-output-language-without-overriding-a-supported-prompt.md",
         "0038-enforce-adapter-least-privilege-and-query-conditioning.md",
         "0039-validate-documentation-history-per-commit.md",
+        "0040-integrate-doc-00-through-content-equivalent-rebase.md",
         f"DOC-CONF-{EXPECTED_CONFORMANCE_COUNT - 1:02d}",
         f"DOC-CONF-{EXPECTED_CONFORMANCE_COUNT:02d}",
     ]
@@ -3453,6 +3563,7 @@ def validate(path: Path, require_receipts: bool = False) -> None:
             repository_root,
             parsed_required_checks,
             parsed_change_aware_prefix,
+            linear_integration,
         )
 
 
@@ -3528,16 +3639,33 @@ def main() -> int:
         if arguments.count("--require-receipts") != 1:
             print(
                 f"usage: {Path(sys.argv[0]).name} "
-                "[--require-receipts] [delivery-program.md]",
+                "[--require-receipts] [--linear-integration] "
+                "[delivery-program.md]",
                 file=sys.stderr,
             )
             return 2
         require_receipts = True
         arguments.remove("--require-receipts")
+    linear_integration = False
+    if "--linear-integration" in arguments:
+        if (
+            arguments.count("--linear-integration") != 1
+            or not require_receipts
+        ):
+            print(
+                f"usage: {Path(sys.argv[0]).name} "
+                "[--require-receipts] [--linear-integration] "
+                "[delivery-program.md]",
+                file=sys.stderr,
+            )
+            return 2
+        linear_integration = True
+        arguments.remove("--linear-integration")
     if len(arguments) > 1 or any(argument.startswith("-") for argument in arguments):
         print(
             f"usage: {Path(sys.argv[0]).name} "
-            "[--require-receipts] [delivery-program.md]",
+            "[--require-receipts] [--linear-integration] "
+            "[delivery-program.md]",
             file=sys.stderr,
         )
         return 2
@@ -3547,11 +3675,17 @@ def main() -> int:
         else Path(__file__).resolve().parent.parent / DELIVERY_PROGRAM_PATH
     )
     try:
-        validate(path, require_receipts=require_receipts)
+        validate(
+            path,
+            require_receipts=require_receipts,
+            linear_integration=linear_integration,
+        )
     except (ContractError, OSError, UnicodeError) as error:
         print(f"V1 delivery-program check failed: {error}", file=sys.stderr)
         return 1
     scope = " and DOC-00 attestations" if require_receipts else ""
+    if linear_integration:
+        scope += " in linear integration"
     print(f"V1 delivery-program registries{scope} are consistent.")
     return 0
 
