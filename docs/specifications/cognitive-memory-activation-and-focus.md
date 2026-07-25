@@ -550,8 +550,10 @@ One crash-atomic containment linearization point then:
   the fenced store generation;
 - denies new semantic-read, product-release, terminal-probe-pass,
   lifecycle-mutation-commit, and lifecycle admission in the contained scope;
-  and
-- commits the complete basis and all revoke dispositions together.
+- creates `CollisionTerminalRemovalStateV1::NotStarted` at the immutable
+  removal scope's exact canonical start cursor; and
+- commits the complete basis, tombstone, fence advance, revoke dispositions,
+  and initial removal state together.
 
 Containment does not synchronously destroy handles, buffers, files, or
 snapshots. After the containment commit, a separate resource-safe terminal
@@ -579,7 +581,9 @@ CollisionTerminalRemovalStateV1
 │   ├── max_items_per_step > 0
 │   ├── max_work_units_per_step > 0
 │   └── max_bytes_released_per_step > 0
-└── last_step_outcome
+└── step_state
+    ├── NotStarted
+    │   └── initial_cursor
     ├── Committed
     │   ├── prior_cursor
     │   ├── next_cursor
@@ -593,13 +597,34 @@ CollisionTerminalRemovalStateV1
 ```
 
 The canonical revoke set or generation cursor is fixed by the quarantine
-basis. A step consumes at most every installed positive item, work, and byte
-limit, commits one monotonic cursor advance with its exact closure receipts, or
-proves no effect and leaves the cursor unchanged. An ambiguous effect records
+basis. The containment transaction creates this state as
+`NotStarted { initial_cursor }`, with `next_cursor` equal to the scope's
+canonical start cursor: ordinal zero for `CanonicalRevokeSet`, or the
+committed canonical initial generation cursor for `FencedGeneration`.
+`NotStarted` carries no step-result evidence. The first attempted step
+atomically replaces it with one of the three step outcomes, and the state can
+never return to `NotStarted`.
+
+The top-level `next_cursor` is an integrity duplicate of the active variant's
+effective cursor. It equals `NotStarted.initial_cursor`,
+`Committed.next_cursor`, `Aborted.unchanged_cursor`, or
+`ReconciliationRequired.unchanged_or_last_committed_cursor`, respectively.
+For every `Committed` transition, `Committed.prior_cursor` equals the
+pre-state `next_cursor` and both post-state cursor copies equal the same
+advanced value. For `Aborted`, the pre-state cursor,
+`Aborted.unchanged_cursor`, and post-state cursor are equal. For
+`ReconciliationRequired`, the variant cursor and post-state cursor equal the
+last proven committed cursor; any unproved effect remains recovery-fenced.
+
+A step consumes at most every installed positive item, work, and byte limit,
+commits one monotonic cursor advance with its exact closure receipts, or proves
+no effect and leaves the cursor unchanged. An ambiguous effect records
 `ReconciliationRequired`, preserves or advances the recovery fence, and admits
 no next step until reconciliation proves the last committed cursor. Retrying
-or restarting resumes this same state; it cannot enqueue another copy of an
-item, rebuild a larger queue, skip a cursor position, or reset its budgets.
+or restarting `NotStarted` resumes the same first cursor; every other restart
+resumes or reconciles its exact persisted outcome. No path can enqueue another
+copy of an item, rebuild a larger queue, skip a cursor position, reset its
+budgets, or fabricate a step result.
 An admission/snapshot record leaves the retained removal state only after an
 exact closure receipt proves all of its resources closed or a durable
 generation-scoped recovery fence proves those resources permanently
@@ -3542,7 +3567,9 @@ A conforming experiment requires:
   and cannot change containment.
 - `CollisionTerminalRemovalStateV1` binds one finite canonical revoke set or
   generation cursor and positive per-step item, work, and byte ceilings.
-  Retries cannot duplicate queue membership or reset the cursor; a record is
+  Containment initializes its exact canonical start cursor as `NotStarted`;
+  retries cannot fabricate an outcome, duplicate queue membership, regress to
+  that initial state after a step attempt, or reset the cursor. A record is
   removed only after exact resource closure or a durable recovery fence.
 - Every product release, passing terminal-probe receipt, and management
   lifecycle-mutation commit performs its origin-specific final linearizable
@@ -3930,14 +3957,21 @@ Verification must establish:
   result;
 - fault injection before, at, and after containment proves the complete
   `CollisionQuarantineBasisV1`, permanent tombstone, next fence, and all
-  intersecting revoke dispositions are never partially visible; a complete
+  intersecting revoke dispositions plus the canonical
+  `CollisionTerminalRemovalStateV1::NotStarted` are never partially visible;
+  no committed containment can lack that state and no uncommitted containment
+  can expose it; a complete
   reverse index revokes exactly the affected live set, incomplete witness,
   custody, artifact, admission, or snapshot indexes conservatively fence the
   whole store generation;
 - `CollisionTerminalRemovalStateV1` boundary, cancellation, crash, and restart
-  fixtures cover positive item/work/byte ceilings, monotonic cursor advance,
-  exact closure receipts, verified no-effect abort, ambiguous-effect
-  reconciliation, canonical-set and generation-cursor modes, no duplicate
+  fixtures cover containment-to-first-step crashes, repeated `NotStarted`
+  replay at the exact canonical start cursor, malformed initial state,
+  regression to `NotStarted`, every legal first transition, positive
+  item/work/byte ceilings, monotonic cursor advance, exact closure receipts,
+  equality of every top-level and variant cursor copy, pre/post cursor binding,
+  verified no-effect abort, ambiguous-effect reconciliation at the last proven
+  committed cursor, canonical-set and generation-cursor modes, no duplicate
   queue growth, exact-resource-closure and durable-recovery-fence record
   removal, and proof that delayed/repeated cleanup cannot reopen use or change
   recovery state;
@@ -4244,6 +4278,8 @@ inner experience, or literal thought.
 - [Decision 0031: Complete compile and update admission handoffs](../decisions/0031-complete-compile-and-update-admission-handoffs.md)
 - [Decision 0032: Bind authoritative exact sidecars and two-plane
   consolidation](../decisions/0032-bind-authoritative-exact-sidecars-and-two-plane-consolidation.md)
+- [Decision 0036: Represent the initial collision-removal
+  state](../decisions/0036-represent-the-initial-collision-removal-state.md)
 - [Decision 0034: Adopt the vector-conditioned focus-adapter
   boundary](../decisions/0034-adopt-vector-conditioned-focus-adapter-boundary.md)
 

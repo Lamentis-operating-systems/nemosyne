@@ -386,15 +386,21 @@ reverse-index or whole-generation scope. The compile path can induce only the
 management origin.
 
 One crash-atomic containment point commits the basis, tombstone, fence advance,
-and logical revoke dispositions without destroying resources. The separate
+logical revoke dispositions, and
+`CollisionTerminalRemovalStateV1::NotStarted` at the fixed scope's exact
+canonical start cursor without destroying resources. The separate
 bounded, idempotent `CollisionTerminalRemovalStateV1` later closes retained
 revoked admissions and snapshots through its fixed cursor, positive
-item/work/byte limits, and exact committed, aborted, or reconciliation
-outcome. Immediately before success, compile product release, terminal-probe
+item/work/byte limits, and an exact first transition from `NotStarted` to a
+committed, aborted, or reconciliation outcome before any first-step effect.
+Immediately before success, compile product release, terminal-probe
 pass, and management lifecycle mutation validate their respective
 `product_release_guard_id`, `terminal_probe_result_guard_id`, or
 `lifecycle_commit_guard_id` linearizably against the root fence. Planning
 therefore cannot race or replace a final guard with its earlier snapshot.
+
+Decision 0036 totalizes this initial removal state without changing the
+collision authority or semantic exclusion selected by Decision 0032.
 
 The compiler receives a collision only after durable containment; otherwise it
 preserves the exact `ExactSidecarIntegrityCoordinationError`, mapped to
@@ -2721,3 +2727,5 @@ No answer is selected without frozen evaluation evidence.
   boundary](../decisions/0034-adopt-vector-conditioned-focus-adapter-boundary.md)
 - [Decision 0035: Keep representative selection independent of authored
   surfaces](../decisions/0035-keep-representative-selection-independent-of-authored-surfaces.md)
+- [Decision 0036: Represent the initial collision-removal
+  state](../decisions/0036-represent-the-initial-collision-removal-state.md)
