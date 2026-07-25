@@ -28,6 +28,7 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
 
       - name: Test documentation policy
         run: |
@@ -35,10 +36,20 @@ jobs:
           ./scripts/test-documentation-check.sh
 
       - name: Validate documentation structure
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           ./scripts/check-documentation.sh
           ./scripts/test-v1-delivery-program-check.sh
           if [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
+            ./scripts/check-v1-delivery-program.py \
+              --require-receipts \
+              --linear-integration
+          elif git diff --quiet "$BASE_SHA...$HEAD_SHA" -- \
+            docs/receipts/doc-00-g0.md \
+            docs/receipts/consolidations \
+            docs/receipts/reviews; then
             ./scripts/check-v1-delivery-program.py \
               --require-receipts \
               --linear-integration

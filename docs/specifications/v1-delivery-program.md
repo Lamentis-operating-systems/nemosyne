@@ -138,9 +138,9 @@ earlier revision.
 
 | Receipt / status | Pass and reviewed scope | Current evidence | Reviewer independence and disposition |
 | --- | --- | --- | --- |
-| `CONSOL-01` / Content-bound attestation | Semantic and mathematical pass over product, memory, predictive, planning, renderer, evaluation, and proof contracts | Exact scope, archive digest, `FND-152..383` reconciliation, and disposition in [`docs/receipts/consolidations/consol-01.md`](../receipts/consolidations/consol-01.md) | Completed only by the referenced record; machine-agent review is not external certification |
-| `CONSOL-02` / Content-bound attestation | Architecture/API pass over component graph, authority, interfaces, API/CLI, persistence, renderer, and release | Exact scope, archive digest, `FND-152..383` reconciliation, and disposition in [`docs/receipts/consolidations/consol-02.md`](../receipts/consolidations/consol-02.md) | Completed only by the referenced record; machine-agent review is not external certification |
-| `CONSOL-03` / Content-bound attestation | Delivery/evidence pass over packages, dependencies, gates, risks, decisions, and shipment | Exact scope, archive digest, `FND-152..383` reconciliation, and disposition in [`docs/receipts/consolidations/consol-03.md`](../receipts/consolidations/consol-03.md) | Completed only by the referenced record; all empirical choices remain Open |
+| `CONSOL-01` / Content-bound attestation | Semantic and mathematical pass over product, memory, predictive, planning, renderer, evaluation, and proof contracts | Exact scope, archive digest, `FND-152..384` reconciliation, and disposition in [`docs/receipts/consolidations/consol-01.md`](../receipts/consolidations/consol-01.md) | Completed only by the referenced record; machine-agent review is not external certification |
+| `CONSOL-02` / Content-bound attestation | Architecture/API pass over component graph, authority, interfaces, API/CLI, persistence, renderer, and release | Exact scope, archive digest, `FND-152..384` reconciliation, and disposition in [`docs/receipts/consolidations/consol-02.md`](../receipts/consolidations/consol-02.md) | Completed only by the referenced record; machine-agent review is not external certification |
+| `CONSOL-03` / Content-bound attestation | Delivery/evidence pass over packages, dependencies, gates, risks, decisions, and shipment | Exact scope, archive digest, `FND-152..384` reconciliation, and disposition in [`docs/receipts/consolidations/consol-03.md`](../receipts/consolidations/consol-03.md) | Completed only by the referenced record; all empirical choices remain Open |
 
 These attestations are repository review evidence, not digital signatures,
 durable evidence custody, external certification, or product validation.
@@ -1921,6 +1921,7 @@ gate.
 | `FND-381` / P1 | The renderer contract retained validator-only support and provenance identities \(\mathcal B_i^{\mathrm{src}}\) for the learned attribution head even though Decision 0034 permits learned support attribution to address items only through safe dense adapter handles / least privilege, provenance separation | Accepted; keep \(\mathcal B_i^{\mathrm{src}}\) exclusively in \(C_V^{sem}\), prohibit it from every learned path, and let the attribution head address an item only through `AdapterPlanItemHandleV1` \(\eta_i\); renderer, validator, and documentation owners | Resolved in the renderer projection and attribution contracts under Decisions 0034 and 0038; compile isolation, tensor-inventory, handle-only attribution, and provenance-noninterference evidence remains G4/G8 |
 | `FND-382` / P1 | Change-aware validation collapsed the complete pull-request range into one base-to-head comparison, rejecting real accepted-to-superseded and sequential conformance transitions while failing to distinguish them from fabricated final-state history / governance correctness, mergeability | Accepted; apply the existing decision, specification, and conformance transition validators to each consecutive first-parent commit, activate append-only conformance when Decision 0030 or its selected program contract exists, retain the direct-superseded negative rule, require Decision 0028 to possess a real accepted predecessor, and keep complete-range protected-digest validation unchanged; documentation-governance owner | Resolved in Decision 0039, the change-aware checker, and positive multi-commit plus negative direct-add regression fixtures; final clean-history, source-freeze, receipt, and CI evidence remains G0 |
 | `FND-383` / P1 | DOC-00 required a preserving merge commit while the active `main` ruleset requires linear history, making the otherwise valid package impossible to integrate; naïve rebase would also invalidate commit-bound receipts / governance correctness, mergeability | Accepted; retain exact commit and archive validation in pull-request mode, require explicit main-push linear-integration validation of direct rebased counterparts through exact source-tree, byte-identical receipt/archive binding, evidence-delta, ordering, and recursive replacement equivalence, and continue rejecting squash; documentation-governance owner | Resolved in Decision 0040, receipt schema text, CI event split, checker modes, and exact/rebase/squash/drift regression fixtures; new source-freeze, replacement attestations, PR CI, and main-push CI remain G0 |
+| `FND-384` / P1 | Selecting exact receipt mode for every pull request would reject every ordinary descendant after DOC-00's rebase because inherited receipts retain the original source identity; selecting linear mode on GitHub's synthetic merge preview would also violate the linear-history contract / governance correctness, future mergeability | Accepted; check out the exact pull-request head, select exact mode when the trusted base-to-head delta changes any of the 22 canonical attestations, select linear mode for unchanged descendants and pushes to `main`, and retain history-based rejection of reverted bound-path changes; documentation-governance owner | Resolved in Decision 0041, CI checkout and mode routing, the unchanged-descendant exact-failure/linear-success fixture, and existing exact receipt-change and bound-path-drift fixtures; new source-freeze, replacement attestations, PR CI, and main-push CI remain G0 |
 
 ### CI and release flow
 
@@ -2005,7 +2006,7 @@ earlier receipt.
 
 | Gate | Required packages | Required owner receipt |
 | --- | --- | --- |
-| G0 | `DOC-00` | Stable `DOC-CONF-24` Decision-0040/0033 `MergeAuthorized` G0 record, three consolidation attestations, eighteen independent review attestations, deterministic delivery-program checker plus regression tests, repository checks, and exact pre-integration external archive binding; G0 closes only after Rebase and merge preserves the direct ordered pair through exact source-tree, receipt, and evidence-delta equivalence and strict main-push CI passes |
+| G0 | `DOC-00` | Stable `DOC-CONF-24` Decision-0041/0033 `MergeAuthorized` G0 record, three consolidation attestations, eighteen independent review attestations, deterministic delivery-program checker plus regression tests, repository checks, and exact pre-integration external archive binding; G0 closes only after Rebase and merge preserves the direct ordered pair through exact source-tree, receipt, and evidence-delta equivalence and strict main-push CI passes |
 | G1 | `TGT-00`, `EVD-02` | Complete passing execution of `PROOF-G1-CONDITIONS-001`, `PROOF-G1-HEADROOM-001`, `PROOF-EXPECTATION-BRANCH-001`, and `PROOF-EVIDENCE-RECEIPTS-001`; invalid or `Inconclusive` evidence stops or narrows V1, and no G1 identity or evidence enters G9 |
 | G2 | `EVD-01`, `BND-01` | Evidence harness and executable positive/counterexample fixtures for every formal boundary; no implementation-technology selection |
 | G3 | `TGT-01`, `SEC-00`, `CORE-01`, `CORE-02`, `EVAL-01`, `EVAL-02`, `EXP-01`, `EXP-02`, `EXP-03` | Operational-envelope and security-architecture entrance receipts plus deterministic predictive-semantics and expectation-evaluation evidence |
@@ -3221,6 +3222,29 @@ decision status, or graph change appends exactly one `DOC-CONF-30` or later
 receipt, retains the stable external G0 record ID `DOC-CONF-24`, reruns every
 affected review, and never edits historical receipts.
 
+#### Manual conformance receipt `DOC-CONF-30`
+
+`DOC-CONF-30` is the append-only current-source reconciliation after
+`FND-152..384`. `FND-001..383` and `DOC-CONF-01..29` remain byte-unchanged
+historical records. This receipt supersedes `DOC-CONF-29` only for
+current-source conformance; `DOC-CONF-24` remains the stable external G0
+record ID. Its status is **Pass for the enumerated source-structure relations;
+exact external archive binding pending**. The immutable source commit, archive
+digest, replacement review and consolidation attestations, receipt-only
+evidence commit, and CI outputs remain external evidence.
+
+| Check | Actual result in this revision | Method and limitation |
+| --- | --- | --- |
+| Linear DOC-00 integration | A receipt-changing pull request checks its exact head and requires the recorded source commit as the exact direct parent of the evidence commit while reconstructing the reviewed archive digest. An unchanged descendant or push to `main` uses linear mode and accepts only the directly ordered rebased counterparts with the exact recorded source tree, byte-identical receipt/archive binding, common canonical receipt commit, 22-path evidence-only delta, recursive replacement history, and no later bound-path change; it does not falsely reconstruct a commit-metadata-sensitive Tar archive from the rewritten commit. Squash remains invalid | Decision 0041, Decision 0040's retained topology, checker exact/linear modes, attestation-delta CI routing, receipt contract, positive rebase/descendant fixtures, and negative exact-mismatch/squash/drift fixtures; replacement source/evidence commits and GitHub CI remain external G0 evidence |
+| Prior contract carry-forward | Protected findings and conformance bytes, stable G0 identity, trusted comparison-base execution, immutable Git view, exact pull-request attestation, replacement semantics, product contracts, and prior evidence boundaries remain unchanged | Decisions 0030/0033/0039 plus append-only, protected-digest, historical-checker, and strict exact-mode regressions |
+| Structural and governance carry-forward | The program remains 54 unique packages, 48 V1 and 6 post-V1. The canonical dependency table has 127 total and 123 V1-to-V1 relations; the Mermaid graph has 132 total and 123 V1-to-V1 edges after removing the stale `EVD-01 → OBS-01` edge and adding the management-publication predecessor for `RET-01`. The active registry retains 49 unique interfaces and 34 stable wave labels. There are 384 unique sequential findings, 30 append-only conformance receipts, 18 external review paths, 12 non-template specifications, and 41 numbered decisions: 31 `Accepted` and 10 `Superseded` | Deterministic checker for identifier continuity, registries, table/graph DAG, waves, interfaces, decision status, links, receipt paths, current-inventory binding, protected-history bytes, per-commit successor conformance, exact and linear integration modes, attestation-delta routing, replacement history, archive-attribute rejection, and change-aware regression fixtures. Counts must match the external G0 record; this source does not self-certify them |
+| DOC-00 evidence state | Source freeze `208fb4c769532da7c986d59eb995a3c867db10bb` was rejected for `FND-384`. The finding is source-remediated, but every Decision-0041/0033 attestation must bind one later immutable source archive before integration | Receipt-path, schema, exact pre-integration ancestry, content-equivalent rebase, replacement, review-independence, and blocker-disposition audit; new archive digest, replacement dispositions, PR CI, and main-push CI remain external |
+
+Any later source, count, interface, ownership, finding, review disposition,
+decision status, or graph change appends exactly one `DOC-CONF-31` or later
+receipt, retains the stable external G0 record ID `DOC-CONF-24`, reruns every
+affected review, and never edits historical receipts.
+
 ### Required repository checks
 
 Every documentation or implementation package runs the commands required by
@@ -3229,14 +3253,15 @@ formatting, Clippy, Rustdoc, all workspace tests, and `git diff --check`.
 Runtime packages additionally run their platform, fuzz, security, resource,
 failure-injection, migration, or evaluation suites named in the work table.
 
-`DOC-00` uses the two-commit sequence retained by Decision 0040. Its
-source-freeze commit runs the structural
+`DOC-00` uses the two-commit sequence retained by Decision 0041 and selected by
+Decision 0040. Its source-freeze commit runs the structural
 `scripts/check-v1-delivery-program.py` mode and
 `scripts/test-v1-delivery-program-check.sh`. The later evidence commit changes
 no reviewed source path and must make
-`scripts/check-v1-delivery-program.py --require-receipts` pass. This change set
-makes exact strict mode a required pull-request CI gate under
-`docs/decisions/0040-integrate-doc-00-through-content-equivalent-rebase.md`.
+`scripts/check-v1-delivery-program.py --require-receipts` pass. Decision 0041
+makes exact strict mode the required gate for a pull request that changes
+canonical attestations and linear mode the required gate for an unchanged
+descendant.
 GitHub Rebase and merge rewrites both commit identities but must preserve their
 direct order, source tree, receipt entries including the original archive
 binding, and exact evidence-only delta. Main-push CI proves that counterpart relation with
@@ -3335,7 +3360,8 @@ continues.
 - [Decision 0037: Resolve output language without overriding a supported prompt](../decisions/0037-resolve-output-language-without-overriding-a-supported-prompt.md)
 - [Decision 0038: Enforce adapter least privilege and query conditioning](../decisions/0038-enforce-adapter-least-privilege-and-query-conditioning.md)
 - [Decision 0039: Validate documentation history per commit](../decisions/0039-validate-documentation-history-per-commit.md)
-- [Decision 0040: Integrate DOC-00 through content-equivalent rebase](../decisions/0040-integrate-doc-00-through-content-equivalent-rebase.md)
+- [Superseded Decision 0040: Integrate DOC-00 through content-equivalent rebase](../decisions/0040-integrate-doc-00-through-content-equivalent-rebase.md)
+- [Decision 0041: Route DOC-00 validation by attestation delta](../decisions/0041-route-doc-00-validation-by-attestation-delta.md)
 - Addis, Wong, and Schacter, [Remembering the past and imagining the future:
   common and distinct neural substrates during event construction and
   elaboration](https://pubmed.ncbi.nlm.nih.gov/17126370/)
