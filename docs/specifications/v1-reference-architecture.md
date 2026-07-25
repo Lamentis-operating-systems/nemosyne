@@ -10,17 +10,21 @@ boundaries, trust boundaries, memory-revision semantics, failure classes, and
 the decisions that must be resolved before production implementation.
 
 This remains a proposed logical decomposition rather than an implemented or
-validated product. Decisions 0014 and 0015 select the intended V1
-implementation path: typed numerical memory and query facets, a shared eligible
-activated-memory set, parallel focus and expectation formation, a canonical
-focus-and-expectation plan, and qualification of a deterministic lexicalizer
-against a local vector-prefix candidate. Decision 0016 fixes the sealed
+validated product. Decisions 0014 and 0034 select typed numerical memory and
+query facets, a shared eligible activated-memory set, parallel focus and
+expectation formation, a canonical focus-and-expectation plan, and an
+architecture-neutral vector-conditioned focus-adapter boundary. Adapter
+family, optional decoder, model, and checkpoint remain evidence-gated.
+Decision 0016 fixes the sealed
 compile-integrity boundaries that keep complete queries, the one shared
 activated-memory object, invocation membership, canonical plan content, exact
 plan bytes, and renderer configuration distinct and fail closed at their
 joins.
 Physical database, encoder, index, process, packaging, release-model, and
 production-runtime choices remain independently evidence-gated.
+Decision 0032 additionally fixes content-addressed exact-sidecar identity and
+the two-plane proposition-consolidation boundary without selecting any of
+those physical choices.
 
 The architecture has four maturity labels:
 
@@ -96,7 +100,7 @@ flowchart TD
     IR --> VCTX
     Q --> VCTX
     RC --> VCTX
-    PLN --> LEX["Preselected qualified local lexicalizer: deterministic or vector-prefix"]
+    PLN --> LEX["Qualified deterministic or vector-conditioned focus adapter"]
     LEX --> SLOT["Exact-slot validation and substitution"]
     SLOT --> VAL["Independent faithfulness and policy validation"]
     VCTX --> VAL
@@ -141,11 +145,12 @@ sequenceDiagram
         Expect-->>Compiler: ExpectationBundle with per-frame results preserving both witnesses
     end
     Compiler->>Compiler: Borrow current-call and exact-set planning scope; validate each branch's two witnesses; select FocusExpectationPlan
-    Compiler->>Compiler: Build witness-erased validation context; recompute content/configuration joins and consume private plan witness
-    Compiler->>Renderer: Plan borrow and authenticated K_R (ID plus exact canonical content)
+    Compiler->>Compiler: Build live conditioning composite and disjoint C_A/C_V views; split authenticated K_R into commitment-bound adapter/validator configuration views
+    Compiler->>Compiler: Build validation context; recompute content/configuration joins and retain opaque conditioning binding
+    Compiler->>Renderer: C_A plus AdapterConfigurationViewV1
     Renderer-->>Compiler: Plan-and-renderer-configuration-bound SubstitutedAttention or typed renderer failure
     Compiler->>Compiler: Compare equal-ID candidate/context canonical-plan byte capsules; quarantine collision
-    Compiler->>Validator: SubstitutedAttention + shared &AuthenticatedRendererConfiguration K_R + least-privilege ValidationView projected by private context
+    Compiler->>Validator: SubstitutedAttention + C_V-derived least-privilege ValidationView + ValidationConfigurationViewV1
     Validator-->>Compiler: AcceptedAttention or typed validation failure
     Compiler->>Compiler: Concatenate framing, attention, and retained prompt
     Compiler->>Store: Close snapshot and pinned handles; terminalize record and consume ticket
@@ -164,7 +169,8 @@ the table below states otherwise.
 | Product input, result, semantically read-only behavior, and local trust boundary | Decision 0014 retains the boundary selected by superseded Decision 0011 and completed by Decision 0031 |
 | Exact framing and prompt-byte preservation | Required property from the product contract |
 | Numerical memory, transition records, shared activated set, parallel focus and expectation, and combined plan | Accepted implementation direction from Decision 0014 |
-| Deterministic lexicalizer baseline, vector-prefix candidate, exact slots, local qualification, and non-thinking generation | Accepted implementation direction from Decision 0015 |
+| Content-addressed authoritative exact sidecars and validated two-plane proposition consolidation | Accepted integrity boundary from Decision 0032 |
+| Vector-conditioned focus input, deterministic baseline, architecture-neutral adapter qualification, exact slots, and bounded untrusted focus output | Accepted boundary from Decision 0034 |
 | Aggregate query and shared-set boundaries, invocation witnesses, canonical plan identity, exact-byte collision detection, renderer-configuration identity, and closed renderer joins | Accepted integrity boundaries from Decision 0016 |
 | Ingress, preflight, snapshot, authorization, encoding, retrieval, derivation, expectation, planning, rendering, and validation decomposition | Proposed boundaries governed by the focused specifications |
 | Existing activation kernel, evaluator, and corpus | Experimental implementations and evidence |
@@ -192,8 +198,10 @@ preflight:
 
 - verifies an authenticated artifact manifest against a pinned installation
   trust root held outside the mutable artifact bundle;
-- opens immutable handles to required encoder, tokenizer, renderer, validator,
-  and schema artifacts; and
+- opens immutable handles to required encoder, registered adapter, renderer,
+  validator, and schema artifacts, plus decoder, tokenizer, vocabulary, and
+  token-control artifacts only when the selected candidate declares them
+  present; and
 - pins content or implementation identities for principal resolution,
   prompt-origin validation, authorization, disclosure, temporal validity, and
   supersession policy evaluators; and
@@ -313,10 +321,399 @@ inversion of an embedding.
 
 The **derived numerical plane** contains versioned, rebuildable typed facet
 vectors, calibrated scalars, numerical relations, and search indexes. It is
-the sole computational state for similarity, activation, propagation,
-consolidation, and adapter input, but it is not an independent source of
-truth. Deleting or rebuilding this plane must not change the meaning of the
-authoritative exact plane.
+the sole computational state for similarity, activation, propagation, and
+adapter input, but it is not an independent source of truth. It may order the
+complete bounded unordered source-pair set used by consolidation; it cannot
+omit a pair or establish exact
+equality, temporal, social, or modal scope, provenance, authority,
+disclosure, supersession, or conflict. Deleting or rebuilding this plane must
+not change the meaning of the authoritative exact plane.
+
+Request-local proposition consolidation is therefore a validated two-plane
+operation. Each focus-visible proposition-plane source contributed by an
+eligible record carries an immutable `AuthoritativePropositionProjectionV1`
+containing one record-bound `ExactSidecarCustodyBindingV1` whose nested
+`ExactSidecarRefV1` is the only sidecar reference, plus canonical proposition,
+proposition-schema, record-version, scope, provenance and dependency, validity,
+supersession, conflict, authority, allowed-use, disclosure, and
+surface-authority fields.
+The projection is inseparably bound to the same memory revision, immutable
+record version, and derived-artifact identity as the corresponding numerical
+facets. The derived plane orders exhaustive pair work and supplies numerical
+relevance;
+the authoritative projection validates registered equivalence, exact-value
+conditions, compatible scope, conflicts, source independence, and every
+ceiling before a merge or corroboration effect is admitted. A missing,
+foreign, cross-revision, cross-record, or cross-artifact projection is an
+integrity error, never an absent value or a zero signal. Consolidation remains
+ephemeral and read-only; it does not publish a consolidated memory record.
+
+```text
+AuthoritativePropositionProjectionV1 {
+    source: Request {
+        tagged_request_source_identity,
+        validated_exact_request_projection,
+        source_receipt,
+        attribution,
+    } | Memory {
+        tagged_memory_source_identity,
+        memory_revision_id,
+        immutable_record_version_id,
+        source_derived_artifact_id,
+        exact_sidecar_custody_binding,
+        provenance_root_id,
+        dependency_group_id,
+    },
+    canonical_proposition_id,
+    canonical_proposition_schema_id,
+    required_exact_value_and_presence_bindings,
+    temporal_scope,
+    social_scope,
+    modal_scope,
+    validity_and_supersession,
+    conflict_links,
+    authority_ceiling,
+    allowed_use_ceiling,
+    disclosure_ceiling,
+    surface_authority_ceiling,
+}
+```
+
+The source is a closed tagged sum; optional or partially populated hybrids do
+not exist. The store constructs `Memory`, and the validated request-proposition
+substep constructs `Request`; callers cannot replace any field. A `Memory`
+projection's three-field `(memory_revision_id, immutable_record_version_id,
+source_derived_artifact_id)` binding must equal the corresponding derived
+projection's binding before either projection enters the shared activated set.
+A `Request` projection cannot acquire a persistent record, artifact, sidecar,
+or provenance identity, while a `Memory` projection cannot carry request
+attribution or a request receipt. A proposed complete-recall nomination
+shortcut is not enforceable and is not part of V1. No approximate numerical
+nomination may determine which sources are compared.
+
+For every activated record \(i\in\mathcal A\), let
+\(\mathcal S_i^M\) be its finite canonical set of validated focus-visible
+memory proposition-plane sources. The record itself is not a consolidation
+source and may contribute zero, one, or several sources. The compiler forms
+
+\[
+\mathcal S_M=
+\operatorname{CanonicalSort}
+\left(\mathop{\biguplus}_{i\in\mathcal A}\mathcal S_i^M\right),
+\qquad
+n_{\mathrm{src}}^M
+=|\mathcal S_M|
+=\sum_{i\in\mathcal A}|\mathcal S_i^M|.
+\]
+
+With the disjoint request set \(\mathcal R_Q\), the complete source set is
+\(\mathcal S=\mathcal R_Q\uplus\mathcal S_M\) and
+\(n=n_Q+n_{\mathrm{src}}^M\). Per-record, flattened-source, and pair-work
+ceilings are authenticated. After validating this finite source set and
+checking the complete \(n(n-1)/2\) pair-work ceiling,
+the reference path enumerates every unordered source pair. Numerical facets
+may order that complete pair set but cannot omit a pair. An optimized path is
+admitted only when `ExhaustiveConsolidationPairSetWitnessV1` proves
+machine-checked equality over the exact source set, complete unordered-pair
+set, equivalence-contract identity, and checked pair-work ceiling before any
+authoritative comparison; otherwise the bounded operation fails without a
+partial partition. The optimized path must then produce the same final
+partition as the reference path.
+
+Numerical values may order work and contribute bounded relevance only.
+Validated authoritative projections alone decide identity equivalence,
+pairwise compatibility, conflict, and final grouping; no numerical equality,
+similarity, threshold, activation, or traversal order can establish or repair
+one of those authoritative relations.
+
+The reference construction accounts for source enumeration and consolidation
+as
+\[
+O\!\left(
+n_a+n_{\mathrm{src}}^Mc_{\mathrm{src}}^M
++n\log(1+n)+n^2d_{\mathrm{eq}}
++s_\phi+n_\phi\log(1+n_\phi)
+\right)
+\]
+time and \(O(n_a+n+s_\phi+n_\phi)\) request-local state, using the notation and
+complete bounds owned by the cognitive-memory specification. Neither pair
+count, source-set identity, witness, work ceiling, complexity term, nor test
+oracle may substitute activated-record count \(n_a\) for the flattened
+proposition-plane count \(n_{\mathrm{src}}^M\).
+
+### Exact-sidecar content identity and verification
+
+Decision 0032 selects one immutable content-addressed exact-sidecar contract.
+Its canonical content is:
+
+```text
+ExactSidecarContentEnvelopeV1 {
+    exact_sidecar_schema_id,
+    bindings: CanonicalSet<ExactSidecarContentBindingV1>,
+}
+
+ExactSidecarContentBindingV1 {
+    schema_owned_locator,
+    exact_value_schema_id,
+    exact_value_type,
+    presence: Present(canonical_exact_value)
+        | ExplicitNone
+        | Missing(registered_reason)
+        | Unknown(registered_reason)
+        | Inapplicable(registered_reason),
+}
+
+ExactSidecarRefV1 {
+    regime_id,
+    schema,
+    content_id,
+}
+```
+
+The registered `ExactSidecarSchemaDefinitionV1` supplies the finite
+cardinality and byte limits, locator grammar and total order, value schemas,
+presence variants, and canonical encoding. `ExactSidecarSchemaId` is immutable
+and content-derived from the authenticated complete canonical definition
+bytes; it is never an
+operator label, registry position, or caller-selected value. Likewise,
+`ExactSidecarIdentityRegimeId` is content-derived from the complete canonical
+`ExactSidecarIdentityRegimeV1`. This architecture normatively defers the closed
+regime field set, definition-identity preimage, registry idempotence, and
+no-rebinding rule to the
+[owner contract](cognitive-memory-activation-and-focus.md#exact-sidecar-content-identity-and-verification);
+no abbreviated field summary here defines a second regime shape. Checked
+construction recomputes both schema and regime identities before trusting
+either object. Each canonical identity preimage excludes its own derived
+identity and any registry position, preventing self-reference.
+
+Construction rejects an unknown or identity-mismatched regime, an unknown or
+identity-mismatched schema, an unknown or identity-mismatched custody domain,
+invalid values, duplicate locators, invalid presence states, over-limit
+content, and noncanonical encodings. It then
+derives `ExactSidecarContentId` under the verified regime from a
+domain-separated digest of the complete canonical
+`ExactSidecarContentEnvelopeV1` and returns the matching three-field
+`ExactSidecarRefV1`; no member is caller-selectable. Identity comparison or
+preservation is valid only inside one identical complete regime. The
+transition-record version envelope commits to the complete
+`ExactSidecarCustodyBindingV1`, which contains the sole complete reference, not
+to a free duplicate reference or only the content digest. Changing a
+custody-domain or regime member, its content-derived identity, or the
+content-derived schema identity therefore requires a newly derived custody
+binding and referring record-version identity even when the content digest or
+canonical sidecar bytes happen to be equal.
+
+The sidecar envelope excludes its own content identity,
+`TransitionRecordVersionId`, every record-derived binding identity, derived
+facet or index identities, renderer identities, and runtime or configuration
+state. A schema-permitted nested record binding may name only an already
+verified immutable record version published in a strict prior memory revision.
+Current-revision, forward, self, unresolved, or unverified record references
+are rejected. This strict revision order makes nested identity dependencies
+well founded. Any violation is the explicit integrity cause
+`ExactSidecarNestedReferenceInvalid`; it is neither a missing sidecar nor a
+generic record mismatch. Management refuses logical deletion or physical
+collection that would leave a retained record with an unresolved nested
+reference. The closed transition-record version envelope includes only the
+complete custody binding with its nested sidecar reference, so any change to
+the custody domain, regime identity, sidecar schema identity, locator, type,
+presence state, or exact value necessarily produces a new binding and
+transition-record version identity under the declared collision-resistance
+assumption.
+
+The authoritative store retains canonical sidecar bytes under the complete
+`(regime_id, content_id)` trust-domain key. Every referring immutable record
+also owns one record-bound `ExactSidecarCustodyBindingV1` in a per-record
+custody ledger:
+
+```text
+ExactSidecarCustodyBindingV1 {
+    custody_domain_id,
+    sidecar_ref,
+}
+```
+
+The authenticated `ExactSidecarCustodyDomainDefinitionV1` content-derives
+`ExactSidecarCustodyDomainId` and binds the retention, access, erasure,
+backup/export, and reference-ledger policies. The referring record and its
+`LogicalRecordSidecarReferenceV1` entry in the
+`ExactSidecarReferenceLedgerV1` both commit to the complete custody binding.
+Equal canonical bytes may be physically deduplicated only when the complete
+`ExactSidecarCustodyBindingV1` values are field-for-field identical, which
+requires the same custody-domain identity and same complete sidecar reference.
+Deduplication never merges, weakens, or substitutes the per-record logical
+ledger entries.
+
+Every controlled retention-bearing rollback, backup, import, export, replica,
+staging object, or other copy is represented by a distinct
+`SealedCustodyHoldingReferenceV1`. Its stable content-derived
+`SealedCustodyHoldingId` binds the complete authenticated retention obligation
+`(owner_id, policy_revision_id, authorized_at, retain_from, retain_until,
+source_kind, source_id, source_revision_id)`, the complete custody binding,
+and the matching closed purpose. It excludes physical-object location and
+authorization state, so the same obligation retains one identity across an
+atomic move or revocation. The management boundary authenticates policy,
+trusted time, and source identity; callers cannot select them or the holding
+ID. Different authenticated source obligations remain different holdings even
+when every other field and the physical bytes agree. One holding cannot
+shorten, satisfy, or be merged with another, and it grants storage only, never
+compile-time read, export, rollback, or resurrection.
+
+A collision witness exists only when two distinct, independently valid
+canonical contents each recompute under the same verified regime to the same
+typed identity; it fails closed. Collision handling quarantines the complete
+`(regime_id, content_id)` trust domain, every reachable referring record and
+derived artifact, and every registered backup or export reachable from the
+custody ledger. A noncolliding record under an unrelated complete trust-domain
+key remains outside that quarantine. The collided identity and old trust-domain
+key are permanently unusable: they cannot be repaired in place, cleared,
+rolled back, or reused. Resolution either republishes every retained meaning
+under a new identity regime and new referring record versions or erases every
+authorized copy; the old collision tombstone remains. Malformed or
+noncanonical content is instead a content mismatch, and canonical content
+that recomputes to a different identity is a reference mismatch under the
+declared error precedence. An authenticated management transaction verifies
+the regime and schema identities, recomputes the sidecar content identity and
+complete reference, verifies the record-bound custody binding, recomputes the
+record version identity, and publishes the canonical sidecar, custody-ledger
+entry, record version, and revision references atomically. No snapshot may
+observe only one member of that set.
+
+A revision-pinned read implements the owner's
+`ExactSidecarIntegrityValidationV1` as two phases with one public precedence.
+The effect-free prelookup phase uses only the retained record envelope and
+authenticated local registries and ledger to validate, in order, record
+identity, complete regime identity, schema identity, and custody binding. It
+does not resolve a physical object, inspect collision witnesses, traverse a
+nested target, fill a cache, or touch backup/export state.
+
+Only after all four prechecks succeed may the store resolve one immutable,
+revision-, ledger-, and integrity-fence-bound
+`ExactSidecarResolvedSnapshotV1`. The sealed snapshot fixes presence,
+authenticated physical custody metadata, retained bytes when present,
+collision-witness view, and bounded nested-target handles for the postlookup
+phase. Postlookup evaluates every applicable envelope-schema, physical-custody,
+presence, canonical-byte, reference, collision, and nested-reference predicate
+before choosing the earliest public cause; encounter order cannot reorder the
+single integrity precedence. It exposes the sidecar or an
+`AuthoritativePropositionProjectionV1` only on complete success. Missing,
+truncated, corrupt, regime- or schema-mismatched, custody-mismatched, rebound,
+or invalidly nested content, and any cross-record or cross-revision
+substitution inconsistent with the referring binding, is not interpreted as
+an empty sidecar. Byte-identical
+canonical content with the same verified reference may validly be shared
+across records only under field-identical complete custody bindings. Logical
+erasure removes one record's eligibility and advances its custody state; it
+does not delete shared bytes. Physical garbage collection is allowed only
+after the last authorized logical ledger or sealed-holding reference, inbound
+nested reference, retention duty, and rollback obligation has ended and no
+collision quarantine applies. A rollback may restore only an authenticated
+still-retained eligible custody state and cannot resurrect a record whose
+policy-authorized erasure is final. A noncollision integrity failure may use
+authenticated repair or a still-valid rollback. A collision instead follows
+the permanent old-identity quarantine and new-regime republishing or complete
+authorized erasure rule above. Every integrity failure returns no partial
+candidate set or product.
+
+When postlookup classification selects
+`ExactSidecarContentIdentityCollision` after excluding every earlier cause,
+the store, not the read-only compiler, first preserves exactly one closed
+observation origin:
+
+```text
+CollisionObservationOriginV1
+├── Compile
+│   ├── compile_admission_id
+│   ├── product_release_guard_id
+│   └── resolved_snapshot_id
+├── TerminalProbe
+│   ├── terminal_probe_id
+│   ├── terminal_probe_result_guard_id
+│   └── resolved_snapshot_id
+└── Management
+    ├── management_admission_id
+    ├── management_authorization_id
+    ├── lifecycle_commit_guard_id
+    └── resolved_snapshot_id
+```
+
+No fourth origin or cross-origin field substitution exists. `Management`
+requires independently authenticated management authorization; compile or
+probe admission never grants it. The store then authenticates one
+`CollisionQuarantineBasisV1` binding the store, affected
+`(regime_id, content_id)` trust key, exact observation origin, permanent
+collision-tombstone identity, expected and next integrity-fence generations,
+complete collision-witness-set commitment, complete affected-custody and
+derived-artifact closure commitment, complete active-admission and
+resolved-snapshot closure commitment, and either a proven
+`CompleteReverseIndex` scope or a conservative `WholeStoreGeneration`
+fallback.
+
+One crash-atomic containment linearization creates or verifies the permanent
+`ExactSidecarCollisionTombstoneV1`, advances
+`ExactSidecarIntegrityFenceV1`, records the origin and intersecting
+admission/snapshot revoke dispositions, and closes semantic-read,
+product-release, terminal-probe-pass, lifecycle-mutation-commit, and lifecycle
+admission for the contained scope. Incomplete reverse-index completeness
+selects the whole captured store generation. This atomic transition performs
+logical revocation only; it never waits for handles, buffers, files, or
+snapshots to be destroyed.
+
+Physical closure is the separate durable
+`CollisionTerminalRemovalStateV1`. It binds the quarantine basis, either the
+canonical revoke set or fenced-generation cursor, a monotonic next cursor,
+positive per-step item/work/byte limits, and exactly one last-step outcome:
+`Committed` with exact closure receipts, `Aborted` with verified no effect, or
+`ReconciliationRequired` with the durable recovery fence. Each bounded step is
+idempotent and resource-safe. Retry and restart resume the same cursor without
+duplicating work, skipping an item, resetting a limit, changing the tombstone
+or fence, reopening admission, publishing a product, or altering recovery
+eligibility.
+
+Immediately before externally observable success, every origin performs one
+final linearizable validation of its typed guard, exact trust-key dependency
+closure, and captured fence generation against the current root fence:
+`Compile` validates `product_release_guard_id`, `TerminalProbe` validates
+`terminal_probe_result_guard_id` before issuing a passing receipt, and
+`Management` validates `lifecycle_commit_guard_id` before its intended
+lifecycle mutation commits. These validations and containment have one total
+order. A snapshot-time check cannot replace the final guard.
+
+The compiler receives the collision source only after durable containment and
+receives no management capability. A generation or witness mismatch,
+unavailable commit, unknown outcome, or required reconciliation instead
+preserves the corresponding closed `ExactSidecarIntegrityCoordinationError`
+and returns no product. Startup replays the store log before opening normal
+admission: it reconstructs a proved commit, its origin-specific terminal
+disposition, and pending terminal-removal work, reruns both validation phases
+for a proved abort, and keeps an ambiguous result fenced as
+`IntegrityQuarantineReconciliationRequired` without a terminal origin
+disposition until commit or abort is proven. After proved committed
+containment, origin closure is total: `Compile` has no product and a rejected
+release guard; `TerminalProbe` has no passing receipt and a rejected result
+guard; `Management` has no intended lifecycle mutation, a rejected lifecycle
+guard, and requires fresh authorization for any later operation.
+
+Collision resolution is not ordinary exact-old-pair recovery. The disjoint
+`CollisionRecoveryTransactionV1` revalidates the exact
+`CollisionQuarantineBasisV1`, trust key, permanent tombstone, current fence,
+complete witness commitment, and complete affected-custody commitment. Its
+closed disposition is either `NewRegimeRepublication`, covering every retained
+meaning and every new referring record version under a new authenticated
+regime, or `CompleteAuthorizedErasure`, carrying exact erasure authorization
+and the complete controlled-custody erasure-receipt commitment. It cannot
+select one witness, restore the old key, use exact-old-pair rollback, or treat
+later byte equality as repair. Both outcomes preserve the old permanent
+tombstone and non-use rule across purge, restore, reprovisioning,
+reinstallation, and store replacement.
+
+Thus store-owned nonsemantic containment remains compatible with read-only
+compilation, potentially blocking cleanup stays outside the atomic section,
+and no crash permits an unfenced semantic read, probe pass, product release, or
+lifecycle race.
+The focused canonical envelope, constructor, lookup, and error contract is
+owned by
+[`cognitive-memory-activation-and-focus.md`](cognitive-memory-activation-and-focus.md#exact-sidecar-content-identity-and-verification).
 
 The exact physical representation remains open, but its contract must expose:
 
@@ -326,6 +723,8 @@ The exact physical representation remains open, but its contract must expose:
 - authority and authorization labels;
 - uncertainty and unresolved conflicts;
 - exact entities, names, paths, numbers, and other loss-sensitive values;
+- content-derived exact-sidecar regime/schema identities and per-record
+  custody bindings containing their sole complete references;
 - typed numerical facets and relations;
 - transform, encoder, tokenizer, and index manifests; and
 - logical deletion, physical erasure, export, migration, and repair state.
@@ -563,8 +962,28 @@ schema and ordering are owned only by
 [`predictive-attention-and-expectation.md`](predictive-attention-and-expectation.md);
 this architecture consumes that contract and does not define a parallel
 version. In summary, it binds the pinned query, memory and policy revisions,
-activated records, source and authority data, exact sidecars, and retrieval
-diagnostics. Outside its deterministic content-lineage tuple, it also carries
+activated records, source and authority data, verified exact-sidecar
+custody bindings including their nested references, the paired numerical
+facets and immutable
+`AuthoritativePropositionProjectionV1` values for each record, and retrieval
+diagnostics. Every pair carries the same record-version, derived-artifact, and
+memory-revision binding, validated before activation and rechecked before
+consolidation. Pairing is per admitted source, not one projection reused for a
+record, bucket, or cluster: every numerical source projection has one
+independently reconstructed and validated authoritative projection before the
+set is sealed.
+
+The two closed source variants have different cross-plane joins. `Memory`
+requires equality of its tagged source identity, immutable record version,
+source-derived artifact, memory revision, complete exact-sidecar reference,
+and record-bound custody binding. The reference is the nested member of that
+binding, never a second source field. `Request`, constructed only inside the focus
+branch, instead requires equality of its tagged request-source identity,
+validated exact request projection, source receipt, and attribution; it has
+no persistent record, artifact, revision, sidecar, custody, or provenance
+field. A join valid for one variant cannot be reinterpreted as the other.
+
+Outside its deterministic content-lineage tuple, the shared set also carries
 one private nonserializable `InvocationInstanceWitness` borrowed from the
 current sealed invocation and one fresh private nonserializable
 `EligibleSetInstanceWitness` minted for that exact set object. The first proves
@@ -595,8 +1014,12 @@ input:
   \(B_Q=\pi_Q(\Lambda_A)\) join, creates the five-field
   `(request_id, situation_id, policy_revision_id,
   authorization_view_id, configuration_id)` source receipt solely from that
-  same \(\Lambda_A\), and then consolidates request-supported and
-  memory-supported compatible propositions into bounded focus candidates;
+  same \(\Lambda_A\), checks the exhaustive unordered-pair work ceiling, uses
+  numerical proposition projections only to order that complete set, validates
+  every memory-supported merge against its paired
+  `AuthoritativePropositionProjectionV1`, and then consolidates
+  request-supported and memory-supported compatible propositions into bounded
+  focus candidates;
 - the expectation kernel evaluates eligible direct observations and explicitly
   permitted registered derivations, retains competing outcome groups and
   counterevidence, and may abstain; and
@@ -679,6 +1102,24 @@ An empty eligible memory set therefore does not force an empty
 `FocusCandidateSet`: authenticated prompt, situation-statement, or allowed
 request-metadata evidence may independently justify focus.
 
+Consolidation is partition-safe. Equality over the canonical registered
+`EquivalenceIdentityProjectionV1` key is an actual equivalence relation and
+defines the only identity buckets within which consolidation may proceed.
+Within one bucket, a cluster is valid only when every unordered pair of
+independently validated source projections passes the complete-link exact-
+value, scope, provenance, dependency, conflict, disclosure, authority, and
+source-independence constraints and the union satisfies every cluster-level
+invariant. Connected components, representative-only comparison, and
+unconstrained union-find are forbidden because those compatibility constraints
+need not be transitive. The canonical reference algorithm processes tagged
+sources in order, keeps clusters ordered by their smallest member, and places
+each source into the first cluster compatible with every existing member,
+otherwise into a new singleton. Thus, for canonical
+\(a<b<c\) with \(a\) compatible with \(b\), \(b\) with \(c\), but \(a\) not
+with \(c\), it returns `{a,b}` and `{c}`. Every optimized implementation must
+return the same canonical partition, qualifications, support bindings, and
+order or the outer `FocusCandidateError`; no partial focus set is exposed.
+
 ### Canonical focus-and-expectation plan
 
 The combined planner consumes the focus candidates and canonical
@@ -703,6 +1144,8 @@ configuration-bound query/lineage IDs and \(K_R\) cannot enter
 - conditions, horizons, support, counterevidence, uncertainty, and
   abstention;
 - authority ceilings and exact-value bindings;
+- the canonical query-conditioned weighted vector input used by the focus
+  adapter;
 - mandatory qualifications and relations;
 - output-language and post-substitution budget;
 - validator-only exclusions, omitted support, dependency groups, no-answer,
@@ -716,33 +1159,66 @@ The plan contains no draft answer, action selection, tool call, or independent
 prose truth. It remains internal and does not change the one-text product
 result.
 
-### Vector-prefix adapter and renderer
+### Vector-conditioned focus adapter and renderer
 
-The renderer accepts only the bounded numerical focus-and-expectation plan
-envelope and the compatible rendering configuration. It reads output language
-and budget from that envelope and rejects a configuration-schema mismatch. It
-does not receive the whole memory universe, raw memory prose, or decimal
-serializations of plan vectors. It does not retrieve, rerank, select new facts,
-create or reorder expectations, invent policy, choose actions, or answer the
-original prompt.
+The compiler-owned conditioning builder joins
+`VectorConditionedFocusSemanticsV1` already sealed in the bounded plan with
+compiler-held request-local validation bindings and derives one sealed
+`VectorConditionedFocusInputV1` composite. Canonical \(C_A\) and
+\(C_V^{sem}\) remain plan content; \(C_V^{bind}\) and the newly minted private
+`ConditioningInstanceWitness` are live, nonsemantic join state. A candidate
+adapter receives only its checked `AdapterConditioningViewV1` \(C_A\); the
+independent validator receives only the disjoint
+`FocusConditioningValidationViewV1`
+\((C_V^{sem},C_V^{bind})\).
+Neither boundary receives the complete builder inputs or can project the other
+view.
+The adapter-visible view carries the resolved output language and bounds. It
+does not expose the whole memory universe, raw memory prose, validator-only
+controls, or decimal serializations of plan vectors. The adapter does not
+retrieve, rerank, select new facts, create or reorder expectations, invent
+policy, choose actions, or answer the original prompt. Adapter-visible plan
+references are dense `AdapterPlanItemHandleV1` values. Only
+\(C_V^{sem}\) maps them to `PlanItemSemanticKey`, qualifier, slot, and ceiling
+semantics.
 
-Decision 0015 retains a typed latent resampler followed by direct virtual input
-embeddings as the first generative renderer hypothesis. The renderer
-specification owns the experimental dimensions, tensor mapping, training
-phases, and required simple baselines.
+Decision 0034 fixes the checked vector-first input and bounded untrusted output
+contract while leaving projection, pooling, set encoding, cross-attention,
+resampling, soft prompting, fused decoding, and decoder-free realization as
+empirical candidates. The renderer specification records
+`VF-LATENT-PREFIX-01` only as one comparison family and owns candidate
+registration, training, qualification, and required simple baselines.
+The common training and qualification target is the bounded focus shape plus
+its canonical support trace. Focus text is an additional target only for a
+registered text-generating candidate and cannot substitute for common
+shape-and-trace evidence.
 
-Its internal result is an opaque `RenderedAttention<'plan>` value whose
+Every candidate adapter first produces one bounded
+`UntrustedBoundedFocusShapeV1<'plan>` carrying the common canonical
+`FocusSupportTraceV1`, an opaque equality-only conditioning binding derived
+from the live private witness, and only dense adapter handles in its support
+bindings. Its registered payload is either a structural shape for a
+deterministic lexicalizer or bound text produced inside the adapter boundary.
+Both variants expose the identical bounded shape-and-trace contract;
+decoder, tokenizer, vocabulary, generation-marker, decoding, stop, and
+token-budget controls are present only for a candidate that declares them
+applicable and are explicitly absent otherwise. Candidate-side realization
+uses only adapter views. A compiler-owned deterministic wrapper then seals,
+without learned or semantic text generation, the renderer's final internal
+opaque `RenderedAttention<'plan>` value whose
 lifetime is tied to the borrowed source plan. The Rust lifetime prevents the
-candidate from outliving that borrow and prevents unchecked detachment; it does
-not encode referent identity. The enforceable binding is the complete tuple
-\((c_L,\beta_L,c_R,\beta_R)\): deterministic
+candidate from outliving that borrow and prevents unchecked detachment; it
+does not encode referent identity. Let \(b_F\) be the opaque equality-only
+`ConditioningBinding` derived from \(\omega_F\). The enforceable binding is the
+complete tuple \((c_L,\beta_L,c_R,\beta_R,b_F)\): deterministic
 `PlanContentId` \(c_L\), private exact `PlanCanonicalEnvelopeV1` capsule
 \(\beta_L\), sealed `RendererConfigurationId` \(c_R\), and private exact
-canonical-\(K_R\) commitment \(\beta_R\). The plan envelope is the complete canonical
+canonical-\(K_R\) commitment \(\beta_R\), plus the live nonsemantic
+conditioning binding \(b_F\). The plan envelope is the complete canonical
 product-relevant plan content defined by the planning specification. The
 envelope includes every semantic item, relation, control, selected structural
 projection, exact-surface identity, and formatted substitution bytes, while
-excluding both runtime witnesses, every request-local or configuration-bound
+excluding all runtime witnesses, \(C_V^{bind}\), every request-local or configuration-bound
 instance identity, the full `configuration_id`, and \(K_R\). It commits to the
 plan-semantic configuration \(K_S\), configuration-independent request and
 situation content digests \(d_R,d_S\), and complete selected
@@ -753,17 +1229,22 @@ specification. The shared `nemosyne-artifacts` domain crate represents exactly
 \(K_R\) as an immutable sealed `AuthenticatedRendererConfiguration` whose
 canonical-envelope bytes equal \(\operatorname{CE}_{v1}(K_R)\). Authenticated
 artifact preflight is the only product-path constructor. The type is not
-compiler-private: the compiler, renderer, substitution boundary, and validator
-normally borrow or reborrow the one preflight-created sealed value without
-receiving installation-resolution, trust-root, update, filesystem, network,
-registry, installation, or mutation capabilities. Correctness is exact
+compiler-private. Compiler context construction and substitution borrow the
+full value. The adapter receives only `AdapterConfigurationViewV1`; the
+validator receives only `ValidationConfigurationViewV1`. The compiler alone
+derives both unconstructible nonowning views, and each carries the same full
+\(K_R\) identity and commitment. The adapter view excludes verifier artifacts,
+thresholds, calibration, validation-corpus identities, and validator-only
+limits. Neither view grants installation-resolution, trust-root, update,
+filesystem, network, registry, installation, or mutation capabilities.
+Correctness is exact
 authenticated canonical-content equality, not referent identity: a separately
 authenticated value with identical canonical bytes and
-`RendererConfigurationId` is equivalent, while a projection, narrower
-configuration, unauthenticated reconstruction, or same-ID/different-byte value
-is rejected. The sole checked
-renderer constructor requires a plan borrow and
-`&AuthenticatedRendererConfiguration`, recomputes the plan envelope and both
+`RendererConfigurationId` is equivalent, while an independently authenticated
+partial configuration, unauthenticated reconstruction, or
+same-ID/different-byte value is rejected. The sole checked
+adapter constructor requires `&AdapterConditioningViewV1` and
+`&AdapterConfigurationViewV1`; the orchestrator recomputes the plan envelope and both
 identities, and seals `PlanContentId`, `RendererConfigurationId`, a private
 exact canonical-plan byte-comparison capsule, and a private exact canonical
 \(K_R\)-content comparison commitment; neither the model nor a caller can
@@ -771,8 +1252,9 @@ supply, replace, or mutate any of them. The value contains:
 
 - the slot-bearing attention text and token-origin map;
 - a complete segmentation into output units; and
-- untrusted bindings from every assertion-bearing output unit to planned
-  proposition identities; and
+- untrusted bindings from every assertion-bearing output unit to dense
+  adapter plan-item handles; and
+- the opaque equality-only conditioning binding; and
 - the sealed plan content identity;
 - the sealed renderer-configuration identity; and
 - the private exact canonical-plan byte-comparison capsule; and
@@ -845,14 +1327,15 @@ canonical-plan byte-comparison capsule plus one private exact canonical
 renderer-configuration commitment. The view exposes no raw plan, private
 commitment, or invocation witness, and the validator does not depend on
 renderer implementation internals. Immediately before invoking it, the
-compiler-owned callsite compares candidate and context capsules whenever their
+compiler-owned callsite first requires the candidate and context to carry equal
+opaque conditioning bindings derived from the same private
+`ConditioningInstanceWitness`, then compares candidate and context capsules whenever their
 plan identities are equal; same identity with different bytes is standalone
 `PlanContentIdentityCollision`, quarantines the path, and returns
 `InternalInvariantViolation`/exit `70` without invoking the independent
 validator. Before interpreting candidate content, the validator requires the
 candidate and validation-view plan identities to agree and the candidate,
-validation view, and shared supplied
-`&AuthenticatedRendererConfiguration` representing exact \(K_R\) to share one
+validation view, and supplied `ValidationConfigurationViewV1` to share one
 `RendererConfigurationId` and byte-identical authenticated canonical \(K_R\)
 content. Equal ID with different canonical bytes is
 `RendererConfigurationMismatch` and quarantines the configuration path. It
@@ -867,6 +1350,11 @@ rejects:
 - malformed leading or trailing line breaks; and
 - output that cannot be mapped back to planned propositions.
 
+Every support handle is resolved through the total validator-only
+`AdapterPlanItemHandleV1` to `PlanItemSemanticKey` mapping before these checks.
+Foreign, forged, out-of-range, duplicate, noncanonical, or remapped handles
+fail before semantic acceptance.
+
 Validation verifies complete, nonoverlapping segmentation and known proposition
 identities. It accepts the exact rendered text unchanged or returns an error.
 The checked substitution constructor has already enforced the exact expanded
@@ -875,23 +1363,21 @@ budget and returned no `SubstitutedAttention<'plan>` on
 cannot reclassify that substitution error.
 A candidate whose sealed `PlanContentId` differs from the validation view is
 `PlanIdentityMismatch`; a candidate constructed from a separate
-canonical-content-identical plan is valid at this boundary only when
-candidate, view, and supplied authenticated \(K_R\) also have equal
-`RendererConfigurationId` and byte-identical canonical content. A different
-candidate, view, or supplied \(K_R\) configuration identity or
-canonical-content commitment is
+canonical-content-identical plan is valid at this boundary only when the
+candidate, validation view, and supplied `ValidationConfigurationViewV1`
+carry equal `RendererConfigurationId` values and opaque commitments to
+byte-identical full-\(K_R\) canonical content. A different candidate,
+validation view, or validation-configuration-view identity or commitment is
 `RendererValidationError::RendererConfigurationMismatch`. The validator never
 repairs or changes an identity. Validation is not a second renderer.
 
 Validation establishes conformance to a bounded plan, not truth of the source
-memory. Decision 0015 retains a fail-closed hybrid contract: deterministic
-structural, slot, and literal checks followed by an independently trained and
-calibrated dual-branch semantic verifier. The focused renderer specification
-fixes its inputs, independence boundary, classifier heads, threshold-selection
-procedure, and failure semantics. Its exact encoder, dimensions, confidence
-targets, and resulting thresholds remain frozen qualification-manifest
-choices. Renderer self-attribution without independent checks is insufficient
-evidence.
+memory. Decision 0034 retains fail-closed independent validation without
+selecting a semantic-verifier architecture. Deterministic structural, slot,
+literal, binding, and budget checks are mandatory. Any learned verifier, its
+encoder, dimensions, heads, thresholds, and calibration procedure remain
+separately qualified renderer-configuration choices. Renderer
+self-attribution without independent checks is insufficient evidence.
 
 ### Serializer and adapters
 
@@ -1254,13 +1740,20 @@ For each public call, `Compiler::compile` performs this fixed sequence:
    complete request, sealed `AuthenticatedInvocation`, pinned controls and
    snapshot, and cancellation token; the core may borrow narrow aggregate
    projections but accepts no independently constructible authenticated
-   prompt or call-binding tuple; then, on every success, error, cancellation,
-   or panic-unwind path, close every bound handle and snapshot before
-   terminalizing the record and consuming that call's
-   `CompileAdmissionTicketV1`. Abrupt process loss
-   returns no result; startup reconciliation terminalizes the durable record or
-   keeps it conservatively generation-fenced until the old runtime cannot
-   survive.
+   prompt or call-binding tuple; then, on every ordinary noncollision success,
+   error, cancellation, or panic-unwind path, close every bound handle and
+   snapshot before terminalizing the record and consuming that call's
+   `CompileAdmissionTicketV1`. A durably contained collision is the explicit
+   exception: containment atomically rejects the release guard and records the
+   revoke disposition, while the admission, snapshot, and live resources
+   remain retained for bounded idempotent
+   `CollisionTerminalRemovalStateV1` cleanup. Abrupt process loss
+   returns no result. On an ordinary path startup reconciliation terminalizes
+   the durable record or keeps it conservatively generation-fenced until the
+   old runtime cannot survive. A committed collision reconstructs the exact
+   basis, revoke disposition, rejected guard, and pending monotonic
+   `CollisionTerminalRemovalStateV1` cursor; an ambiguous containment outcome
+   remains under its exact reconciliation fence.
 
 The authenticator may trust only bootstrap sources selected by `SEC-00` and
 supported by the frozen runtime topology: operating-system effective-user or
@@ -1666,8 +2159,12 @@ handles, binds all behavior that can change an output:
 - signal schema and parameters;
 - activation implementation and parameters;
 - selection policy;
-- renderer and tokenizer artifacts;
-- deterministic decoding configuration with no request-time random source;
+- the registered adapter and renderer artifacts, plus decoder, tokenizer,
+  vocabulary-extension, and optional LoRA artifacts only when declared present
+  by that candidate family;
+- deterministic decoding and stop configuration with no request-time random
+  source only for a token-generating candidate, with an explicit absent
+  disposition otherwise;
 - precision, exact runtime implementation and build, execution backend,
   quantization format and parameters, math libraries and numerical kernels,
   fusion/graph choices, deterministic algorithm and threading controls,
@@ -1683,9 +2180,9 @@ The configuration has two non-overloaded authenticated projections:
   planning, language resolution, or plan-cost interpretation and yields
   `SemanticConfigurationId`; and
 - \(K_R=\pi_{\mathrm{renderer}}(K)\) contains every field that can change
-  renderer or validator bytes, including the complete qualified disjoint
-  content-identified composition of derived-model slot rows, trained bridge,
-  and optional LoRA artifacts and revisions, and yields
+  renderer or validator bytes, including the complete registered adapter
+  artifact and, only when applicable to that family, decoder, tokenizer,
+  vocabulary-extension, and optional LoRA artifacts and revisions, and yields
   `RendererConfigurationId`.
 
 Fields that affect both domains appear by value in both projections. \(K_S\)
@@ -1771,11 +2268,11 @@ flowchart TD
 | `nemosyne-core` | Dependency-light validated domain types and deterministic activation, expectation, and plan algorithms | Filesystem, database, network, model runtime, CLI, or telemetry |
 | `nemosyne-artifacts` | Shared sealed immutable authenticated artifact/configuration domain values, including `AuthenticatedRendererConfiguration`, injective canonical envelopes, and typed content identities | Installation selection, trust-root ownership, update authority, compiler orchestration, filesystem or network access, rendering, or validation verdicts |
 | `nemosyne-memory` | Local storage, immutable revisions, authorization views, migrations, indexes, authenticated derived-artifact registry/publication, backup, recovery, and provisioning | Rendering, downstream model calls, semantic planning, or encoder mathematics |
-| `nemosyne-render-domain` | Dependency-light opaque renderer-domain values and read-only contracts: candidate/token-origin and segmentation values, witness-free validation views, authenticated renderer-configuration identity/commitment handles, exact plan/config validation identity \((c_L,\beta_L,c_R,\beta_R)\), slot-registry views, and closed renderer/validator error evidence | Model or lexicalizer runtime, compiler orchestration, raw-plan access, filesystem/network access, trust-root resolution, public unchecked construction, or an accepted product verdict |
+| `nemosyne-render-domain` | Dependency-light opaque renderer-domain values and read-only contracts: candidate/token-origin and segmentation values, invocation-witness-free but conditioning-binding-bound validation views, authenticated renderer-configuration identity/commitment handles, exact plan/config validation identity \((c_L,\beta_L,c_R,\beta_R)\), slot-registry views, and closed renderer/validator error evidence | Model or lexicalizer runtime, compiler orchestration, raw-plan access, filesystem/network access, trust-root resolution, public unchecked construction, or an accepted product verdict |
 | `nemosyne-renderer` | Plan adapter, local lexicalizer runtime, plan- and renderer-configuration-bound candidate construction, deterministic exact substitution, and substitution-owned exact cost enforcement | Memory retrieval, hypothesis generation, authority policy, action selection, validation-context construction, or final faithfulness verdicts |
-| `nemosyne-validator` | Independent structural, semantic, exact-slot, and faithfulness validation over `nemosyne-render-domain` opaque candidates and witness-free validation-view contracts | Raw `FocusExpectationPlan`, validation-context construction, compiler-private invocation or plan witnesses, renderer implementation internals, lexical generation, memory retrieval, hypothesis generation, authority policy, or action selection |
+| `nemosyne-validator` | Independent structural, semantic, exact-slot, and faithfulness validation over `nemosyne-render-domain` opaque candidates and equality-only conditioning-binding validation-view contracts | Raw `FocusExpectationPlan`, validation-context construction, readable or constructible invocation, plan, or conditioning witnesses, renderer implementation internals, lexical generation, memory retrieval, hypothesis generation, authority policy, or action selection |
 | `nemosyne-observability` | Runtime-owned bounded and redacted `RuntimeDiagnosticEventV1` schema, deterministic event construction, and request-local nonpersistent delivery | Offline evaluation schemas, corpora, calibration, raw prompt/memory/candidate/exact-slot bytes, product output decoration, semantic decisions, persistent compile-side sinks, or a dependency on `nemosyne-evaluation` |
-| `nemosyne-compiler` | `InstallationLocator`, `PromptOriginPresentation`, `CompileCallClaims`, `CancellationSource`, `CancellationToken`, the public callable API, compiler-owned installation resolution and bootstrap trust, the sole `LocalPlatformAuthenticator`, the sealed crate-private `AuthenticatedInvocation` and aggregate-taking core, private signal scope/context projection and validation, ingress, artifact preflight, authenticated installed-configuration resolution, situation encoding, retrieval orchestration, signal derivation, compiler-private post-plan `ValidationContext<'plan>` construction and witness erasure, the private exact-byte pre-validator collision join, stage errors, and exact serialization | Caller-supplied paths, trust roots, registries, credentials, or platform handles; semantic, content-bearing, or unallowlisted persistent writes during compile; public trusted-context or separable authentication-projection construction; or adapter-specific terminal behavior |
+| `nemosyne-compiler` | `InstallationLocator`, `PromptOriginPresentation`, `CompileCallClaims`, `CancellationSource`, `CancellationToken`, the public callable API, compiler-owned installation resolution and bootstrap trust, the sole `LocalPlatformAuthenticator`, the sealed crate-private `AuthenticatedInvocation` and aggregate-taking core, private signal scope/context projection and validation, ingress, artifact preflight, authenticated installed-configuration resolution, situation encoding, retrieval orchestration, signal derivation, compiler-private post-plan `ValidationContext<'plan>` construction, invocation-witness erasure, opaque conditioning-binding retention, the private exact-byte pre-validator collision join, stage errors, and exact serialization | Caller-supplied paths, trust roots, registries, credentials, or platform handles; semantic, content-bearing, or unallowlisted persistent writes during compile; public trusted-context or separable authentication-projection construction; or adapter-specific terminal behavior |
 | `nemosyne-cli` | Argument and byte-stream transport; construction of the public untrusted installation locator, origin presentation, bounded call claims, request, cancellation source and token, and requested installed identity; public API invocation, exit mapping, and one buffered stdout delivery attempt | Installation or trust resolution, platform-handle transport, presentation authentication, `InvocationContext` or `AuthenticatedPrompt` construction, private-core access, duplicate compile logic, or claims of transport atomicity |
 | `nemosyne-admin` | Privileged initialization, revision publication, backup, restore, migration, export, deletion, and later correction command transport under explicit management capabilities | Compile transport, implicit writes, or a shared unprivileged invocation context |
 | Evaluation crates | Offline corpora, reports, baselines, calibration, and receipts | Runtime compile dependencies |
@@ -2182,8 +2679,13 @@ recovery disposition, and per-record state sequence so restart can reconstruct
 exclusion without making concurrent admission records conflict on one global
 sequence. Terminalization is one checked crash-atomic removal of that active
 record; it advances the lifecycle state sequence but retains no
-per-invocation terminal row. The configured active-admission ceiling therefore
-bounds registry cardinality. Admission beyond that ceiling rejects with
+per-invocation terminal row. This is the ordinary noncollision path. A
+collision containment instead atomically changes the same record to its closed
+revoke disposition and leaves it, its snapshot, and live resources under
+`CollisionTerminalRemovalStateV1`; bounded cleanup removes or compacts it only
+after an exact closure receipt or durable generation recovery fence. The
+configured active-admission ceiling therefore bounds registry cardinality.
+Admission beyond that ceiling rejects with
 `ActiveAdmissionLimitReached`, creates no record, and maps to
 `CompileError::ResourceFailure` and CLI exit `8`.
 A crash before removal commits leaves the active record visible to startup
@@ -2223,10 +2725,16 @@ manifest, and snapshot handle; the probe equivalents bind the exact
 verification scope and execution record. `API-01` cannot open a raw revision
 snapshot directly. Every pinned handle must match its authorized scope.
 `API-01` holds the ticket through the last handle, snapshot, and compile stage
-and crash-atomically removes its active record on every success,
-error, cancellation, and panic-unwind path. A cancellation request is not
-drainage; the active record remains until every handle and snapshot is closed
-and removal is durable.
+and crash-atomically removes its active record on every ordinary noncollision
+success, error, cancellation, and panic-unwind path. A cancellation request is
+not drainage; the active record remains until every handle and snapshot is
+closed and removal is durable. If verified read instead durably contains an
+exact-sidecar collision, the containment commit atomically records the
+compile-origin revoke disposition and rejects the release guard without
+waiting for resource destruction. That active record and its resources remain
+in the fixed `CollisionTerminalRemovalStateV1` scope until a bounded idempotent
+step proves exact closure or the durable generation recovery fence proves them
+permanently unreachable.
 
 Terminalization checks, in order, coordination-state availability, exact active
 record presence, binding digest, per-record state sequence, and absence of
@@ -2236,14 +2744,17 @@ bound live resources before attempting removal. `BindingDigestMismatch`,
 `ActiveRecordMissing`, `CoordinationStateUnavailable`, and
 `DurableRemovalOutcomeUnknown` map to
 `CompileError::AdmissionFinalizationFailure` and CLI exit `4`. Any
-terminalization failure suppresses a provisional compiled result and takes
+ordinary terminalization failure suppresses a provisional compiled result and takes
 precedence over a provisional compile-core error: the call returns no product
 bytes, normal admission remains closed for the affected store, and only startup
 reconciliation or separately authorized repair may resolve the coordination
 state. A panic or abrupt process loss returns no result and leaves either the
 visible active record or an unavailable coordination state for that same
 fail-closed recovery path. The compiler and CLI never retry the complete
-compile automatically.
+compile automatically. A collision-revoked admission is not an ordinary
+terminalization failure: after durable containment its retained record and
+pending bounded cleanup are valid coordination state, and the preserved
+collision or exact coordination error remains the public result.
 
 Before startup can open any admission, every surviving `Live` record is either
 reattached to its exact provably surviving runtime scope or crash-atomically
@@ -2297,15 +2808,26 @@ operational_coordination_state =
   + barrier and writer generations
   + runtime-registration state
   + content-free compile-admission records
+  + collision tombstone and root integrity fence
+  + CollisionQuarantineBasisV1 and revoke dispositions
+  + CollisionTerminalRemovalStateV1
 ```
 
 Compile preserves `semantic_product_state` byte- and identity-equally. Its only
-durable writes are creation, terminalization, restart reconciliation, or
-generation-fenced abandonment of its one content-free admission record through
-the closed transition relation in proof obligation F4. Any content-bearing
-access log, semantic telemetry, cache publication, re-indexing, consolidation,
-artifact mutation, or other persistent compile-side transition violates the
-contract.
+compiler-owned durable writes are creation, ordinary terminalization, restart
+reconciliation, or generation-fenced abandonment of its one content-free
+admission record through the closed transition relation in proof obligation
+F4. A compile-origin verified read may additionally induce only the
+store-owned nonsemantic collision containment and bounded terminal-removal
+transitions listed above; the compiler receives neither capability and cannot
+induce `TerminalProbe` or `Management`. Those values contain typed identities,
+generations, resource cursors, and commitments but no memory meaning or
+sidecar bytes. `CollisionRecoveryTransactionV1` can republish or erase
+authoritative semantic state and is therefore a separately authorized
+management transition outside read-only compilation and outside the compile
+coordination closure. Any content-bearing access log, semantic telemetry,
+cache publication, re-indexing, consolidation, artifact mutation, or other
+persistent compile-side transition violates the contract.
 
 Provision, import, observation capture, correction, consolidation, migration,
 backup, deletion, and repair use a separate management capability and command
@@ -2335,7 +2857,8 @@ sequenceDiagram
     W->>DB: Publish later revision r+2
     C->>C: Complete entirely against r+1
     C-->>DB: Close snapshot without writes
-    C-->>A: Terminalize record and consume ticket on every returning terminal path
+    C-->>A: Ordinary path: terminalize record and consume ticket
+    Note over DB,A: Collision path: atomically revoke and retain for bounded terminal removal
 ```
 
 Migration never edits the only known-good database in place without a
@@ -2354,13 +2877,31 @@ recoverable transaction or verified backup. The migration flow is:
 9. record an evidence receipt without private content.
 
 The source manifest enumerates every authoritative record and version identity,
-semantic and exact-value digest, exact sidecar identity and digest, provenance
-edge, policy revision and policy entry, validity interval, supersession edge,
-logical-deletion or tombstone state, and retention/erasure state. The target
-migration manifest covers the same authoritative dimensions. Rebuildable
-vectors and indexes are identified as derived and are excluded from
-authoritative equality, but their target bindings must reference the verified
-target authoritative identities and selected transform manifests.
+semantic and exact-value digest, exact-sidecar schema, content identity and
+canonical-byte digest, the content-derived regime and schema identities, the
+complete record-to-sidecar reference, every
+`ExactSidecarCustodyBindingV1`, its content-derived custody-domain identity,
+inbound nested-reference edge, provenance edge, policy revision and policy entry,
+validity interval, supersession edge, logical-deletion or tombstone state, and
+retention/erasure state. The target migration manifest covers the same
+authoritative dimensions. An unchanged canonical sidecar preserves its
+content identity and reference only when the complete source and target
+`ExactSidecarIdentityRegimeV1` values and their recomputed
+`ExactSidecarIdentityRegimeId` values are identical and the recomputed
+content-derived schema identities agree. A regime or schema-identity change
+derives and verifies a new complete reference and record version even when the
+canonical sidecar bytes or content digest are otherwise equal. Any registered
+transformation that changes its locator, type, presence state, or exact value
+likewise creates a new sidecar content identity and a new transition-record
+version identity; migration cannot rebind the old reference. Nested record
+bindings in the target must still resolve only to
+already verified record versions in a strict prior published target revision;
+a migration must construct and verify its staged target revision chain in that
+dependency order and switch the active installation only after the complete
+chain passes, rather than admit same-revision or forward references.
+Rebuildable vectors and indexes are identified as derived and are excluded
+from authoritative equality, but their target bindings must reference the
+verified target authoritative identities and selected transform manifests.
 
 For every source authoritative item, the target must provide exactly one of:
 
@@ -2379,6 +2920,24 @@ reorder, cross-bind, truncate, or corrupt one item while preserving all counts
 must fail. The verification suite separately covers provenance, policy,
 validity, supersession, deletion/tombstone, retention, exact-sidecar, and
 foreign-reference corruption so that a compensating count cannot hide loss.
+Sidecar and record publication is one atomic visibility unit in normal
+management, migration, restore, and recovery. Fault injection must show that
+restart exposes either the complete prior pair or the complete verified new
+pair, never a mixed record/reference/content state.
+
+Rollback artifacts are retained only for the authenticated retention interval
+and erasure policy recorded by the migration. A migration may claim rollback
+only while the complete verified source record/sidecar pair remains retained
+with its exact custody-ledger state and restorable under that policy. It cannot
+reactivate a record whose final logical erasure forbids resurrection. Once
+authorized retention expiry or physical erasure removes any required source
+content or custody binding, the system records rollback as unavailable and
+must not claim, synthesize, or reconstruct exact rollback from the target or
+from numerical artifacts. Backup, migration, release, and support evidence
+must distinguish a live verified rollback path from a
+completed erasure. A collided old identity is never a live rollback source;
+its permanent tombstone can be resolved only by new-regime republication of
+every retained meaning or erasure of every authorized copy.
 
 Downgrade is not assumed. A release declares which prior schema versions it can
 read, migrate, and roll back. An incompatible or partially migrated store is
@@ -2436,9 +2995,12 @@ Cancellation is checked before persistent access, between bounded retrieval
 batches, during quadratic medoid or validation work, before model inference,
 and before serialization. Cancellation returns no product bytes, preserves
 semantic product state, and permits only terminalization or conservative
-generation fencing of the already-created content-free admission record. A
-renderer process that cannot be safely interrupted is terminated or isolated
-according to its runtime contract.
+generation fencing of the already-created content-free admission record on an
+ordinary noncollision path. If collision containment has already linearized,
+cancellation cannot replace its revoke disposition; the record remains under
+the same `CollisionTerminalRemovalStateV1` cursor until bounded cleanup or
+reconciliation completes. A renderer process that cannot be safely
+interrupted is terminated or isolated according to its runtime contract.
 
 Degradation is explicit and deterministic:
 
@@ -2533,9 +3095,9 @@ controls include:
 | Unsafe expectation anchoring | Alternatives, uncertainty, no fact/probability promotion, wrong-expectation harm evaluation |
 | Exact-value disclosure | Authorized slot bindings and independent literal checks |
 | Resource denial | Input/cardinality/byte/time/memory limits before expensive work |
-| Malicious model or tokenizer | Authenticated manifest, digests, compatibility checks, no runtime download |
+| Malicious adapter, model, or tokenizer | Authenticated manifest, digests, compatibility checks for every applicable artifact, explicit absence for inapplicable artifacts, and no runtime download |
 | Renderer invents action or answer | Plan roles, independent verifier, fail closed |
-| Model output feeds memory | Separate authenticated observation and management contract |
+| Candidate output feeds memory | Separate authenticated observation and management contract |
 | Side-channel diagnostics | Content-minimized receipts and no unauthorized candidate diagnostics |
 
 Local execution is a boundary, not a complete privacy proof. Process memory
@@ -2611,7 +3173,7 @@ enter activation without being one of the \(n_r\) direct candidates.
 | Combined planning | [Planning complexity](focus-and-expectation-planning.md#canonical-unified-selection) and `ALG-PLAN-05` | Streaming oracle workspace and hard closure/member limits defined there | closure/member scales, cost calls, oracle-equivalence, limit rejection |
 | Post-plan integrity and candidate binding | Exactly two full canonical `PlanCanonicalEnvelopeV1` passes: one in `buildValidationContext` and one in checked candidate construction; each is \(O(b_{\mathrm{plan}})\) under authenticated byte/time/space ceilings, checked arithmetic, and field-boundary cancellation; no encoder or `bindQuery` rerun and no third envelope pass | At most two retained bounded exact capsules plus one bounded streaming-pass workspace; cancellation or any ceiling failure returns no context/candidate | both pass times and bytes separately and combined, peak retained/workspace bytes, cancellation at every field boundary, equal-content equality, collision, and proof of exactly two passes |
 | Deterministic lexicalizer baseline | This section requires its selected template/grammar artifact to freeze an exact bound over \(m_p\), slots, language morphology, and output ceiling; unresolved before lexicalizer selection | Selected artifact must bound grammar, output, substitution, and validation buffers | items, slots, language, output length |
-| Vector-prefix renderer candidate | [Renderer complexity](vector-to-attention-renderer.md#computational-complexity), including explicit unresolved model/verifier functions before artifact selection | Model weights, KV cache, prefix, output, exact sidecar, and verifier state defined there | cold/warm load, prefix items, output tokens, precision, peak unified memory |
+| Vector-conditioned focus-adapter candidate | [Renderer complexity](vector-to-attention-renderer.md#computational-complexity), including explicit unresolved adapter, optional decoder, and verifier functions before artifact selection | Complete adapter state, optional decoder/KV/prefix state, output, exact sidecar, support trace, and verifier state declared by the selected family | cold/warm load, vector and set cardinality, output size, precision, peak unified memory |
 | Substitution and independent validation | [Renderer complexity](vector-to-attention-renderer.md#computational-complexity) | Isolated exact sidecar, segment map, validator, and verifier state | output units, bindings, slots, adversarial validator cases |
 | Product serialization and adapter delivery | This section: \(O(b_{\mathrm{out}}+\lvert P\rvert)\) exact copy | Complete buffered output before visible delivery | prompt/output bytes; zero stdout before delivery; short writes and broken pipe invalidate any prefix with exit `10`; no claim of stream rollback |
 
@@ -2641,10 +3203,11 @@ name and `major.minor` version:
 - a semantic change never hides in a patch label.
 
 Readers reject unknown mandatory features. Writers never downgrade a newer
-authoritative store implicitly. Model, tokenizer, encoder, vector space,
-normalization, index, policy, planner, renderer, validator, decoding, and
-runtime identities form one compatibility matrix and configuration
-fingerprint.
+authoritative store implicitly. Adapter, encoder, vector-space, normalization,
+index, policy, planner, renderer, validator, and runtime identities, together
+with applicable model, tokenizer, and decoding identities or their
+authenticated absence dispositions, form one compatibility matrix and
+configuration fingerprint.
 
 Before 1.0, callable APIs and schemas are explicitly experimental. A release
 still provides migration and rollback evidence for every version it claims to
@@ -4044,13 +4607,13 @@ class and an inspectable underlying stage or cause.
 | `RequestIncompatible` | A valid request uses a schema, shape, size, or budget unsupported by the pinned installed configuration | `5` |
 | `PromptOrigin` | Caller cannot satisfy the authenticated prompt-origin precondition | `3` |
 | `AdmissionUnavailable` | The lifecycle gate is closed, the authenticated runtime binding does not match the active pair, installation, registry, or runtime generation, the invocation is replayed, or coordination state is unavailable before admission | `4` |
-| `AdmissionFinalizationFailure` | An admitted call cannot prove crash-atomic removal of its exact active record after every bound resource closes; no provisional result or compile-core error is returned | `4` |
+| `AdmissionFinalizationFailure` | An ordinary noncollision admitted call cannot prove crash-atomic removal of its exact active record after every bound resource closes; a durably collision-revoked record pending `CollisionTerminalRemovalStateV1` is not this failure; no provisional result or compile-core error is returned | `4` |
 | `UnsupportedLanguage` | Language is absent, undetermined, or outside declared support | `2` |
 | `AuthorizationUnavailable` | Caller trust or disclosure view cannot be established | `3` |
-| `MemoryUnavailable` | Uninitialized, locked, unreadable, incompatible, or corrupt memory | `4` |
+| `MemoryUnavailable` | Uninitialized, locked, unreadable, incompatible, corrupt, quarantined, custody-mismatched, or invalidly nested memory | `4` |
 | `SnapshotUnavailable` | No coherent revision or a representation/index revision mismatch | `4` |
-| `ArtifactUnavailable` | A pinned configuration, schema, encoder, renderer, validator, or other mandatory artifact is missing, unauthenticated, digest-invalid, or incompatible | `5` |
-| `RepresentationFailure` | An installed compatible encoder or decoder produces an invalid numerical state | `6` |
+| `ArtifactUnavailable` | A pinned configuration, schema, encoder, registered adapter, renderer, validator, applicable optional artifact, or other mandatory artifact is missing, unauthenticated, digest-invalid, or incompatible | `5` |
+| `RepresentationFailure` | An installed compatible encoder, adapter, or applicable decoder produces an invalid numerical state | `6` |
 | `RetrievalFailure` | Search cannot meet its declared completeness contract | `6` |
 | `ActivationFailure` | Invalid signal, seed, spreading graph/matrix, profile, parameter, propagation, or numerical evaluation | `6` |
 | `ExpectationFailure` | Invalid transition, frame, grouping, provenance, or expectation derivation | `6` |
@@ -4122,6 +4685,104 @@ regenerates an ID, accepts a caller replacement, or continues with lossy
 facets. An unauthenticated, missing, or digest-invalid configuration manifest
 remains `ArtifactUnavailable`; it is not an ingress-identity collision.
 
+Exact-sidecar construction is a management-boundary operation. Its closed
+construction reasons, in precedence order, are `UnknownIdentityRegime`,
+`IdentityRegimeMismatch`, `UnknownSchema`, `SchemaIdentityMismatch`,
+`UnknownCustodyDomain`, `CustodyDomainIdentityMismatch`, `InvalidBinding`,
+`DuplicateLocator`, `InvalidPresence`, `LimitExceeded`, and
+`NonCanonicalEncoding`; no failed construction is published. The first six
+distinguish registry absence from a canonical object whose content-derived
+identity does not recompute. They remain typed management-construction
+failures and never enter `Compiler::compile`; if an already retained record's
+custody binding cannot be authenticated, runtime instead preserves
+`ExactSidecarCustodyMismatch` as `MemoryUnavailable`, exit `4`.
+
+Runtime lookup preserves one closed `ExactSidecarIntegrityErrorV1` source
+reason, in precedence order: `RecordVersionIdentityMismatch`,
+`ExactSidecarIdentityRegimeMismatch`, `ExactSidecarSchemaMismatch`,
+`ExactSidecarCustodyMismatch`, `ExactSidecarMissing`,
+`ExactSidecarContentMismatch`, `ExactSidecarReferenceMismatch`,
+`ExactSidecarContentIdentityCollision`, or
+`ExactSidecarNestedReferenceInvalid`. Each, including
+`ExactSidecarNestedReferenceInvalid`, maps by variant to `MemoryUnavailable`,
+exit `4`, and returns no partial retrieval, focus, or product result.
+Noncollision causes quarantine the affected path pending authenticated repair
+or a still-retained verified rollback. A content-identity collision instead
+permanently quarantines its complete old trust domain and permits neither
+repair in place nor rollback under that identity. Validation uses this
+declaration order and the smallest canonical affected
+trust-domain/record/reference key within one class.
+
+`RecordVersionIdentityMismatch` is decided solely by the retained record
+envelope before any external reference resolution or quarantine effect.
+`ExactSidecarIdentityRegimeMismatch` then owns disagreement among the pinned
+regime, its recomputed content-derived identity, and the reference.
+The effect-free schema-reference precheck classifies a missing, malformed, or
+identity-mismatched authenticated schema definition as
+`ExactSidecarSchemaMismatch`; it cannot yet inspect an external content
+envelope. The effect-free custody-ledger precheck classifies a missing,
+rebound, incompatible, unauthorized, or policy-inconsistent record-bound
+custody value, custody definition, or logical ledger entry as
+`ExactSidecarCustodyMismatch`; it cannot yet inspect physical-object custody.
+Those record, regime, schema-reference, and custody-ledger prechecks use only
+the authenticated retained record, registries, and ledger and perform no
+external effect.
+
+Only after they succeed may the store resolve the sealed
+`ExactSidecarResolvedSnapshotV1`. Postlookup may discover that a complete
+canonical content envelope disagrees with the already authenticated schema or
+that authenticated physical-object metadata disagrees with the already
+validated custody binding. Those discoveries retain the same
+`ExactSidecarSchemaMismatch` and `ExactSidecarCustodyMismatch` public
+positions; the implementation does not reorder them behind missing or content
+errors. `ExactSidecarMissing` is the first cause whose required inputs arise
+only after external sidecar resolution.
+`ExactSidecarContentIdentityCollision` applies only after two distinct
+canonical contents each independently pass regime, schema, and
+canonical-content validation and recompute under one identical verified
+regime to the same typed content identity. It quarantines the complete
+`(regime_id, content_id)` trust domain and all custody-ledger-reachable
+records, derived artifacts, backups, and exports; it does not narrow quarantine
+to the first observed record. A malformed or noncanonical member remains
+`ExactSidecarContentMismatch`; valid canonical content that does not recompute
+to the stored complete reference remains `ExactSidecarReferenceMismatch`.
+`ExactSidecarNestedReferenceInvalid` owns a self, current-revision,
+forward, unresolved, unverified, erased, or otherwise non-prior nested target.
+An unobserved digest collision remains outside deterministic proof and under
+the declared collision-resistance assumption. Management rejects deletion that
+would create an invalid nested target, collects shared bytes only after the
+last eligible custody/reference obligation ends, and never resurrects a
+finally erased record. When policy has erased the required source pair, repair
+may quarantine or restore from another independently verified authorized
+backup, but it cannot report rollback.
+
+The compiler receives `ExactSidecarContentIdentityCollision` only after the
+store has durably committed the authenticated `CollisionQuarantineBasisV1`,
+permanent tombstone, fence advance, and logical revoke dispositions at the
+crash-atomic containment point. Otherwise it
+preserves exactly one closed `ExactSidecarIntegrityCoordinationError` source.
+Public adaptation is total and never classified by message text:
+
+| Coordination source | Public `CompileError` | CLI exit | Retryability and required disposition |
+| --- | --- | ---: | --- |
+| `IntegrityQuarantineGenerationMismatch` | `MemoryUnavailable` | `4` | Retry only after store reconciliation or authenticated repair establishes the expected fence generation |
+| `IntegrityQuarantineWitnessMismatch` | `MemoryUnavailable` | `4` | Retry only after store reconciliation or authenticated repair establishes the committed witness set |
+| `IntegrityQuarantineCommitUnavailable` | `MemoryUnavailable` | `4` | Retry only after the store can durably complete or abort containment |
+| `IntegrityQuarantineOutcomeUnknown` | `MemoryUnavailable` | `4` | Do not retry compilation until startup or online store reconciliation proves one terminal outcome |
+| `IntegrityQuarantineReconciliationRequired` | `MemoryUnavailable` | `4` | Do not retry compilation while the affected trust domain or conservative whole-store generation remains fenced |
+
+All five return no product and retain the exact coordination source under
+`MemoryUnavailable`; none is flattened into
+`ExactSidecarContentIdentityCollision`, `SnapshotUnavailable`, generic I/O, or
+an internal compiler write. Durable collision containment intentionally
+retains the rejected compile-origin admission and its resources for
+`CollisionTerminalRemovalStateV1`; that state is not
+`AdmissionFinalizationFailure` and cleanup need not finish before the collision
+is returned. A coordination error may instead mean containment was unavailable
+or remains unknown; it returns only with the origin reconcilable or fenced
+according to that exact source and is likewise not ordinary admission
+finalization.
+
 Invalid UTF-8 exists only at a byte-oriented adapter boundary because the
 library accepts a valid Rust `String`; it is a CLI input failure mapped to exit
 `2`, not a `CompileError`. `InstallationLocatorError` and
@@ -4168,6 +4829,149 @@ configuration is `RequestIncompatible`; a malformed request never reaches this
 classification. The adapter does not inspect error-message text or nested I/O
 causes to choose an exit.
 
+`FocusCandidateError` is the closed outer tagged error sum:
+
+```text
+EligibleActivatedSet(FocusAggregateValidationError)
+| RequestProposition(RequestPropositionError)
+| AuthoritativeProjection(AuthoritativePropositionProjectionError)
+| Consolidation(PropositionConsolidationError)
+| Capacity(FocusCandidateCapacityError)
+| CandidateInvariant(FocusCandidateConstructionError)
+```
+
+The five non-request inner families are finite, closed, and ordered exactly as
+follows. These lists are derived from the cognitive-memory owner contract and
+do not create extension points:
+
+```text
+FocusAggregateValidationError
+├── UnknownEligibleSetSchema
+├── EligibleSetSchemaMismatch
+├── InvocationWitnessUnavailable
+├── EligibleSetWitnessUnavailable
+├── MissingSourceReceiptField
+├── DuplicateSourceReceiptField
+├── SourceReceiptIdentityMismatch
+├── SourceReceiptConfigurationMismatch
+├── ExactSidecarIntegrity(source: ExactSidecarIntegrityErrorV1)
+├── ActivatedRecordBindingMismatch
+├── InvalidActivationValue
+├── ActivationExplanationReferenceMismatch
+├── ProvenanceBindingMismatch
+├── AuthorityCeilingMismatch
+├── AllowedUseCeilingMismatch
+├── DuplicateActivatedRecord
+├── NonCanonicalActivatedRecordOrder
+├── ActivatedRecordLimitExceeded
+├── RetrievalCandidateLimitMismatch
+├── RetrievalCompletenessClassMismatch
+├── RetrievalIndexIdentityMismatch
+└── RetrievalRepresentationIdentityMismatch
+```
+
+```text
+AuthoritativePropositionProjectionError
+├── ProjectionArtifactUnavailable
+├── ProjectionArtifactIdentityMismatch
+├── MissingProjection
+├── DuplicateProjection
+├── UnknownProjectionSchema
+├── ProjectionSchemaMismatch
+├── ForbiddenSourceVariant
+├── MissingSourceBindingField
+├── UnexpectedSourceBindingField
+├── SourceBindingMismatch
+├── ExactProjectionMismatch
+├── ExactSidecarIntegrity(source: ExactSidecarIntegrityErrorV1)
+├── CustodyBindingMismatch
+└── ProjectionLimitExceeded
+```
+
+```text
+PropositionConsolidationError
+├── EquivalenceContractUnavailable
+├── InvalidEquivalenceContract
+├── CompleteLinkContractUnavailable
+├── InvalidExhaustivePairSetWitness
+├── ExhaustiveSourceSetMismatch
+├── ExhaustivePairSetMismatch
+├── ExhaustiveEquivalenceContractMismatch
+├── ExhaustivePairWorkCeilingMismatch
+├── PairWorkCapacityExceeded
+├── ComparisonWorkCapacityExceeded
+├── ConsolidationWorkspaceCapacityExceeded
+├── ExactSlotValueConflict
+├── ClusterCompatibilityViolation
+├── NonCanonicalPartition
+└── OptimizedPartitionMismatch
+```
+
+```text
+FocusCandidateCapacityError
+├── CandidateLimitExceeded
+├── SupportBindingLimitExceeded
+└── ControlExclusionLimitExceeded
+```
+
+```text
+FocusCandidateConstructionError
+├── UnknownFocusRole
+├── DuplicateFocusRole
+├── NonTotalFocusRoleOrder
+├── FocusCandidateOrderKeyMismatch
+├── DuplicateFocusCandidateOrderKey
+├── MissingRequiredQualification
+├── ExactBindingMismatch
+├── UnresolvedContradiction
+├── DuplicatePropositionSemanticKey
+├── EmptyCandidateSupport
+├── CandidateSupportPartitionMismatch
+├── CandidatePropositionIdentityMismatch
+├── InvalidCandidateActivation
+├── CandidateSourceReceiptMismatch
+├── CandidateInvocationWitnessMismatch
+├── CandidateEligibleSetWitnessMismatch
+├── CandidateAuthorityCeilingExceeded
+├── CandidateAllowedUseCeilingExceeded
+├── CandidateSurfaceAuthorityCeilingExceeded
+├── InvalidMandatoryClassification
+└── NonCanonicalCandidateSetOrder
+```
+
+There is no `Other`, `Malformed`, `Structural`, `Internal`, unknown-reason, or
+message-only member. Authenticated schema decoding rejects an unknown
+discriminant before focus evaluation. Changing a family requires a new
+versioned contract and decision.
+
+Validation uses that canonical pipeline order. Within a completed stage, the
+inner error family's declaration order and then the smallest canonical
+affected source, pair, cluster, or candidate key select the result. Every
+variant retains its exact closed inner `source()`; the outer tag never replaces
+it with prose, an empty focus set, or a later planning error. Public adaptation
+for the five non-request families is exhaustive and disjoint by exact
+discriminant:
+
+| Exact inner family and discriminants | Public `CompileError` / CLI exit | Retry posture and required disposition |
+| --- | --- | --- |
+| `FocusAggregateValidationError::{ExactSidecarIntegrity}` | `MemoryUnavailable` / `4` | Preserve the exact `ExactSidecarIntegrityErrorV1` retry and containment disposition; return no candidate set |
+| `FocusAggregateValidationError::{UnknownEligibleSetSchema, EligibleSetSchemaMismatch, InvocationWitnessUnavailable, EligibleSetWitnessUnavailable, MissingSourceReceiptField, DuplicateSourceReceiptField, SourceReceiptIdentityMismatch, SourceReceiptConfigurationMismatch, ActivatedRecordBindingMismatch, InvalidActivationValue, ActivationExplanationReferenceMismatch, ProvenanceBindingMismatch, AuthorityCeilingMismatch, AllowedUseCeilingMismatch, DuplicateActivatedRecord, NonCanonicalActivatedRecordOrder, ActivatedRecordLimitExceeded, RetrievalCandidateLimitMismatch, RetrievalCompletenessClassMismatch, RetrievalIndexIdentityMismatch, RetrievalRepresentationIdentityMismatch}` | `InternalInvariantViolation` / `70` | Not retryable for the same binary and pinned state; reject the whole aggregate and rebuild only through its owning validated stage |
+| `AuthoritativePropositionProjectionError::{ExactSidecarIntegrity}` | `MemoryUnavailable` / `4` | Preserve the exact `ExactSidecarIntegrityErrorV1` retry and containment disposition; return no candidate set |
+| `AuthoritativePropositionProjectionError::{ProjectionArtifactUnavailable, ProjectionArtifactIdentityMismatch, UnknownProjectionSchema, ProjectionSchemaMismatch}` | `ArtifactUnavailable` / `5` | Retry only after authorized repair installs the exact authenticated compatible projection artifact or schema |
+| `AuthoritativePropositionProjectionError::{ProjectionLimitExceeded}` | `ResourceFailure` / `8` | Not retryable for the identical source set and configuration; reduce the bounded source set or install a different authenticated limit |
+| `AuthoritativePropositionProjectionError::{MissingProjection, DuplicateProjection, ForbiddenSourceVariant, MissingSourceBindingField, UnexpectedSourceBindingField, SourceBindingMismatch, ExactProjectionMismatch, CustodyBindingMismatch}` | `InternalInvariantViolation` / `70` | Not retryable for the same binary and pinned state; reject the entire paired-plane aggregate and rebuild it through its owner |
+| `PropositionConsolidationError::{EquivalenceContractUnavailable, InvalidEquivalenceContract, CompleteLinkContractUnavailable}` | `ArtifactUnavailable` / `5` | Retry only after authorized installation or repair of the exact authenticated equivalence/complete-link contract |
+| `PropositionConsolidationError::{PairWorkCapacityExceeded, ComparisonWorkCapacityExceeded, ConsolidationWorkspaceCapacityExceeded}` | `ResourceFailure` / `8` | Not retryable for the identical source set and configuration; reduce bounded work or install a different authenticated limit before any partition |
+| `PropositionConsolidationError::{ExactSlotValueConflict}` | `PlanningFailure` / `6` | Not retryable for identical inputs; preserve both exact values and reject consolidation without a partial partition |
+| `PropositionConsolidationError::{InvalidExhaustivePairSetWitness, ExhaustiveSourceSetMismatch, ExhaustivePairSetMismatch, ExhaustiveEquivalenceContractMismatch, ExhaustivePairWorkCeilingMismatch, ClusterCompatibilityViolation, NonCanonicalPartition, OptimizedPartitionMismatch}` | `InternalInvariantViolation` / `70` | Not retryable for the same implementation and pinned state; discard the complete partition and optimized witness |
+| `FocusCandidateCapacityError::{CandidateLimitExceeded, SupportBindingLimitExceeded, ControlExclusionLimitExceeded}` | `ResourceFailure` / `8` | Not retryable for the identical consolidated set and configuration; reduce bounded candidate/support/control state or install a different authenticated limit |
+| `FocusCandidateConstructionError::{UnknownFocusRole, DuplicateFocusRole, NonTotalFocusRoleOrder, FocusCandidateOrderKeyMismatch, DuplicateFocusCandidateOrderKey, MissingRequiredQualification, ExactBindingMismatch, UnresolvedContradiction, DuplicatePropositionSemanticKey, EmptyCandidateSupport, CandidateSupportPartitionMismatch, CandidatePropositionIdentityMismatch, InvalidCandidateActivation, CandidateSourceReceiptMismatch, CandidateInvocationWitnessMismatch, CandidateEligibleSetWitnessMismatch, CandidateAuthorityCeilingExceeded, CandidateAllowedUseCeilingExceeded, CandidateSurfaceAuthorityCeilingExceeded, InvalidMandatoryClassification, NonCanonicalCandidateSetOrder}` | `InternalInvariantViolation` / `70` | Not retryable for the same binary and pinned state; discard the complete candidate set and repair the owning constructor |
+
+No focus error maps to `PlanningError`; `plan_attention` is not called without
+a complete valid `FocusCandidateSet`. The `PlanningFailure` mapping for an
+upstream `ExactSlotValueConflict` is a public disposition, not a
+`PlanningError` value and not a planning call.
+
 The closed `RequestPropositionError` source reasons map totally and by variant,
 never by message text. The current focused contract contains twelve reasons:
 
@@ -4185,6 +4989,11 @@ never by message text. The current focused contract contains twelve reasons:
 | `DuplicateSourceIdentity` | `PlanningFailure` | `6` | Not retryable for identical request, configuration, artifacts, and revision; duplicate support is rejected |
 | `DuplicateSourceOrderKey` | `PlanningFailure` | `6` | Not retryable for identical request, configuration, artifacts, and revision; canonical order ambiguity is rejected |
 | `RequestPropositionLimitExceeded` | `ResourceFailure` | `8` | Not retryable for the identical request and configuration; a caller may submit a narrower request or an authorized installation may select a different bounded configuration |
+
+The non-request table and this twelve-row request table jointly cover all
+\(75+12=87\) inner discriminants of the outer `FocusCandidateError` exactly
+once. No discriminant is inferred from message text, covered by two rows, or
+left to an adapter default.
 
 Focus construction never maps one of these reasons to
 `AuthorizationUnavailable`: it receives no authorization service or view and
@@ -4265,23 +5074,27 @@ substitution-owned failures are distinct from validator-owned
 after a successfully substituted candidate reaches the independent validator.
 
 Candidate validation is conceptually
-`validate(candidate, &ValidationView, K_R)`; the compiler projects that
-least-privilege view from its private `ValidationContext`, and the validator
-receives neither the context type, a raw plan, an invocation witness, nor a
-canonical-plan byte capsule. Before that call, the compiler compares private
+`validate(candidate, &ValidationView, &ValidationConfigurationViewV1)`; the
+compiler projects both least-privilege views from its private
+`ValidationContext` and complete authenticated renderer configuration. The
+validator receives neither complete \(K_R\), the context type, a raw plan, an
+invocation witness, nor a canonical-plan byte capsule. Candidate and
+validation view retain only opaque equality-comparable bindings derived from
+the same private `ConditioningInstanceWitness`; mismatch rejects before
+semantic interpretation. Before that call, the compiler compares private
 candidate/context capsules whenever their
 `PlanContentId` values are equal. Equal identity with different bytes is the
 standalone collision above; different identities proceed to validation.
 `RendererValidationError::PlanIdentityMismatch`
 maps to `InternalInvariantViolation`, exit `70`, when a candidate's sealed plan
 content identity differs from the one exposed by the validation view. The validator
-also recomputes `RendererConfigurationId` from exact authenticated supplied
-\(K_R\), compares its exact canonical content with the candidate and validation
-view,
+also reads `RendererConfigurationId` and the exact full-\(K_R\) commitment
+from the supplied `ValidationConfigurationViewV1`, compares them with the
+candidate and validation view,
 and returns
 `RendererValidationError::RendererConfigurationMismatch`, mapped to
 `InternalInvariantViolation`, exit `70`, unless candidate, validation-view, and
-supplied configuration identities and canonical contents are equal. Equal ID with
+supplied view identities and commitments are equal. Equal ID with
 different canonical bytes follows the same mismatch and quarantine path. The
 validator never repairs either identity. A missing, unauthenticated,
 digest-invalid, schema-incompatible, or
@@ -4291,11 +5104,13 @@ configuration mismatch. Two separately valid same-content
 invocations have the same bound-query and plan content identities and may have
 corresponding different nonsemantic instance lineage while producing equal
 semantic validation projections and verdicts. Their separately constructed
-canonical-content-identical plan objects and candidates are intentionally
-interchangeable at the witness-free validation boundary only under equal
-`RendererConfigurationId` and byte-identical authenticated canonical \(K_R\)
-content, and must produce identical substitution, validation, and product
-bytes. Each context builder
+canonical-content-identical plan objects have equal plan content, but their
+live candidate wrappers are not interchangeable because each carries a
+binding derived from its own `ConditioningInstanceWitness`. Independently
+executing each compile
+under equal `RendererConfigurationId` and byte-identical authenticated
+canonical \(K_R\) content must produce identical substitution, validation, and
+product bytes. Each context builder
 must nevertheless consume the witness belonging to its own current invocation
 before either candidate can reach validation. Canonically different plan
 content always yields `PlanIdentityMismatch`; a different exact valid renderer
@@ -4419,7 +5234,8 @@ The following decisions are already accepted and constrain this proposal:
 - a bounded focus-and-expectation plan that preserves alternatives and
   abstention;
 - evidence-bound attention rather than a claimed chain of thought;
-- a direct vector-prefix bridge with deterministic exact-value slots; and
+- an architecture-neutral vector-conditioned focus-adapter boundary with
+  deterministic exact-value slots; and
 - a frozen, task-specific local lexicalizer qualification path before any
   release model is selected.
 
@@ -4442,7 +5258,7 @@ implemented:
 | Activation adoption | Improvement over simpler ranking baselines on disjoint evidence |
 | Expectation baseline | Transition corpus, deterministic grouping, dependency budgets, alternatives, coverage, abstention, and wrong-expectation cases |
 | Attention planning | Accepted objective instantiated with focus/expectation separation, coverage, exclusion, conflict, redundancy, abstention, and budget evidence |
-| Renderer and validation | Accepted vector-prefix path compared with templates and MLP; model selected by focus/expectation faithfulness, leakage, language, exact-slot, downstream, and resource evidence |
+| Renderer and validation | Architecture-neutral vector-conditioned boundary compared across deterministic, query-only, memory-only, weighted-pooling or linear, set-adapter, and every proposed stronger learned family; adapter and optional decoder selected by focus/expectation faithfulness, leakage, language, exact-slot, downstream, and resource evidence |
 | Runtime topology | Offline enforcement, packaging, failure isolation, and reference-hardware measurements |
 | Release claim | Sealed end-to-end evaluation and all predeclared gates |
 
@@ -4450,8 +5266,9 @@ Database engine, physical schema, concrete facet encoders and dimensions,
 index, expectation thresholds, release renderer model and quantization,
 production model runtime, caching strategy, and process topology are chosen
 only after their owning contracts and minimum evidence exist. The logical
-numerical representation, predictive branch, and renderer qualification path
-are no longer open.
+numerical representation, predictive branch, and vector-conditioned
+qualification boundary are closed; the concrete adapter family and optional
+decoder remain open.
 Initialization, create/import, correction, revocation, deletion, export,
 consolidation, migration, and recovery are separately scoped management
 operations. Each requires a contract before its own implementation, but this
@@ -4464,7 +5281,9 @@ A conforming implementation requires:
 - the accepted V1 product boundary;
 - one initialized local memory universe for one principal;
 - an authorization and disclosure view;
-- a coherent immutable memory revision;
+- a coherent immutable memory revision with content-derived exact-sidecar
+  schema and identity-regime identities, complete references, and a verified
+  per-record custody ledger;
 - installed compatible numerical and rendering artifacts with immutable
   content identities;
 - one pinned versioned compiler configuration and artifact set;
@@ -4481,6 +5300,12 @@ A conforming implementation requires:
   outside the mutable artifact bundle before its content digest is trusted.
 - Every source used after authorization belongs to the pinned authorized
   revision.
+- Every memory source admitted to the shared activated set carries its own
+  derived projection and independently validated authoritative projection
+  joined through the same tagged source, record, artifact, revision, and
+  complete custody binding containing the sole sidecar reference. Request
+  sources use only their
+  disjoint request-specific join.
 - No derived representation or proposition has greater instruction authority
   than its essential supporting sources.
 - Every planned and rendered proposition has source bindings and preserves
@@ -4489,6 +5314,11 @@ A conforming implementation requires:
   `EligibleActivatedMemorySet<'call>` object before final focus pruning; no
   projection, filtering, copying, or reconstruction precedes either
   aggregate-taking call.
+- Focus consolidation partitions only within true identity-equivalence
+  classes after bounded exhaustive unordered-pair enumeration and admits a
+  cluster only under complete-link pairwise compatibility plus all
+  cluster-level invariants; numerical order, traversal order, and
+  nontransitive compatibility cannot omit a pair or create a larger cluster.
 - Expectation remains distinct from goal, action, answer, fact, and
   probability.
 - Dependency grouping prevents one known evidence lineage from multiplying its
@@ -4518,6 +5348,13 @@ A conforming implementation requires:
 - A cross-project record may be selected when it is relevant.
 - A current-project record may be omitted when it is irrelevant.
 - A stale index cannot silently supply candidates for a newer revision.
+- Equal sidecar digests under different regime or schema identities cannot
+  reuse a reference or record-version identity.
+- Logical erasure of one deduplicated record cannot physically collect bytes
+  still required by another field-identical complete custody binding or nested reference;
+  final erasure cannot be reversed through rollback.
+- A nontransitive three-source consolidation triad cannot collapse into one
+  proposition through connected-component or representative-only grouping.
 - A correction published concurrently affects only later compile calls.
 - Under the proposed snapshot-stable rule, authorization revocation published
   after snapshot acquisition affects later calls; immediate cancellation
@@ -4563,6 +5400,24 @@ Architecture conformance requires:
 - prompt-buffer aliasing or copy-path tests proving byte preservation;
 - authorization-before-retrieval tests;
 - memory-snapshot model tests with concurrent revision publication;
+- effect-free prelookup spies, immutable
+  `ExactSidecarResolvedSnapshotV1` postlookup fixtures, every
+  `CollisionObservationOriginV1::{Compile, TerminalProbe, Management}` member
+  and cross-origin substitution, authenticated
+  `CollisionQuarantineBasisV1` reverse-index and whole-generation scopes,
+  containment fault injection around the atomic tombstone/fence/logical-revoke
+  linearization without resource destruction, bounded idempotent
+  `CollisionTerminalRemovalStateV1` cursor/limit/outcome retry and restart,
+  final linearizable product/probe/management guard races,
+  committed/aborted/unknown restart reconciliation, conservative whole-store
+  fencing when reachability is unproved, exact
+  `ExactSidecarIntegrityCoordinationError` public mappings, and separate
+  `CollisionRecoveryTransactionV1` new-regime-or-erasure recovery with a
+  permanent old tombstone;
+- sealed-holding fixtures proving content-derived identity over the complete
+  owner/policy/trusted-time/source/binding/purpose obligation, stability across
+  physical movement, distinction of equal-looking independent source
+  obligations, no caller-selected identity fields, and storage-only behavior;
 - authorization-revocation timing tests for the selected cancellation policy;
 - representation and index revision-mismatch tests;
 - cross-context candidate-generation tests and measured retrieval recall;
@@ -4578,18 +5433,43 @@ Architecture conformance requires:
   same-content sets inside one invocation,
   distinct exact-slot owners sharing one schema locator, and conflicting
   exact values under one owner-plus-locator;
+- flattened consolidation-source tests in which activated records contribute
+  zero, one, and several focus-visible proposition-plane sources; source-set
+  identity, \(n(n-1)/2\) pair count, work ceiling, complexity accounting, and
+  optimized witness equality must use \(n_Q+n_{\mathrm{src}}^M\), never
+  activated-record count;
+- two-plane metamorphic tests proving numerical values may reorder complete
+  work and change bounded relevance while fixed authoritative projections
+  preserve identity equivalence, compatibility, conflict, and grouping; no
+  numerical equality, similarity, activation, threshold, or traversal order
+  can merge an authoritative mismatch;
+- exhaustive `FocusCandidateError` tests for all 75 exact non-request and 12
+  request inner reasons, authenticated unknown-discriminant rejection, and
+  every public mapping, specifically projection, pair, comparison,
+  consolidation-workspace, and post-consolidation limits, exact-slot
+  conflicts, invalid witnesses/partitions, candidate invariants, cross-stage
+  precedence, and within-stage inner declaration order followed by the
+  smallest canonical affected key;
 - renderer focus/expectation faithfulness, language, probability inflation,
   action and answer leakage, exact-slot, and qualification evaluation,
   including proof that validation-context construction consumes but never
-  exposes the call witness; the shared
+  exposes the call witness; the live adapter result and validator view carry
+  equal opaque bindings derived from one private nonsemantic
+  conditioning-instance witness; dense adapter handles
+  resolve only through a total validator-side semantic-key map and reject
+  forged, out-of-range, duplicate, noncanonical, or remapped values; the shared
   `AuthenticatedRendererConfiguration` has byte-identical
   \(\operatorname{CE}_{v1}(K_R)\), cannot be caller-constructed, field-mutated,
-  or injected, and grants renderer and validator no installation, trust-root,
-  update, filesystem, or network capability; candidate lifetimes prevent
+  or injected; only the compiler can derive the commitment-bound
+  `AdapterConfigurationViewV1` and `ValidationConfigurationViewV1`, and neither
+  view grants cross-field, installation, trust-root, update, filesystem, or
+  network capability; validator-only configuration perturbations cannot affect
+  adapter execution; candidate lifetimes prevent
   unchecked detachment without claiming referent identity;
   separately authenticated canonical-content-identical \(K_R\) values are
-  equivalent, while projections, narrower values, and equal-ID/different-byte
-  configurations fail `RendererConfigurationMismatch` and quarantine;
+  equivalent, while independently authenticated partial values and
+  equal-ID/different-byte configurations fail
+  `RendererConfigurationMismatch` and quarantine;
   canonical-content-identical plan
   candidates under equal `RendererConfigurationId` and byte-identical
   authenticated canonical \(K_R\) content produce bit-identical renderer
@@ -4673,11 +5553,12 @@ omnibus acceptance of those choices.
 - [Local renderer model qualification](local-renderer-model-qualification.md)
 - [Superseded Decision 0011: Adopt a local read-only attention compiler for V1](../decisions/0011-adopt-local-read-only-attention-compiler-v1.md)
 - [Decision 0014: Adopt memory-grounded predictive attention](../decisions/0014-adopt-memory-grounded-predictive-attention.md)
-- [Decision 0015: Render qualified focus-and-expectation plans](../decisions/0015-render-qualified-focus-and-expectation-plans.md)
-- [Decision 0016: Adopt sealed compile-integrity boundaries](../decisions/0016-adopt-sealed-compile-integrity-boundaries.md)
+- [Superseded Decision 0015: Render qualified focus-and-expectation plans](../decisions/0015-render-qualified-focus-and-expectation-plans.md)
+- [Superseded Decision 0016: Adopt sealed compile-integrity boundaries](../decisions/0016-adopt-sealed-compile-integrity-boundaries.md)
 - [Decision 0020: Freeze deterministic public call semantics](../decisions/0020-freeze-deterministic-public-call-semantics.md)
 - [Decision 0021: Adopt a recoverable, verifiable release lifecycle](../decisions/0021-adopt-a-recoverable-verifiable-release-lifecycle.md)
-- [Decision 0023: Bind complete renderer training state](../decisions/0023-bind-complete-renderer-training-state.md)
+- [Superseded Decision 0019: Establish render-domain and bounded validation](../decisions/0019-establish-render-domain-and-bounded-validation.md)
+- [Superseded Decision 0023: Bind complete renderer training state](../decisions/0023-bind-complete-renderer-training-state.md)
 - [Decision 0024: Separate transition records from derived artifacts](../decisions/0024-separate-transition-records-from-derived-artifacts.md)
 - [Decision 0025: Complete pre-access and statistical guards](../decisions/0025-complete-pre-access-and-statistical-guards.md)
 - [Decision 0026: Distinguish initial release from predecessor rollback](../decisions/0026-distinguish-initial-release-from-predecessor-rollback.md)
@@ -4685,6 +5566,8 @@ omnibus acceptance of those choices.
 - [Superseded Decision 0028: Bind update writer exclusion and ship authorization](../decisions/0028-bind-update-writer-exclusion-and-ship-authorization.md)
 - [Decision 0029: Require positive update success per supported tuple](../decisions/0029-require-positive-update-success-per-supported-tuple.md)
 - [Decision 0031: Complete compile and update admission handoffs](../decisions/0031-complete-compile-and-update-admission-handoffs.md)
+- [Decision 0032: Bind authoritative exact sidecars and two-plane consolidation](../decisions/0032-bind-authoritative-exact-sidecars-and-two-plane-consolidation.md)
+- [Decision 0034: Adopt the vector-conditioned focus-adapter boundary](../decisions/0034-adopt-vector-conditioned-focus-adapter-boundary.md)
 - [SQLite transactions](https://www.sqlite.org/lang_transaction.html)
 - [SQLite write-ahead logging](https://www.sqlite.org/wal.html)
 - [SQLite backup API](https://www.sqlite.org/backup.html)

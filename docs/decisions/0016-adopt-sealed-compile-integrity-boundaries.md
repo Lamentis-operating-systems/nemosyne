@@ -1,7 +1,8 @@
 # 0016: Adopt sealed compile-integrity boundaries
 
-Status: Accepted
+Status: Superseded
 Date: 2026-07-24
+Superseded by: 0034-adopt-vector-conditioned-focus-adapter-boundary.md
 
 ## Context
 

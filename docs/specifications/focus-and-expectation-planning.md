@@ -14,6 +14,17 @@ The plan is not an action plan. It selects bounded context for lexicalization;
 the downstream agent remains responsible for investigation, decision, tool
 choice, and action.
 
+Decision 0032 requires every memory-backed exact surface to retain and verify
+one complete record-bound custody binding containing the sole authoritative
+exact-sidecar reference before planning. Planning consumes only a complete successful,
+per-source-paired, partition-safe two-plane consolidation result and cannot
+reinterpret its source join, identity equivalence, complete-link partition,
+scope, provenance, disclosure, authority, validity, or conflict decisions from
+numerical facets.
+Numerical values may order bounded work and contribute relevance only;
+independently validated authoritative projections alone decide equivalence,
+compatibility, conflict, and grouping.
+
 No planner in this specification is implemented. Coefficients, budgets,
 thresholds, and plan limits remain evidence-gated.
 
@@ -158,12 +169,17 @@ PlanningSourceProjection
 ├── source_receipt: exact copy of Lambda_A
 ├── item instance identity and branch semantic key
 ├── essential-source identities
+├── tagged request-source or memory record/artifact/revision bindings
 ├── authority_ceiling
 ├── allowed_use_ceiling
 ├── surface_authority_ceiling
 ├── mandatory qualifiers and relations
 └── <private privileged sidecar> exact_slot_bindings[]
     ├── lineage-bearing ExactSlotBindingInstanceId
+    ├── authoritative exact source
+    │   ├── Memory(record version, derived artifact, memory revision,
+    │   │   ExactSidecarCustodyBindingV1 including verified ExactSidecarRefV1)
+    │   └── Request(validated B_Q, source receipt, request exact locator)
     ├── schema-owned ExactSlotSemanticLocator
     ├── pre-planning ExactSlotOwnerSemanticDescriptor
     │   ├── Item(BranchItemOwnerSemanticDescriptor, exact owner role)
@@ -179,6 +195,23 @@ types, not a third object, producer, service, or crate dependency. Its
 cardinality cannot exceed the candidate, source, qualifier, relation, and
 exact-binding limits already declared by those inputs and the pinned planning
 configuration.
+
+Every focus source enters this projection only after the focus branch has
+paired its numerical source projection with one independently validated
+`AuthoritativePropositionProjectionV1` and completed partition-safe two-plane
+consolidation. A memory source joins on its tagged source identity, immutable
+record version, source-derived artifact, memory revision, and one record-bound
+`ExactSidecarCustodyBindingV1` containing the sole complete
+`ExactSidecarRefV1`. A request
+source instead joins on its tagged request-source identity, validated exact
+request projection, source receipt, and attribution and cannot acquire any
+persistent memory field. Planning preserves the validated source variant,
+sidecar and custody binding where applicable, scope, provenance, disclosure,
+authority, allowed-use, surface-authority, validity, supersession, and
+conflict results. It does not rerun exhaustive unordered-pair enumeration,
+optimized pair-set equality witnessing, authoritative equivalence,
+complete-link validation, or partition selection and cannot use numerical
+facets to alter any of those results.
 
 The branch semantic key is exactly `PropositionSemanticKey` for a focus
 candidate and `ExpectationItemSemanticKey` for an expectation hypothesis,
@@ -318,6 +351,59 @@ rejects missing, duplicate, inconsistent, or unreferenced surfaces; and emits
 only the canonical slot-ordered union. `PlanningInput::new` consumes that
 finished permissionless \(\mathcal V_{\mathrm{plan}}\). Neither raw \(Q\),
 \(\mathcal A\), nor the source sidecar tables cross the planner boundary.
+
+For every memory-backed branch binding, the source projection first validates
+the record-bound `ExactSidecarCustodyBindingV1` and its sole nested
+`(regime_id, schema, content_id)` `ExactSidecarRefV1` under the canonical
+[exact-sidecar content-identity contract](cognitive-memory-activation-and-focus.md#exact-sidecar-content-identity-and-verification).
+That owner contract alone defines the complete identity-regime field set; this
+planning specification does not abbreviate or redefine it. The compiler-owned
+projection receives only a successful store read: the store's effect-free
+prelookup has authenticated record, complete regime, schema reference, custody
+ledger, and authorization; one sealed `ExactSidecarResolvedSnapshotV1` then
+fixed every postlookup presence, physical-custody, byte, collision, and nested
+target input. The projection recomputes canonical bytes, content identity and
+complete reference, verifies nested references and custody, and checks the same
+record-version and memory-revision binding already carried by the branch.
+Missing, corrupt, rebound, regime- or schema-mismatched,
+custody-mismatched, invalidly nested, or colliding content, and any
+cross-record or cross-revision substitution inconsistent with the branch
+binding, is a typed memory-integrity failure before `PlanningInput::new`; it
+cannot become an absent slot, an `InvalidExactSlot`, a planning omission, or a
+partial inventory. Reusing byte-identical content through the same verified
+reference is valid only when the complete `ExactSidecarCustodyBindingV1`
+values are field-for-field identical and does not weaken either per-record
+logical ledger entry.
+
+A collision never reaches planning as semantic input. The store first
+authenticates one closed
+`CollisionObservationOriginV1::{Compile, TerminalProbe, Management}` member
+and one `CollisionQuarantineBasisV1` binding the exact trust key, origin,
+permanent tombstone, expected/next fence, complete witness,
+custody/derived-artifact and active-admission/snapshot closures, and proven
+reverse-index or whole-generation scope. The compile path can induce only the
+`Compile` origin; it cannot fabricate a probe or independently authorized
+management origin.
+
+One crash-atomic containment point commits the basis, tombstone, fence advance,
+and logical revoke dispositions without destroying resources. The separate
+bounded, idempotent `CollisionTerminalRemovalStateV1` later closes retained
+revoked admissions and snapshots through its fixed cursor, positive
+item/work/byte limits, and exact committed, aborted, or reconciliation
+outcome. Immediately before success, compile product release, terminal-probe
+pass, and management lifecycle mutation validate their respective
+`product_release_guard_id`, `terminal_probe_result_guard_id`, or
+`lifecycle_commit_guard_id` linearizably against the root fence. Planning
+therefore cannot race or replace a final guard with its earlier snapshot.
+
+The compiler receives a collision only after durable containment; otherwise it
+preserves the exact `ExactSidecarIntegrityCoordinationError`, mapped to
+`MemoryUnavailable`, exit `4`, and constructs no `PlanningInput`. Resolution
+is the disjoint `CollisionRecoveryTransactionV1`, restricted to complete
+new-regime republication or complete authorized controlled-custody erasure
+while the old tombstone and non-use rule remain permanent. Planning has no
+containment, terminal-removal, recovery, management, or storage-only
+`SealedCustodyHoldingReferenceV1` capability.
 
 The planner may only:
 
@@ -532,6 +618,18 @@ FocusExpectationPlan<'call>
 │   └── empty-attention disposition
 ├── renderable_focus_items[]
 ├── renderable_expectation_items[]
+├── vector_conditioning
+│   ├── numerical_query_and_task_context
+│   ├── weighted_semantic_evidence[]
+│   │   ├── source_and_plan_semantic_binding
+│   │   ├── verified semantic vector facets and presence masks
+│   │   ├── vector-space, encoder, schema, and artifact identities
+│   │   ├── activation_weight: relevance only
+│   │   └── role, relation, uncertainty, and missingness qualifiers
+│   ├── request_or_situation_origin_numerical_items[]
+│   ├── safe_exact_slot_metadata
+│   ├── language_and_finite_output_controls
+│   └── <private validator only> source, exclusion, and policy bindings
 ├── mandatory_relations[]
 │   ├── dominant_over
 │   ├── qualifies
@@ -638,23 +736,30 @@ is the domain-tagged canonical encoding of exactly:
    plus the complete lineage-independent semantic content from the query,
    focus, expectation, and eligible activated-memory inputs that was actually
    selected or retained as a validator control;
-3. resolved output language, post-substitution budget, empty-attention
+3. the complete canonical `VectorConditionedFocusSemanticsV1`, including the
+   renderer-safe numerical query/task projection, every selected
+   memory/request semantic vector and presence mask, its activation weight,
+   vector-space and encoder identity, canonical adapter handle, the total
+   handle-to-`PlanItemSemanticKey` validator mapping, role, relation,
+   uncertainty, missingness, validator-only authority ceiling, safe slot
+   metadata, validator semantics, and finite conditioning bounds;
+4. resolved output language, post-substitution budget, empty-attention
    disposition, selected plan shape, and the checked conservative plan cost;
-4. every renderable focus item and expectation item, including its complete
+5. every renderable focus item and expectation item, including its complete
    `PlanItemSemanticKey`, role, meaning, qualification, condition, horizon,
    alternative-family membership, uncertainty, authority and allowed-use
    ceilings, final surface disposition, supporting semantic source identities,
    dependency groups, and rendering-cost bound;
-5. every mandatory relation as its complete `RelationSemanticKey` and all
+6. every mandatory relation as its complete `RelationSemanticKey` and all
    relation semantics;
-6. every validator control, exclusion, authority ceiling, dependency,
+7. every validator control, exclusion, authority ceiling, dependency,
    qualification, omitted/unknown-support record, and no-answer/no-action
    boundary;
-7. every exact-sidecar entry's `SlotSemanticKey`, `RendererSlotId`, exact-value
+8. every exact-sidecar entry's `SlotSemanticKey`, `RendererSlotId`, exact-value
    schema and formatter identities, occurrence contract, permitted
    item-and-role bindings, exact-surface content identity, authoritative
    byte-preserving formatted surface, language, and display policy; and
-8. the canonical selected structural closure and the complete \(G(X)\) and
+9. the canonical selected structural closure and the complete \(G(X)\) and
    validator-only \(V(X)\) projections, represented by their canonical
    semantic identities rather than request-local instance identities.
 
@@ -675,6 +780,9 @@ The canonical envelope explicitly excludes:
 - request-local `PlanItemId`, `RelationInstanceId`,
   `ExactSlotBindingInstanceId`, frame-instance, transition-instance,
   proposition-instance, and every other lineage-bearing instance identity;
+- `ConditioningInstanceWitness<'call>`,
+  `FocusConditioningBindingViewV1<'call>`, request-local custody/source
+  bindings, and every live adapter-to-validator join value;
 - full `configuration_id`, renderer configuration \(K_R\),
   `RendererConfigurationId`, configuration-bound `request_id` and
   `situation_id`, `BoundQueryContentId`, raw \(B_Q\), raw \(\Lambda_A\),
@@ -841,6 +949,131 @@ G(L):=G(X^*),\qquad V(L):=V(X^*).
 The envelope and content identity bind these projections to \(X^*\). A
 renderer or validator cannot independently add, remove, or reorder their
 members.
+
+### Vector-conditioned focus input
+
+The selected plan owns canonical `VectorConditionedFocusSemanticsV1`, a
+subvalue of `PlanCanonicalEnvelopeV1`. For one compile, the orchestrator joins
+that value with the plan's already validated request-local custody and source
+bindings to construct one sealed
+`VectorConditionedFocusInputV1<'call, 'plan>`. The live input is not a second
+plan or an independently supplied runtime argument. It owns a private,
+noncloneable, nonserializable `ConditioningInstanceWitness<'call>` and exposes
+two disjoint borrows branded by it:
+
+- `AdapterConditioningViewV1`, the only learned-adapter-visible semantic
+  conditioning source; and
+- `FocusConditioningValidationViewV1`, the validator-only authoritative,
+  provenance, exclusion, dependency, and authority-control view.
+
+Let:
+
+\[
+C_F(L)=
+\left(
+C_A(L),
+C_V^{sem}(L),
+C_V^{bind}(L),
+\omega_F
+\right),
+\]
+
+with:
+
+\[
+C_A(L)=
+\left(
+Q_F,
+\mathcal M_F,
+\mathcal Q_F,
+\mathcal R_F,
+\ell_L,
+B_L
+\right).
+\]
+
+where \(\omega_F\) is the opaque `ConditioningInstanceWitness`. Here \(Q_F\)
+is the bounded renderer-safe numerical task and situation
+projection copied from the sealed \(Q_{\mathrm{num}}\), \(\mathcal M_F\) is
+the finite selected memory-origin vector set, \(\mathcal Q_F\) is the finite
+request- or situation-origin numerical set, and \(\mathcal R_F\) contains only
+the safe selected roles, relations, qualifiers, and slot metadata required to
+condition focus. \(C_V^{sem}(L)\) contains lineage-independent authoritative
+semantics, exclusions, authority ceilings, dependency groups, omitted support,
+abstention, no-answer/no-action controls, and the adapter-handle mapping.
+\(C_V^{bind}(L)\) contains request-local source, custody, and provenance
+bindings required only by independent validation. \(C_A\) and
+\(C_V^{sem}\) are canonical plan content. \(C_V^{bind}\) and \(\omega_F\) are
+excluded from `PlanContentId` and cannot affect semantic grouping, selection,
+scores, canonical order, model features, or product bytes.
+
+Planning assigns every adapter-visible plan item one dense, contiguous
+`AdapterPlanItemHandleV1` in canonical plan-item order. \(C_A\) contains only
+that handle. \(C_V^{sem}\) contains a total bijection from each handle to the
+complete `PlanItemSemanticKey`, required qualifier keys, permitted slots, and
+semantic ceiling. No adapter-visible field can derive the semantic key or a
+request-local source identity. The validator rejects a missing, duplicate,
+unknown, out-of-range, noncanonical, or remapped handle.
+
+For each memory-origin member:
+
+\[
+m_i =
+\left(
+k_i,
+\{v_{i,f}\}_{f\in\mathcal F_i},
+\mathbf m_i,
+a_i,
+r_i,
+u_i
+\right),
+\qquad
+a_i\in[0,1].
+\]
+
+Here \(v_{i,f}\) is copied bit-for-bit from the verified semantic derived
+artifact carried by the same `EligibleActivatedMemorySet` used by planning;
+\(\mathbf m_i\) distinguishes present, absent, and unknown facets; \(k_i\)
+binds only the adapter-safe vector space, encoder revision, schema, presence,
+and canonical adapter handle; \(a_i\) is the exact admitted
+activation weight; \(r_i\) carries selected roles and relations; \(u_i\)
+carries closed uncertainty and missingness qualifiers. The
+corresponding validator-only source and provenance binding \(b_i\) occurs only
+in \(C_V^{bind}(L)\); the semantic-key mapping occurs only in
+\(C_V^{sem}(L)\). Neither has an accessor or reconstructable identifier in
+`AdapterConditioningViewV1`.
+
+The plan includes all and only numerical supports required by selected
+renderable items. It does not retrieve another record, reconstruct a source
+from an identifier, re-encode memory prose, or substitute a nearby text.
+Multiple source supports of one consolidated item remain separately bound so
+that a duplicate or dependency clone cannot amplify evidence by appearing
+twice. The set is duplicate-free, finite, canonically ordered by its complete
+semantic binding, and permutation-invariant before canonicalization.
+
+Activation weight means request-local relevance only. It is not truth,
+probability, confidence, authority, disclosure permission, utility, safety, or
+action priority. Zero is a present weight and is not the encoding for missing
+or unknown. A weight cannot change membership, remove a qualifier, create a
+proposition, raise an authority ceiling, or authorize an exact slot.
+
+Construction rejects a missing or duplicate source, nonfinite value,
+incompatible vector space, unknown encoder or schema, wrong dimension,
+missing presence mask, cross-query or cross-plan binding, source not already
+selected by \(L\), or a conditioning bound exceeded. The request-only and
+situation-only paths remain valid when \(\mathcal M_F=\varnothing\); an empty
+attention plan takes the deterministic no-model path.
+
+Adapter-visible data is restricted to \(Q_F\), the numerical vector values,
+presence masks, relevance weights, safe closed roles/relations/qualifiers,
+language, bounds, and exact-slot placeholders. It contains no raw or
+normalized memory text, nearest-memory text, decimal vector serialization,
+original prompt tokens or bytes, exact payload, arbitrary source/user/
+provenance identifier, exclusion prose, policy text, authorization state,
+action/tool candidate, or persistence/retrieval capability. Authoritative
+source projections, \(C_V^{sem}(L)\), \(C_V^{bind}(L)\), and \(V(L)\) remain
+validator-only and determine the maximum semantic, disclosure, and authority
+claim that any output may retain.
 
 ### Canonical total order
 
@@ -1494,11 +1727,13 @@ focus context, it is infeasible.
 
 | Data | Renderer | Independent validator | Product output |
 | --- | :---: | :---: | :---: |
+| Numerical query/task/situation projection | Yes | Yes | Newly lexicalized focus only |
+| Selected verified semantic memory vectors and relevance weights | Yes | Yes | Newly lexicalized focus only |
 | Selected focus meanings | Yes | Yes | Lexicalized |
 | Selected expectation meanings | Yes | Yes | Lexicalized |
 | Required condition/horizon/uncertainty | Yes | Yes | Lexicalized when item is emitted |
 | Upstream-bound exact-slot placeholders | Yes | Yes | Substituted surface |
-| Source and proposition IDs | Binding only | Yes | No |
+| Opaque source, user, provenance, and proposition IDs | No; semantic binding uses closed nonopaque keys | Yes | No |
 | Raw source bytes | No | Only through isolated literal checks | No |
 | Excluded propositions and exact surfaces | No | Yes | No |
 | Dependency groups and omitted support | No, unless explicitly rendered as qualification | Yes | Normally no |
@@ -1506,15 +1741,15 @@ focus context, it is infeasible.
 | Original prompt | Not as semantic generation input | Leakage check only | Appended byte-identically |
 | Action candidates or tool policy | No | Reject if present | No |
 
-### Prefix and exact-sidecar flow
+### Adapter and exact-sidecar flow
 
 ```mermaid
 flowchart LR
-    P["FocusExpectationPlan"] --> R["Renderable typed items"]
+    P["FocusExpectationPlan"] --> C["Checked vector-conditioned input"]
     P --> V["Validator-only controls"]
     P --> S["Upstream-bound exact sidecar"]
-    R --> X["Per-facet projectors and latent resampler"]
-    X --> L["Local lexicalizer"]
+    C --> X["Registered bounded focus adapter"]
+    X --> L["Registered local lexicalizer or fused decoder"]
     L --> T["Slot-bearing text + bindings"]
     S --> SUB["Deterministic slot validation/substitution"]
     T --> SUB
@@ -1542,6 +1777,10 @@ PlanningInput
 │   └── <private> exact canonical K_S commitment
 └── <private privileged sidecar> exact_surface_inventory[]
     ├── branch source semantic key and source reference
+    ├── authoritative exact source
+    │   ├── Memory(record version, derived artifact, memory revision,
+    │   │   ExactSidecarCustodyBindingV1 including verified ExactSidecarRefV1)
+    │   └── Request(validated B_Q, source receipt, request exact locator)
     ├── ExactSlotOwnerSemanticDescriptor
     │   ├── Item(BranchItemOwnerSemanticDescriptor, exact owner role)
     │   └── Shared(SharedExactSlotMeaningKey)
@@ -1561,10 +1800,23 @@ fn plan_attention<'call>(
     focus: &FocusCandidateSet<'call>,
     expectations: &ExpectationBundle<'call>,
 ) -> Result<FocusExpectationPlan<'call>, PlanningError>;
+
+fn vector_conditioning_input<'call, 'plan>(
+    plan: &'plan FocusExpectationPlan<'call>,
+) -> Result<VectorConditionedFocusInputV1<'call, 'plan>, FocusConditioningError>;
+
+impl<'call, 'plan> VectorConditionedFocusInputV1<'call, 'plan> {
+    fn split_views(
+        &self,
+    ) -> (
+        AdapterConditioningViewV1<'call, '_>,
+        FocusConditioningValidationViewV1<'call, '_>,
+    );
+}
 ```
 
-This signature is illustrative until a focused implementation ADR accepts a
-crate boundary. Inputs are borrowed immutable views. The result owns canonical
+These signatures are illustrative until focused implementation ADRs accept
+crate boundaries. Inputs are borrowed immutable views. The plan owns canonical
 request-local plan data and borrows only the opaque invocation witness; the
 set-instance witness is consumed by the join and is not retained.
 The function and `PlanningInvocationScope` remain compiler-private; no caller
@@ -1573,6 +1825,24 @@ constructors validate all cross-object identities, and getters cannot mutate
 state. `PlanningInput`
 contains no principal, authority or disclosure view, policy handle,
 authorization service, source ceiling, allowed-use grant, or slot permission.
+The conditioning constructor borrows the canonical semantics already sealed
+into the plan and the validated request-local binding plane retained by that
+same live plan. It neither accepts another vector set, query projection, source
+binding, nor identifier reconstruction. It mints one
+`ConditioningInstanceWitness<'call>` only after the semantic/binding join
+succeeds. Only the compile orchestrator can split the composite. The adapter
+receives `AdapterConditioningViewV1`; the validator receives
+`FocusConditioningValidationViewV1`. A checked adapter result and the retained
+validator view retain only opaque equality-only `ConditioningBinding` values
+derived from the same private witness. Shared render-domain code rejects
+another,
+reconstructed, or missing binding before support or semantic checks; neither
+adapter nor validator can read, construct, clone, serialize, or use the
+witness as a feature. Neither crate can construct, replace, or project the
+other's view, and the adapter view
+has no getter for `PlanItemSemanticKey`, authoritative source bindings, opaque
+provenance, exclusions, authority ceilings, dependency controls, or exact
+payloads.
 The `configuration_id` values in the exact common full-configuration lineage
 \(\Lambda_A\) carried by `focus` and `expectations` must equal each other and
 the noncanonical current-call identity retained in
@@ -1584,6 +1854,148 @@ semantics. The planner derives `PlanSemanticSourceProjectionV1` from selected
 lineage-independent branch content. `PlanCanonicalEnvelopeV1` includes that
 projection and `SemanticConfigurationId`, and never copies raw \(\Lambda_A\),
 the full `configuration_id`, or either runtime witness.
+
+The upstream focus boundary returns either one complete
+`FocusCandidateSet<'call>` or the closed outer `FocusCandidateError` tagged
+sum. `EligibleActivatedSet`, `RequestProposition`,
+`AuthoritativeProjection`, `Consolidation`, `Capacity`, and
+`CandidateInvariant` are preserved in their canonical pipeline precedence
+together with their unchanged closed inner causes. The compiler adapts that
+error through the reference-architecture mapping and never calls
+`plan_attention`. A focus failure therefore cannot become `PlanningError`,
+empty focus, `NoFeasiblePlan`, or `InsufficientAttentionBudget`.
+
+The five non-request inner families consumed by this boundary are exactly the
+following owner-defined ordered sets; this derived mirror is not an extension
+point:
+
+```text
+FocusAggregateValidationError =
+  UnknownEligibleSetSchema
+| EligibleSetSchemaMismatch
+| InvocationWitnessUnavailable
+| EligibleSetWitnessUnavailable
+| MissingSourceReceiptField
+| DuplicateSourceReceiptField
+| SourceReceiptIdentityMismatch
+| SourceReceiptConfigurationMismatch
+| ExactSidecarIntegrity(ExactSidecarIntegrityErrorV1)
+| ActivatedRecordBindingMismatch
+| InvalidActivationValue
+| ActivationExplanationReferenceMismatch
+| ProvenanceBindingMismatch
+| AuthorityCeilingMismatch
+| AllowedUseCeilingMismatch
+| DuplicateActivatedRecord
+| NonCanonicalActivatedRecordOrder
+| ActivatedRecordLimitExceeded
+| RetrievalCandidateLimitMismatch
+| RetrievalCompletenessClassMismatch
+| RetrievalIndexIdentityMismatch
+| RetrievalRepresentationIdentityMismatch
+
+AuthoritativePropositionProjectionError =
+  ProjectionArtifactUnavailable
+| ProjectionArtifactIdentityMismatch
+| MissingProjection
+| DuplicateProjection
+| UnknownProjectionSchema
+| ProjectionSchemaMismatch
+| ForbiddenSourceVariant
+| MissingSourceBindingField
+| UnexpectedSourceBindingField
+| SourceBindingMismatch
+| ExactProjectionMismatch
+| ExactSidecarIntegrity(ExactSidecarIntegrityErrorV1)
+| CustodyBindingMismatch
+| ProjectionLimitExceeded
+
+PropositionConsolidationError =
+  EquivalenceContractUnavailable
+| InvalidEquivalenceContract
+| CompleteLinkContractUnavailable
+| InvalidExhaustivePairSetWitness
+| ExhaustiveSourceSetMismatch
+| ExhaustivePairSetMismatch
+| ExhaustiveEquivalenceContractMismatch
+| ExhaustivePairWorkCeilingMismatch
+| PairWorkCapacityExceeded
+| ComparisonWorkCapacityExceeded
+| ConsolidationWorkspaceCapacityExceeded
+| ExactSlotValueConflict
+| ClusterCompatibilityViolation
+| NonCanonicalPartition
+| OptimizedPartitionMismatch
+
+FocusCandidateCapacityError =
+  CandidateLimitExceeded
+| SupportBindingLimitExceeded
+| ControlExclusionLimitExceeded
+
+FocusCandidateConstructionError =
+  UnknownFocusRole
+| DuplicateFocusRole
+| NonTotalFocusRoleOrder
+| FocusCandidateOrderKeyMismatch
+| DuplicateFocusCandidateOrderKey
+| MissingRequiredQualification
+| ExactBindingMismatch
+| UnresolvedContradiction
+| DuplicatePropositionSemanticKey
+| EmptyCandidateSupport
+| CandidateSupportPartitionMismatch
+| CandidatePropositionIdentityMismatch
+| InvalidCandidateActivation
+| CandidateSourceReceiptMismatch
+| CandidateInvocationWitnessMismatch
+| CandidateEligibleSetWitnessMismatch
+| CandidateAuthorityCeilingExceeded
+| CandidateAllowedUseCeilingExceeded
+| CandidateSurfaceAuthorityCeilingExceeded
+| InvalidMandatoryClassification
+| NonCanonicalCandidateSetOrder
+```
+
+The sets contain \(22,14,15,3,21\) discriminants respectively. Unknown
+serialized discriminants fail authenticated decoding; no catch-all,
+message-only, or locally invented variant is accepted. The separate
+twelve-member `RequestPropositionError` family remains the request stage and is
+not counted among these five.
+
+Upstream consolidation flattens each activated record's zero-or-more
+focus-visible memory proposition-plane sources:
+\[
+n_{\mathrm{src}}^M
+=
+\left|
+\operatorname{CanonicalSort}
+\left(\mathop{\biguplus}_{i\in\mathcal A}\mathcal S_i^M\right)
+\right|
+=\sum_{i\in\mathcal A}|\mathcal S_i^M|,
+\qquad
+n=n_Q+n_{\mathrm{src}}^M.
+\]
+That \(n\), never activated-record count, determines source-set identity,
+\(n(n-1)/2\) pair work, witness equality, and quadratic consolidation cost.
+Planning accepts only the finished result and cannot replace flattened-source
+accounting with a record count.
+
+The exhaustive disjoint per-discriminant public mapping is owned by the
+[reference architecture](v1-reference-architecture.md#failure-taxonomy) and
+applies without reinterpretation. In particular, projection, pair,
+comparison, consolidation-workspace, and post-consolidation candidate limits
+map to `ResourceFailure`; unavailable authenticated
+projection/equivalence/complete-link artifacts map to
+`ArtifactUnavailable`; retained memory-integrity causes map to
+`MemoryUnavailable`; `ExactSlotValueConflict` maps to public
+`PlanningFailure` without a planning call; and the exact remaining malformed
+joins, exhaustive witnesses, partitions, or candidate invariants map to
+`InternalInvariantViolation`. That table plus its twelve-row
+`RequestPropositionError` mapping jointly covers every outer focus variant.
+Within each completed upstream stage, the inner declaration order and then the
+smallest canonical affected source, pair, cluster, or candidate key determines
+the preserved cause. No planning-local category summary may override one
+per-variant mapping or retry disposition.
 
 `PlanningError` is the following closed 20-variant sum:
 
@@ -1666,6 +2078,24 @@ projection has been admitted, any descriptor or owner-attachment disagreement
 with the selected source is `SourceProjectionViolation`, while
 `InvalidExactSlot` covers only a planning-owned locator, mapped-owner, or
 plan-shape failure after source equality has passed.
+
+The `RecordVersionIdentityMismatch`,
+`ExactSidecarIdentityRegimeMismatch`, `ExactSidecarSchemaMismatch`,
+`ExactSidecarCustodyMismatch`, `ExactSidecarMissing`,
+`ExactSidecarContentMismatch`, `ExactSidecarReferenceMismatch`,
+`ExactSidecarContentIdentityCollision`, and
+`ExactSidecarNestedReferenceInvalid` causes are likewise not `PlanningError`
+variants. The compiler-owned exact-surface projection uses that precedence and
+performs no external sidecar lookup or trust-domain quarantine before the
+record, regime, schema-reference, and custody-ledger prechecks pass. A sealed
+postlookup snapshot may later discover envelope-schema or physical-custody
+mismatches in those same public positions. It returns the preserved
+memory-integrity cause before constructing `PlanningInput`; planning cannot
+flatten it into `InvalidExactSlot`, `SourceProjectionViolation`,
+`NoFeasiblePlan`, or budget failure. A collision has already quarantined the
+complete `(regime_id, content_id)` trust domain and its custody-ledger-reachable
+records, artifacts, backups, and exports through a durably committed store-owned
+handoff; planning cannot narrow, clear, or work around that quarantine.
 
 The public `CompileError` mapping is owned by the
 [reference architecture](v1-reference-architecture.md#failure-taxonomy).
@@ -1915,6 +2345,10 @@ using its own tools, authority, and current environment.
   provenance root or dependency group.
 - Both inputs are canonically ordered, finite, source-bound, and valid under
   their owning specifications.
+- Every focus source has one paired numerical and independently validated
+  authoritative projection, has passed its variant-specific `Request` or
+  `Memory` cross-plane join, and belongs to the canonical partition produced
+  by true identity equivalence plus complete-link cluster validation.
 - Every consumable item carries the closed immutable
   `PlanningSourceProjection` fields defined above. Planning receives no
   separate authority/disclosure input and no live policy capability.
@@ -1925,6 +2359,14 @@ using its own tools, authority, and current environment.
   immutable inventory and permitted item bindings in its upstream source
   projection. Both carry only the pre-planning owner descriptor and pre-key
   metadata; neither can inject a final owner, slot, or renderer identity.
+- Every memory-backed exact slot carries the same complete
+  `ExactSidecarCustodyBindingV1` containing its sole verified
+  `ExactSidecarRefV1`, immutable record-version identity, and memory revision
+  in its source projection and exact-surface inventory. The compiler-owned
+  projection has already authenticated and
+  recomputed the regime and schema identities, canonical bytes, content
+  identity, complete reference, nested references, custody binding, and
+  referring record identity.
 - Every mandatory qualifier, relation, alternative, and authority ceiling is
   represented explicitly.
 - Candidate cardinalities and exhaustive reference limits are finite.
@@ -1934,6 +2376,9 @@ using its own tools, authority, and current environment.
 - Focus, expectation, goal, action, answer, and fact roles never collapse.
 - The combined planner consumes upstream semantics and does not retrieve,
   rerank activation, regroup outcomes, or invent propositions.
+- The combined planner treats the upstream focus partition as immutable; it
+  cannot join identity buckets, relax complete-link constraints, split a
+  validated source pair, or repair a nontransitive triad.
 - Planning accepts only focus and expectation inputs whose invocation and
   eligible-set witnesses both equal the independently anchored witnesses in
   `PlanningInvocationScope`. It propagates only the invocation witness into
@@ -1952,8 +2397,27 @@ using its own tools, authority, and current environment.
 - Material alternatives are preserved or the plan abstains.
 - Activation and relative support are not added or reinterpreted as
   probability.
-- Control-only exclusions never enter the generative prefix.
+- `VectorConditionedFocusInputV1` contains the actual selected verified
+  semantic vectors and exact admitted relevance weights, binds them to the
+  sealed numerical query/task context and selected plan semantics, and
+  contains no memory prose or original prompt bytes. Its
+  `AdapterConditioningViewV1` and `FocusConditioningValidationViewV1`
+  projections are disjoint and cannot be reconstructed or exchanged by an
+  adapter or validator. Canonical \(C_A\) and \(C_V^{sem}\) are bound by
+  `PlanContentId`; request-local \(C_V^{bind}\) is excluded from that identity
+  and joined to the adapter result only through opaque equality bindings
+  derived from the private `ConditioningInstanceWitness`.
+- Reordering a conditioning set before canonicalization cannot change its
+  canonical bytes or deterministic result; duplicates cannot amplify a
+  source. Relevance weights cannot change truth, authority, disclosure,
+  qualification, plan membership, or action semantics.
+- Control-only exclusions never enter any adapter or decoder input.
 - Exact values come only from authorized slots.
+- A memory-backed exact value comes only from canonical sidecar bytes whose
+  authenticated regime and schema identities, `ExactSidecarContentId`,
+  complete reference, custody binding, source record version, and memory
+  revision all match the immutable branch projection. Numerical facets never
+  reconstruct or replace that value.
 - Only planning may map an `ExactSlotOwnerSemanticDescriptor` and selected
   `PlanItemSemanticKey` into a final `ExactSlotOwnerSemanticKey`; upstream
   projections and `PlanningInput` contain no final owner, slot, or renderer
@@ -1967,7 +2431,9 @@ using its own tools, authority, and current environment.
   model-visible input.
 - Selection and output remain within finite item, alternative, slot, token,
   time, and memory limits.
-- The renderer receives one canonical plan; no parallel renderer truth exists.
+- The render pipeline remains bound to one canonical plan; the adapter receives
+  only its `AdapterConditioningViewV1`, never the plan or validation view, and
+  no parallel renderer truth exists.
 - `PlanCanonicalEnvelopeV1` depends on \(K_S\), \(d_R,d_S\), selected
   lineage-independent semantics, exact surfaces, language, budget, controls,
   and structure; it never depends on full configuration-bound query/lineage
@@ -1979,6 +2445,8 @@ using its own tools, authority, and current environment.
 ## Edge cases
 
 - Empty focus and expectation produce empty attention.
+- Upstream `FocusCandidateError` produces no planning call and cannot be
+  reinterpreted as the otherwise-valid empty-focus case.
 - Empty memory may still produce focus through validated request proposition
   sources. Planning treats those candidates exactly like other focus
   candidates for closure and budget purposes while preserving their tagged
@@ -2015,6 +2483,10 @@ using its own tools, authority, and current environment.
 - A source, exact surface, or ceiling supplied only through `PlanningInput`
   and absent from the corresponding branch projection produces
   `SourceProjectionViolation`; the planner cannot ask a live view to admit it.
+- A missing, corrupt, rebound, schema-mismatched, or colliding sidecar, or a
+  cross-record or cross-revision substitution inconsistent with its branch
+  binding, fails in the exact-surface projection before planning and cannot be
+  represented as an omitted or empty slot.
 - An optional whole frame may be omitted without being relabeled as abstention.
   A selected positive family retains every material alternative and its
   required omitted-support qualification.
@@ -2023,6 +2495,9 @@ using its own tools, authority, and current environment.
 - Renderer cost underestimation is a qualification failure. Exact
   substitution returns `RendererCostBoundViolation` before constructing
   `SubstitutedAttention` or invoking final validation.
+- Byte-identical sidecar content under a nonidentical complete custody binding
+  is not physically deduplicable and cannot be substituted as a reusable
+  planning surface.
 - Prompt text containing `attention:` or `user prompt:` remains byte-identical
   in the outer framing.
 
@@ -2054,12 +2529,48 @@ Required evidence includes:
   arguments; callers cannot construct the aggregate, extract owned
   projections, rebind one numerical projection to another binding, or invoke a
   branch with a cross-aggregate mixture;
+- upstream-focus tests proving one independently validated authoritative
+  projection per numerical source, exhaustive variant-specific `Request` and
+  custody-binding-only `Memory` joins, zero/one/many proposition-plane sources
+  per record with flattened \(n_{\mathrm{src}}^M\) source/pair/complexity
+  accounting, complete unordered-pair enumeration after the exact pair-work
+  ceiling, rejection of an optimized missing/extra pair or wrong
+  `ExhaustiveConsolidationPairSetWitnessV1` source-set, equivalence-identity,
+  or ceiling binding, immutable partition propagation,
+  rejection of representative-only and connected-component grouping on a
+  nontransitive compatibility triad, exact classification of pair-work
+  overflow under `Consolidation` rather than outer `Capacity`, and preservation
+  of every closed `FocusCandidateError` outer tag and all 75 non-request plus
+  12 request inner causes, including projection, pair, comparison, workspace,
+  and post-consolidation limits, exact-slot conflicts, authenticated
+  unknown-discriminant rejection, total per-variant public mapping, and cross-/
+  within-stage precedence without invoking planning;
 - projection tests for exact \(\Lambda_A\) equality, closed authority/
   allowed-use/surface-ceiling meets, lowering-only behavior, and rejection of
   missing or expanded ceilings;
 - exact-surface tests proving that inventory presence alone grants no use,
   content-identity mismatch fails, and only upstream-permitted item bindings
   enter \(V_{\mathrm{slot}}\);
+- sidecar-reference projection tests proving content-derived regime and schema
+  identity plus canonical-byte recomputation, full-reference and per-record
+  custody equality, field-identical custody-binding same-reference reuse, rejection of
+  equal digest under a different regime or schema, same-trust-domain/different-
+  byte collision, missing, truncated, corrupt, rebound, invalid nested
+  reference, custody mismatch, cross-record and cross-revision binding
+  substitution, exact record/regime/schema/custody/missing/content/reference/
+  collision/nested precedence, zero external lookup or quarantine before the
+  first four prechecks pass, sealed postlookup snapshot behavior, committed
+  `CollisionObservationOriginV1` discrimination and cross-origin rejection,
+  authenticated `CollisionQuarantineBasisV1` reverse-index or
+  whole-generation scope, crash-atomic tombstone/fence/logical-revoke
+  containment before collision exposure, bounded idempotent
+  `CollisionTerminalRemovalStateV1` cursor/limit/outcome behavior, final
+  linearizable product/probe/management guard races, exact coordination mapping
+  and restart reconciliation, disjoint `CollisionRecoveryTransactionV1`
+  new-regime-or-erasure recovery with permanent old tombstone, exact typed
+  cause preservation, complete trust-domain quarantine, no partial
+  `PlanningInput`, no read access through storage-only sealed holdings, and
+  noninterference of numerical-facet mutation on exact bytes;
 - noninterference tests proving that changing ambient principal, policy store,
   authorization service, or disclosure state without changing the immutable
   branch inputs, exact-surface inventory, or planning configuration cannot
@@ -2072,7 +2583,18 @@ Required evidence includes:
   any affected plan content, while forbidden full IDs never enter a semantic
   key or source projection;
 - arbitrary permutation tests over focus items, expectations, sources,
-  relations, slots, and controls;
+  relations, slots, controls, query facets, and vector-conditioning items;
+- vector-conditioning construction tests for byte-identical copying from the
+  admitted derived artifact, exact activation-weight preservation,
+  query/plan/source binding, zero-versus-absent distinction, duplicate
+  non-amplification, and rejection of nonfinite values, wrong dimensions,
+  incompatible vector spaces, unknown encoders or schemas, missing masks,
+  cross-query/cross-plan sources, and unselected memory support;
+- static capability and canary tests proving that raw or normalized memory
+  text, nearest-memory text, decimal vector serialization, original prompt
+  bytes or tokens, opaque provenance or user IDs, exact payloads,
+  policy/exclusion prose, and tool, action, persistence, or retrieval
+  capabilities cannot enter the learned conditioning path;
 - branch-tagged `PlanItemSemanticKey` and `RelationSemanticKey` tests,
   including focus/expectation domain separation, upstream expectation-key
   mismatch, duplicate semantic relations, and request-local instance-lineage
@@ -2112,6 +2634,20 @@ Required evidence includes:
   `PlanningInput` can supply `ExactSlotOwnerSemanticKey`, `SlotSemanticKey`, or
   `RendererSlotId`, and that only the planner-private `mapExactSlotOwner`
   operation can create the final owner key;
+- compile-fail API cases proving that an adapter implementation can receive
+  only `AdapterConditioningViewV1`, cannot access or construct
+  `FocusConditioningValidationViewV1`, cannot read authoritative provenance,
+  `PlanItemSemanticKey`, exclusions, authority ceilings, dependency controls,
+  or exact payloads, and cannot replace either view;
+- semantic/binding partition cases proving that every \(C_A\) and
+  \(C_V^{sem}\) field changes canonical plan content when changed, while
+  request-local \(C_V^{bind}\) and `ConditioningInstanceWitness` changes do not;
+  foreign, reconstructed, missing, or cross-plan conditioning bindings reject
+  before semantic validation and cannot change successful product bytes;
+- `AdapterPlanItemHandleV1` cases proving dense canonical assignment, total
+  one-to-one validator mapping, permutation stability, and rejection of
+  missing, duplicate, unknown, out-of-range, noncanonical, forged, or remapped
+  handles in inputs and support traces;
 - exact-slot lineage-renaming cases proving stable `SlotSemanticKey`,
   contiguous `RendererSlotId`, tensor order, permissions, and substituted
   bytes despite changed binding-instance receipts;
@@ -2170,5 +2706,11 @@ No answer is selected without frozen evaluation evidence.
 - [Vector-to-attention renderer](vector-to-attention-renderer.md)
 - [Local renderer model qualification](local-renderer-model-qualification.md)
 - [Decision 0014: Adopt memory-grounded predictive attention](../decisions/0014-adopt-memory-grounded-predictive-attention.md)
-- [Decision 0015: Render qualified focus-and-expectation plans](../decisions/0015-render-qualified-focus-and-expectation-plans.md)
-- [Decision 0016: Adopt sealed compile-integrity boundaries](../decisions/0016-adopt-sealed-compile-integrity-boundaries.md)
+- [Decision 0015: Render qualified focus-and-expectation plans
+  (superseded)](../decisions/0015-render-qualified-focus-and-expectation-plans.md)
+- [Superseded Decision 0016: Adopt sealed compile-integrity boundaries
+  (superseded)](../decisions/0016-adopt-sealed-compile-integrity-boundaries.md)
+- [Decision 0032: Bind authoritative exact sidecars and two-plane
+  consolidation](../decisions/0032-bind-authoritative-exact-sidecars-and-two-plane-consolidation.md)
+- [Decision 0034: Adopt the vector-conditioned focus-adapter
+  boundary](../decisions/0034-adopt-vector-conditioned-focus-adapter-boundary.md)

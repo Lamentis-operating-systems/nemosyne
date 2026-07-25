@@ -170,12 +170,13 @@ EXPECTED_V1_GRAPH_DEPENDENCY_COUNT = 123
 EXPECTED_INTERFACE_COUNT = 49
 EXPECTED_REVIEW_COUNT = 18
 EXPECTED_WAVE_COUNT = 34
-EXPECTED_FINDING_COUNT = 320
-EXPECTED_CONFORMANCE_COUNT = 22
+EXPECTED_FINDING_COUNT = 365
+EXPECTED_CONFORMANCE_COUNT = 24
 EXPECTED_SPECIFICATION_COUNT = 12
-EXPECTED_DECISION_COUNT = 31
-EXPECTED_ACCEPTED_DECISION_COUNT = 27
-EXPECTED_SUPERSEDED_DECISION_COUNT = 4
+EXPECTED_DECISION_COUNT = 34
+EXPECTED_ACCEPTED_DECISION_COUNT = 26
+EXPECTED_SUPERSEDED_DECISION_COUNT = 8
+CANONICAL_G0_RECORD_ID = "DOC-CONF-24"
 EXPECTED_CURRENT_FINDING_RANGE = f"FND-152..{EXPECTED_FINDING_COUNT:03d}"
 EXPECTED_PROTECTED_CONFORMANCE_SHA256 = (
     "69630fce62dfbbc5b76a88b44b7cfee078f023685e0e99e640756d50cadac060"
@@ -291,7 +292,10 @@ EXPECTED_FINDING_PRIORITY_DIGITS = (
     "11112211111211211121111"
     "112231111221122121222121222"
     "1111211211211111121111111122121111121111221"
-    "1111122112"
+    "11111221121211122222112111121111111"
+    "112111121"
+    "11111121"
+    "112"
 )
 
 WORK_BREAKDOWN_HEADER = (
@@ -741,8 +745,45 @@ def validate_git_history_view(repository_root: Path) -> None:
         )
 
 
+def validate_attested_archive_attributes(
+    repository_root: Path,
+    commit: str,
+) -> None:
+    """Reject tracked attributes that can transform the reviewed Git archive."""
+
+    output = git_bytes(
+        repository_root,
+        "ls-tree",
+        "-r",
+        "-z",
+        "--name-only",
+        commit,
+        "--",
+        ".gitattributes",
+        "docs",
+    )
+    if output and not output.endswith(b"\0"):
+        raise ContractError(
+            "Git tree query returned malformed archive-attribute paths"
+        )
+    for raw_path in output.split(b"\0"):
+        if not raw_path:
+            continue
+        if raw_path == b".gitattributes" or (
+            raw_path.startswith(b"docs/")
+            and raw_path.endswith(b"/.gitattributes")
+        ):
+            display_path = raw_path.decode("utf-8", errors="backslashreplace")
+            raise ContractError(
+                "attested Source commit contains forbidden tracked "
+                f"archive-attribute file: {display_path}"
+            )
+
+
 def git_archive_digest(repository_root: Path, commit: str) -> str:
     """Reconstruct the canonical reviewed archive and return its SHA-256."""
+
+    validate_attested_archive_attributes(repository_root, commit)
 
     attributes_path = resolved_git_path(repository_root, "info/attributes")
     if attributes_path.is_symlink():
@@ -1088,7 +1129,7 @@ def validate_specifications(repository_root: Path) -> None:
 
 
 def validate_decisions(repository_root: Path) -> None:
-    """Require the frozen 31-record decision inventory and statuses."""
+    """Require the frozen 33-record decision inventory and statuses."""
 
     decision_directory = repository_root / DECISION_DIRECTORY
     if decision_directory.is_symlink() or not decision_directory.is_dir():
@@ -1135,9 +1176,10 @@ def validate_decisions(repository_root: Path) -> None:
         for decision_id, status in statuses.items()
         if status == "Superseded"
     )
-    if superseded_ids != [11, 12, 13, 28]:
+    if superseded_ids != [11, 12, 13, 15, 16, 19, 23, 28]:
         raise ContractError(
-            "Superseded decisions must be exactly 0011, 0012, 0013, and 0028"
+            "Superseded decisions must be exactly 0011, 0012, 0013, 0015, "
+            "0016, 0019, 0023, and 0028"
         )
 
 
@@ -1280,6 +1322,7 @@ def validate_attestation_record_set(
 ) -> str:
     """Validate the complete stable semantics of one canonical record set."""
 
+    completion_record_id = records[0][0]
     review_actors: list[str] = []
     observed_consolidation_ranges: list[str] = []
     for record_id, record_kind, fields in records:
@@ -1335,7 +1378,7 @@ def validate_attestation_record_set(
         if record_kind == "completion":
             if fields["Actor"] != "Codex /root":
                 raise ContractError(
-                    "attestation DOC-CONF-22 Actor must be Codex /root"
+                    f"attestation {completion_record_id} Actor must be Codex /root"
                 )
             declaration = " ".join(fields["Declaration"].lower().split())
             if declaration != (
@@ -1343,7 +1386,7 @@ def validate_attestation_record_set(
                 "not the accountable human or an independent reviewer."
             ):
                 raise ContractError(
-                    "attestation DOC-CONF-22 lacks the canonical "
+                    f"attestation {completion_record_id} lacks the canonical "
                     "merge-authorization declaration"
                 )
         elif record_kind == "review":
@@ -1397,7 +1440,8 @@ def validate_attestation_record_set(
         link = f"[{record_id}]({target})"
         if g0_evidence.count(link) != 1:
             raise ContractError(
-                f"attestation DOC-CONF-22 must reference {link} exactly once"
+                f"attestation {completion_record_id} must reference "
+                f"{link} exactly once"
             )
     for index in range(1, EXPECTED_REVIEW_COUNT + 1):
         record_id = f"REV-{index:02d}"
@@ -1405,7 +1449,8 @@ def validate_attestation_record_set(
         link = f"[{record_id}]({target})"
         if g0_evidence.count(link) != 1:
             raise ContractError(
-                f"attestation DOC-CONF-22 must reference {link} exactly once"
+                f"attestation {completion_record_id} must reference "
+                f"{link} exactly once"
             )
     expected_g0_links = [
         (f"CONSOL-{index:02d}", f"consolidations/consol-{index:02d}.md")
@@ -1416,14 +1461,16 @@ def validate_attestation_record_set(
     ]
     if markdown_links(g0_evidence) != expected_g0_links:
         raise ContractError(
-            "attestation DOC-CONF-22 must contain only the 21 canonical "
+            f"attestation {completion_record_id} must contain only the "
+            "21 canonical "
             "sub-attestation links in registry order"
         )
     g0_code_references = re.findall(r"`([^`]+)`", g0_evidence)
     for check_reference in required_check_references:
         if g0_code_references.count(check_reference) != 1:
             raise ContractError(
-                "attestation DOC-CONF-22 must reference repository check "
+                f"attestation {completion_record_id} must reference "
+                "repository check "
                 f"{check_reference} exactly once"
             )
     change_aware_references = [
@@ -1440,8 +1487,8 @@ def validate_attestation_record_set(
         or change_aware_pattern.fullmatch(change_aware_references[0]) is None
     ):
         raise ContractError(
-            "attestation DOC-CONF-22 must reference exactly one change-aware "
-            f"repository check `{change_aware_check_prefix} "
+            f"attestation {completion_record_id} must reference exactly one "
+            f"change-aware repository check `{change_aware_check_prefix} "
             "/absolute/pr-body-path` without shell operators"
         )
 
@@ -2035,6 +2082,61 @@ def validate_delivery_history_append_only(
     )
 
 
+def reviewed_archive_changed(
+    repository_root: Path,
+    predecessor_source: str,
+    successor_source: str,
+) -> bool:
+    """Return whether one source revision changes the reviewed archive paths."""
+
+    return any(
+        git_optional_tree_entry(repository_root, predecessor_source, relative_path)
+        != git_optional_tree_entry(repository_root, successor_source, relative_path)
+        for relative_path in ("docs/specifications", "docs/decisions")
+    )
+
+
+def validate_conformance_successor_for_changed_archive(
+    repository_root: Path,
+    predecessor_source: str,
+    successor_source: str,
+) -> None:
+    """Bind source-conformance growth exactly to reviewed-archive change."""
+
+    predecessor_text = git_blob_text(
+        repository_root,
+        predecessor_source,
+        DELIVERY_PROGRAM_PATH.as_posix(),
+    )
+    successor_text = git_blob_text(
+        repository_root,
+        successor_source,
+        DELIVERY_PROGRAM_PATH.as_posix(),
+    )
+    _, predecessor_conformances = delivery_history_entries(predecessor_text)
+    _, successor_conformances = delivery_history_entries(successor_text)
+    expected_identifier = len(predecessor_conformances) + 1
+    changed = reviewed_archive_changed(
+        repository_root,
+        predecessor_source,
+        successor_source,
+    )
+    if not changed:
+        if len(successor_conformances) != len(predecessor_conformances):
+            raise ContractError(
+                "unchanged reviewed archive must not append a conformance receipt"
+            )
+        return
+    if (
+        len(successor_conformances) != expected_identifier
+        or successor_conformances[-1][0] != expected_identifier
+    ):
+        raise ContractError(
+            "changed reviewed archive must append exactly one next conformance "
+            f"receipt DOC-CONF-{expected_identifier:02d}"
+        )
+
+
 def commit_parents(repository_root: Path, commit: str) -> tuple[str, ...]:
     """Return the direct parents of one full commit identity."""
 
@@ -2159,7 +2261,7 @@ def validate_historical_evidence_pair(
         is None
     ):
         raise ContractError(
-            "prior attestation DOC-CONF-22 has invalid Source commit"
+            f"prior attestation {reference['Record ID']} has invalid Source commit"
         )
     object_type = git_output(repository_root, "cat-file", "-t", source_commit)
     if object_type != "commit":
@@ -2341,6 +2443,12 @@ def validate_historical_evidence_pair(
         raise ContractError(
             "prior attested Archive SHA-256 does not match the reconstructed "
             "Git archive"
+        )
+    if source_state is not None:
+        validate_conformance_successor_for_changed_archive(
+            repository_root,
+            source_state.source_commit,
+            source_commit,
         )
     return AttestationHistoryState(
         records=records,
@@ -2545,7 +2653,7 @@ def validate_receipts(
     validate_receipt_readme(repository_root)
     receipt_root = repository_root / RECEIPT_DIRECTORY
     expected_records: list[tuple[Path, str, str]] = [
-        (receipt_root / "doc-00-g0.md", "DOC-CONF-22", "completion")
+        (receipt_root / "doc-00-g0.md", CANONICAL_G0_RECORD_ID, "completion")
     ]
     expected_records.extend(
         (
@@ -2872,6 +2980,12 @@ def validate_receipts(
     if actual_digest != reference["Archive SHA-256"]:
         raise ContractError(
             "attested Archive SHA-256 does not match the reconstructed Git archive"
+        )
+    if prior_history is not None:
+        validate_conformance_successor_for_changed_archive(
+            repository_root,
+            prior_history.source_commit,
+            source_commit,
         )
     receipt_status = git_output(
         repository_root,
@@ -3259,7 +3373,10 @@ def validate(path: Path, require_receipts: bool = False) -> None:
     )
     current_conformance = section(
         text,
-        "#### Manual conformance receipt `DOC-CONF-22`",
+        (
+            "#### Manual conformance receipt "
+            f"`DOC-CONF-{EXPECTED_CONFORMANCE_COUNT:02d}`"
+        ),
         "Any later source, count, interface, ownership, finding, review disposition,",
     )
     current_inventory = (
@@ -3285,13 +3402,14 @@ def validate(path: Path, require_receipts: bool = False) -> None:
     current_finding_range = f"`{EXPECTED_CURRENT_FINDING_RANGE}`"
     if current_conformance.count(current_finding_range) != 1:
         raise ContractError(
-            "active DOC-CONF-22 must contain canonical current-state fragment "
+            f"active DOC-CONF-{EXPECTED_CONFORMANCE_COUNT:02d} must contain "
+            "canonical current-state fragment "
             f"exactly once: {current_finding_range}"
         )
     if current_conformance.count(current_inventory) != 1:
         raise ContractError(
-            "active DOC-CONF-22 complete structural inventory differs from "
-            "the canonical inventory"
+            f"active DOC-CONF-{EXPECTED_CONFORMANCE_COUNT:02d} complete "
+            "structural inventory differs from the canonical inventory"
         )
 
     required_fragments = [
@@ -3312,7 +3430,11 @@ def validate(path: Path, require_receipts: bool = False) -> None:
         "0029-require-positive-update-success-per-supported-tuple.md",
         "0030-protect-doc-00-history-and-governance.md",
         "0031-complete-compile-and-update-admission-handoffs.md",
-        "DOC-CONF-22",
+        "0032-bind-authoritative-exact-sidecars-and-two-plane-consolidation.md",
+        "0033-separate-source-conformance-from-stable-g0-identity.md",
+        "0034-adopt-vector-conditioned-focus-adapter-boundary.md",
+        f"DOC-CONF-{EXPECTED_CONFORMANCE_COUNT - 1:02d}",
+        f"DOC-CONF-{EXPECTED_CONFORMANCE_COUNT:02d}",
     ]
     for fragment in required_fragments:
         if fragment not in text:
@@ -3378,6 +3500,11 @@ def main() -> int:
         )
         try:
             validate_delivery_history_append_only(
+                repository_root,
+                arguments[1],
+                arguments[2],
+            )
+            validate_conformance_successor_for_changed_archive(
                 repository_root,
                 arguments[1],
                 arguments[2],

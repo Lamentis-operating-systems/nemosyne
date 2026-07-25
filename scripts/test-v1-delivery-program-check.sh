@@ -13,6 +13,66 @@ import os
 print(os.devnull)
 PY
 )"
+active_conformance_number="$(
+  python3 - "$checker" <<'PY'
+from pathlib import Path
+import re
+import sys
+
+match = re.search(
+    r"^EXPECTED_CONFORMANCE_COUNT = ([0-9]+)$",
+    Path(sys.argv[1]).read_text(),
+    re.MULTILINE,
+)
+if match is None:
+    raise SystemExit("missing EXPECTED_CONFORMANCE_COUNT")
+print(match.group(1))
+PY
+)"
+active_finding_number="$(
+  python3 - "$checker" <<'PY'
+from pathlib import Path
+import re
+import sys
+
+match = re.search(
+    r"^EXPECTED_FINDING_COUNT = ([0-9]+)$",
+    Path(sys.argv[1]).read_text(),
+    re.MULTILINE,
+)
+if match is None:
+    raise SystemExit("missing EXPECTED_FINDING_COUNT")
+print(match.group(1))
+PY
+)"
+next_finding_id="$(
+  printf 'FND-%03d' "$((active_finding_number + 1))"
+)"
+active_conformance_id="$(
+  printf 'DOC-CONF-%02d' "$active_conformance_number"
+)"
+next_conformance_id="$(
+  printf 'DOC-CONF-%02d' "$((active_conformance_number + 1))"
+)"
+following_conformance_id="$(
+  printf 'DOC-CONF-%02d' "$((active_conformance_number + 2))"
+)"
+canonical_g0_record_id="$(
+  python3 - "$checker" <<'PY'
+from pathlib import Path
+import re
+import sys
+
+match = re.search(
+    r'^CANONICAL_G0_RECORD_ID = "(DOC-CONF-[0-9]{2})"$',
+    Path(sys.argv[1]).read_text(),
+    re.MULTILINE,
+)
+if match is None:
+    raise SystemExit("missing CANONICAL_G0_RECORD_ID")
+print(match.group(1))
+PY
+)"
 
 set_source_binding() {
   local fixture_repository="$1"
@@ -71,6 +131,31 @@ expect_checker_failure() {
 
   if ! grep -F "$expected_message" "$output" >/dev/null; then
     printf 'missing expected checker failure message: %s\n' \
+      "$expected_message" >&2
+    cat "$output" >&2
+    exit 1
+  fi
+}
+
+expect_append_only_failure() {
+  local fixture_repository="$1"
+  local base_commit="$2"
+  local head_commit="$3"
+  local expected_message="$4"
+  local output="$fixture_root/append-only-output.txt"
+
+  if python3 \
+    "$fixture_repository/scripts/check-v1-delivery-program.py" \
+    --check-append-only \
+    "$base_commit" \
+    "$head_commit" >"$output" 2>&1; then
+    printf 'expected append-only checker failure for %s\n' \
+      "$fixture_repository" >&2
+    exit 1
+  fi
+
+  if ! grep -F "$expected_message" "$output" >/dev/null; then
+    printf 'missing expected append-only failure message: %s\n' \
       "$expected_message" >&2
     cat "$output" >&2
     exit 1
@@ -241,16 +326,43 @@ git -C "$append_only_repository" config commit.gpgsign false
 git -C "$append_only_repository" add .
 git -C "$append_only_repository" commit -qm 'Record append-only baseline'
 append_only_base="$(git -C "$append_only_repository" rev-parse HEAD)"
+python3 \
+  "$append_only_repository/scripts/check-v1-delivery-program.py" \
+  --check-append-only \
+  "$append_only_base" \
+  "$append_only_base"
+
+missing_conformance_repository="$fixture_root/append-only-missing-conformance"
+cp -R "$append_only_repository" "$missing_conformance_repository"
+printf '\nChanged reviewed archive fixture.\n' \
+  >>"$missing_conformance_repository/docs/specifications/v1-proof-program.md"
+git -C "$missing_conformance_repository" add \
+  docs/specifications/v1-proof-program.md
+git -C "$missing_conformance_repository" commit -qm \
+  'Change reviewed archive without conformance'
+missing_conformance_head="$(
+  git -C "$missing_conformance_repository" rev-parse HEAD
+)"
+expect_append_only_failure \
+  "$missing_conformance_repository" \
+  "$append_only_base" \
+  "$missing_conformance_head" \
+  "changed reviewed archive must append exactly one next conformance receipt $next_conformance_id"
+
 python3 - \
-  "$append_only_repository/docs/specifications/v1-delivery-program.md" <<'PY'
+  "$append_only_repository/docs/specifications/v1-delivery-program.md" \
+  "$next_finding_id" \
+  "$next_conformance_id" <<'PY'
 from pathlib import Path
 import sys
 
 path = Path(sys.argv[1])
+next_finding_id = sys.argv[2]
+next_conformance_id = sys.argv[3]
 text = path.read_text()
 finding_marker = "\n### CI and release flow"
 finding_row = (
-    "| `FND-321` / P2 | Appended finding fixture / governance | "
+    f"| `{next_finding_id}` / P2 | Appended finding fixture / governance | "
     "Accepted; append only | Fixture evidence |"
 )
 if text.count(finding_marker) != 1:
@@ -259,7 +371,7 @@ text = text.replace(finding_marker, f"\n{finding_row}\n{finding_marker}", 1)
 
 conformance_marker = "\n### Required repository checks"
 conformance_section = (
-    "\n#### Manual conformance receipt `DOC-CONF-23`\n\n"
+    f"\n#### Manual conformance receipt `{next_conformance_id}`\n\n"
     "Appended conformance fixture.\n"
 )
 if text.count(conformance_marker) != 1:
@@ -281,6 +393,72 @@ python3 \
   "$append_only_base" \
   "$append_only_head"
 
+multiple_conformance_repository="$fixture_root/append-only-multiple-conformance"
+cp -R "$append_only_repository" "$multiple_conformance_repository"
+python3 - \
+  "$multiple_conformance_repository/docs/specifications/v1-delivery-program.md" \
+  "$following_conformance_id" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+following_conformance_id = sys.argv[2]
+text = path.read_text()
+marker = "\n### Required repository checks"
+section = (
+    f"\n#### Manual conformance receipt `{following_conformance_id}`\n\n"
+    "Second appended conformance fixture.\n"
+)
+if text.count(marker) != 1:
+    raise SystemExit("expected one conformance append boundary")
+path.write_text(text.replace(marker, f"{section}{marker}", 1))
+PY
+git -C "$multiple_conformance_repository" add \
+  docs/specifications/v1-delivery-program.md
+git -C "$multiple_conformance_repository" commit -qm \
+  'Append more than one conformance successor'
+multiple_conformance_head="$(
+  git -C "$multiple_conformance_repository" rev-parse HEAD
+)"
+expect_append_only_failure \
+  "$multiple_conformance_repository" \
+  "$append_only_base" \
+  "$multiple_conformance_head" \
+  "changed reviewed archive must append exactly one next conformance receipt $next_conformance_id"
+
+noncontiguous_conformance_repository="$fixture_root/append-only-noncontiguous"
+cp -R "$append_only_repository" "$noncontiguous_conformance_repository"
+python3 - \
+  "$noncontiguous_conformance_repository/docs/specifications/v1-delivery-program.md" \
+  "$next_conformance_id" \
+  "$following_conformance_id" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+next_conformance_id = sys.argv[2]
+following_conformance_id = sys.argv[3]
+text = path.read_text()
+heading = f"#### Manual conformance receipt `{next_conformance_id}`"
+if text.count(heading) != 1:
+    raise SystemExit("expected one next conformance heading")
+path.write_text(text.replace(heading, (
+    f"#### Manual conformance receipt `{following_conformance_id}`"
+), 1))
+PY
+git -C "$noncontiguous_conformance_repository" add \
+  docs/specifications/v1-delivery-program.md
+git -C "$noncontiguous_conformance_repository" commit -qm \
+  'Replace next conformance with a noncontiguous identifier'
+noncontiguous_conformance_head="$(
+  git -C "$noncontiguous_conformance_repository" rev-parse HEAD
+)"
+expect_append_only_failure \
+  "$noncontiguous_conformance_repository" \
+  "$append_only_base" \
+  "$noncontiguous_conformance_head" \
+  "delivery-program conformance-history IDs must be exactly 1..$((active_conformance_number + 1)) in source order"
+
 new_structural_case() {
   local name="$1"
   current_case="$fixture_root/$name"
@@ -292,15 +470,19 @@ mutate_current_conformance() {
   local old="$1"
   local new="$2"
 
-  python3 - "$current_document" "$old" "$new" <<'PY'
+  python3 \
+    - "$current_document" "$old" "$new" "$active_conformance_id" <<'PY'
 from pathlib import Path
 import sys
 
 path = Path(sys.argv[1])
 old = sys.argv[2]
 new = sys.argv[3]
+active_conformance_id = sys.argv[4]
 text = path.read_text()
-start = text.index("#### Manual conformance receipt `DOC-CONF-22`")
+start = text.index(
+    f"#### Manual conformance receipt `{active_conformance_id}`"
+)
 end = text.index(
     "Any later source, count, interface, ownership, finding, review disposition,",
     start,
@@ -313,11 +495,11 @@ PY
 }
 
 new_structural_case finding
-sed 's#`FND-320` / P2#`FND-999` / P2#' \
+sed 's#`FND-365` / P2#`FND-999` / P2#' \
   "$current_document" >"$current_document.tmp"
 mv "$current_document.tmp" "$current_document"
 expect_failure "$current_document" \
-  'finding IDs must be exactly 1..320 in source order'
+  'finding IDs must be exactly 1..365 in source order'
 
 new_structural_case wave-label
 sed 's#^| `W33` |#| `W32` |#' \
@@ -565,9 +747,9 @@ expect_failure "$current_document" \
   'malformed milestone registry ID: M0'
 
 new_structural_case decision-count
-rm "$current_case/docs/decisions/0030-protect-doc-00-history-and-governance.md"
+rm "$current_case/docs/decisions/0034-adopt-vector-conditioned-focus-adapter-boundary.md"
 expect_failure "$current_document" \
-  'decision IDs must be exactly 1..31 in source order'
+  'decision IDs must be exactly 1..34 in source order'
 
 new_structural_case specification-count
 rm "$current_case/docs/specifications/curated-activation-evidence.md"
@@ -580,7 +762,7 @@ sed 's#^Status: Accepted$#Status: Superseded#' \
   "$decision_file" >"$decision_file.tmp"
 mv "$decision_file.tmp" "$decision_file"
 expect_failure "$current_document" \
-  'expected 27 Accepted decisions, found 26'
+  'expected 26 Accepted decisions, found 25'
 
 new_structural_case decision-supersession
 old_decision="$current_case/docs/decisions/0013-adopt-a-vector-prefix-local-renderer-qualification-path.md"
@@ -592,7 +774,7 @@ sed 's#^Status: Accepted$#Status: Superseded#' \
   "$new_decision" >"$new_decision.tmp"
 mv "$new_decision.tmp" "$new_decision"
 expect_failure "$current_document" \
-  'Superseded decisions must be exactly 0011, 0012, 0013, and 0028'
+  'Superseded decisions must be exactly 0011, 0012, 0013, 0015, 0016, 0019, 0023, and 0028'
 
 new_structural_case proof-definition
 proof_file="$current_case/docs/specifications/v1-proof-program.md"
@@ -772,27 +954,18 @@ path = Path(sys.argv[1])
 text = path.read_text()
 line_start = text.index("| `CONSOL-03` / Content-bound attestation |")
 line_end = text.index("\n", line_start)
-line = text[line_start:line_end].replace("`FND-152..320`", "`FND-152..319`", 1)
+line = text[line_start:line_end].replace("`FND-152..365`", "`FND-152..364`", 1)
 path.write_text(text[:line_start] + line + text[line_end:])
 PY
 expect_failure "$current_document" \
-  'consolidation registry must bind the canonical current finding range FND-152..320 exactly once'
+  'consolidation registry must bind the canonical current finding range FND-152..365 exactly once'
 
 new_structural_case stale-current-conformance-range
-python3 - "$current_document" <<'PY'
-from pathlib import Path
-import sys
-
-path = Path(sys.argv[1])
-text = path.read_text().replace(
-    "`FND-152..320`. `FND-001..151`",
-    "`FND-152..319`. `FND-001..151`",
-    1,
-)
-path.write_text(text)
-PY
+mutate_current_conformance \
+  '`FND-152..365`. `FND-001..361`' \
+  '`FND-152..364`. `FND-001..361`'
 expect_failure "$current_document" \
-  'active DOC-CONF-22 must contain canonical current-state fragment exactly once: `FND-152..320`'
+  "active $active_conformance_id must contain canonical current-state fragment exactly once: \`FND-152..365\`"
 
 new_structural_case protected-history-crlf-checkout
 python3 - "$current_document" <<'PY'
@@ -850,62 +1023,60 @@ expect_failure "$current_document" \
   'protected FND-001..151 ledger differs from its canonical byte digest'
 
 new_structural_case stale-current-interface-count
-sed \
-  's#The active registry retains 49 unique interfaces#The active registry retains 48 unique interfaces#' \
-  "$current_document" >"$current_document.tmp"
-mv "$current_document.tmp" "$current_document"
+mutate_current_conformance \
+  'The active registry retains 49 unique interfaces' \
+  'The active registry retains 48 unique interfaces'
 expect_failure "$current_document" \
-  'active DOC-CONF-22 complete structural inventory differs from the canonical inventory'
+  "active $active_conformance_id complete structural inventory differs from the canonical inventory"
 
 new_structural_case stale-current-finding-count
-sed \
-  's#There are 320 unique sequential findings#There are 319 unique sequential findings#' \
-  "$current_document" >"$current_document.tmp"
-mv "$current_document.tmp" "$current_document"
+mutate_current_conformance \
+  'There are 365 unique sequential findings' \
+  'There are 364 unique sequential findings'
 expect_failure "$current_document" \
-  'active DOC-CONF-22 complete structural inventory differs from the canonical inventory'
+  "active $active_conformance_id complete structural inventory differs from the canonical inventory"
 
 new_structural_case stale-current-package-counts
 mutate_current_conformance \
   'The program remains 54 unique packages, 48 V1 and 6 post-V1.' \
   'The program remains 53 unique packages, 47 V1 and seven post-V1.'
 expect_failure "$current_document" \
-  'active DOC-CONF-22 complete structural inventory differs from the canonical inventory'
+  "active $active_conformance_id complete structural inventory differs from the canonical inventory"
 
 new_structural_case stale-current-dependency-counts
 mutate_current_conformance \
   'The canonical dependency table has 127 total and 123 V1-to-V1 relations' \
   'The canonical dependency table has 126 total and 122 V1-to-V1 relations'
 expect_failure "$current_document" \
-  'active DOC-CONF-22 complete structural inventory differs from the canonical inventory'
+  "active $active_conformance_id complete structural inventory differs from the canonical inventory"
 
 new_structural_case stale-current-graph-counts
 mutate_current_conformance \
   'the Mermaid graph has 132 total and 123 V1-to-V1 edges' \
   'the Mermaid graph has 131 total and 122 V1-to-V1 edges'
 expect_failure "$current_document" \
-  'active DOC-CONF-22 complete structural inventory differs from the canonical inventory'
+  "active $active_conformance_id complete structural inventory differs from the canonical inventory"
 
 new_structural_case stale-current-wave-count
 mutate_current_conformance \
   '49 unique interfaces and 34 stable wave labels' \
   '49 unique interfaces and 33 stable wave labels'
 expect_failure "$current_document" \
-  'active DOC-CONF-22 complete structural inventory differs from the canonical inventory'
+  "active $active_conformance_id complete structural inventory differs from the canonical inventory"
 
 new_structural_case stale-current-evidence-counts
 mutate_current_conformance \
-  '22 append-only conformance receipts, 18 external review paths, 12 non-template specifications' \
-  '21 append-only conformance receipts, 17 external review paths, 11 non-template specifications'
+  '24 append-only conformance receipts, 18 external review paths, 12 non-template specifications' \
+  '23 append-only conformance receipts, 17 external review paths, 11 non-template specifications'
 expect_failure "$current_document" \
-  'active DOC-CONF-22 complete structural inventory differs from the canonical inventory'
+  "active $active_conformance_id complete structural inventory differs from the canonical inventory"
 
 new_structural_case stale-current-decision-counts
 mutate_current_conformance \
-  '31 numbered decisions: 27 `Accepted` and 4 `Superseded`' \
-  '30 numbered decisions: 26 `Accepted` and 5 `Superseded`'
+  '34 numbered decisions: 26 `Accepted` and 8 `Superseded`' \
+  '33 numbered decisions: 25 `Accepted` and 9 `Superseded`'
 expect_failure "$current_document" \
-  'active DOC-CONF-22 complete structural inventory differs from the canonical inventory'
+  "active $active_conformance_id complete structural inventory differs from the canonical inventory"
 
 new_structural_case malformed-finding-ledger
 python3 - "$current_document" <<'PY'
@@ -924,11 +1095,11 @@ expect_failure "$current_document" \
   'malformed finding ledger ID: FND-153 / P1'
 
 new_structural_case finding-severity
-sed 's#`FND-153` / P1#`FND-153` / P2#' \
+sed 's#`FND-365` / P2#`FND-365` / P1#' \
   "$current_document" >"$current_document.tmp"
 mv "$current_document.tmp" "$current_document"
 expect_failure "$current_document" \
-  'finding severities must match the canonical FND-001..FND-320 ledger'
+  'finding severities must match the canonical FND-001..FND-365 ledger'
 
 new_structural_case completion-target
 sed \
@@ -1079,11 +1250,11 @@ write_receipt_set() {
     "$fixture_repository/docs/receipts/reviews"
 
   if [[ -n "$prior_digest" ]]; then
-    replaces="DOC-CONF-22 at archive digest $prior_digest"
+    replaces="$canonical_g0_record_id at archive digest $prior_digest"
   fi
   write_receipt \
     "$fixture_repository/docs/receipts/doc-00-g0.md" \
-    'DOC-CONF-22' \
+    "$canonical_g0_record_id" \
     'MergeAuthorization' \
     'MergeAuthorized' \
     'Codex /root' \
@@ -1105,7 +1276,7 @@ write_receipt_set() {
       "consolidator-0${index}" \
       'Integration owner for the named consolidation pass.' \
       'Independent consolidation pass.' \
-      'FND-152..320 reconciliation.' \
+      'FND-152..365 reconciliation.' \
       "$replaces"
   done
 
@@ -1128,6 +1299,88 @@ write_receipt_set() {
   done
 }
 
+append_conformance_successor() {
+  local fixture_repository="$1"
+  python3 - \
+    "$fixture_repository/docs/specifications/v1-delivery-program.md" \
+    "$fixture_repository/scripts/check-v1-delivery-program.py" <<'PY'
+from pathlib import Path
+import re
+import sys
+
+document_path = Path(sys.argv[1])
+checker_path = Path(sys.argv[2])
+document = document_path.read_text()
+checker = checker_path.read_text()
+
+count_match = re.search(
+    r"^EXPECTED_CONFORMANCE_COUNT = ([0-9]+)$",
+    checker,
+    re.MULTILINE,
+)
+finding_match = re.search(
+    r"^EXPECTED_FINDING_COUNT = ([0-9]+)$",
+    checker,
+    re.MULTILINE,
+)
+if count_match is None or finding_match is None:
+    raise SystemExit("expected canonical checker count bindings")
+
+current = int(count_match.group(1))
+successor = current + 1
+current_heading = (
+    f"#### Manual conformance receipt `DOC-CONF-{current:02d}`"
+)
+headings = re.findall(
+    r"^#### Manual conformance receipt(?: `DOC-CONF-([0-9]{2})`)?$",
+    document,
+    re.MULTILINE,
+)
+observed_current = int(headings[-1] or "01") if headings else 0
+if observed_current != current or document.count(current_heading) != 1:
+    raise SystemExit("checker and document disagree on active conformance")
+
+section_start = document.index(current_heading)
+section_end = document.index("\n### Required repository checks", section_start)
+current_section = document[section_start:section_end]
+inventory_match = re.search(
+    r"The program remains .*?"
+    r"[0-9]+ numbered decisions: [0-9]+ `Accepted` and "
+    r"[0-9]+ `Superseded`",
+    current_section,
+    re.DOTALL,
+)
+if inventory_match is None:
+    raise SystemExit("active conformance lacks the canonical inventory")
+inventory = inventory_match.group(0).replace(
+    f"{current} append-only conformance receipts",
+    f"{successor} append-only conformance receipts",
+    1,
+)
+if f"{successor} append-only conformance receipts" not in inventory:
+    raise SystemExit("active inventory conformance count is not canonical")
+
+finding_count = int(finding_match.group(1))
+successor_section = (
+    f"\n#### Manual conformance receipt `DOC-CONF-{successor:02d}`\n\n"
+    f"`DOC-CONF-{successor:02d}` is a strict replacement fixture for "
+    f"`FND-152..{finding_count:03d}`. Earlier source receipts remain "
+    "byte-unchanged.\n\n"
+    f"{inventory}\n\n"
+    "Any later source, count, interface, ownership, finding, review disposition,\n"
+    "decision status, or graph change appends the next conformance receipt.\n"
+)
+document_path.write_text(
+    document[:section_end] + successor_section + document[section_end:]
+)
+checker_path.write_text(
+    checker[: count_match.start(1)]
+    + str(successor)
+    + checker[count_match.end(1) :]
+)
+PY
+}
+
 append_replacement_pair() {
   local fixture_repository="$1"
   local prior_digest="$2"
@@ -1135,8 +1388,11 @@ append_replacement_pair() {
 
   printf '\nFixture source freeze: %s.\n' "$fixture_name" \
     >>"$fixture_repository/docs/specifications/v1-proof-program.md"
+  append_conformance_successor "$fixture_repository"
   git -C "$fixture_repository" add \
-    docs/specifications/v1-proof-program.md
+    docs/specifications/v1-delivery-program.md \
+    docs/specifications/v1-proof-program.md \
+    scripts/check-v1-delivery-program.py
   GIT_AUTHOR_DATE='2026-07-24T12:10:00Z' \
   GIT_COMMITTER_DATE='2026-07-24T12:10:00Z' \
     git -C "$fixture_repository" commit -qm 'Freeze replacement fixture source'
@@ -1161,6 +1417,58 @@ git -C "$strict_repository" config tar.umask 0077
 python3 "$strict_repository/scripts/check-v1-delivery-program.py" \
   --require-receipts \
   "$strict_repository/docs/specifications/v1-delivery-program.md"
+
+new_archive_attribute_case() {
+  local name="$1"
+  local attribute_path="$2"
+  local attribute_rule="$3"
+  local expected_path="$4"
+  local case_repository="$fixture_root/$name"
+
+  cp -R "$strict_repository" "$case_repository"
+  mkdir -p "$(dirname "$case_repository/$attribute_path")"
+  printf '%s\n' "$attribute_rule" >"$case_repository/$attribute_path"
+  append_conformance_successor "$case_repository"
+  git -C "$case_repository" add \
+    "$attribute_path" \
+    docs/specifications/v1-delivery-program.md \
+    scripts/check-v1-delivery-program.py
+  GIT_AUTHOR_DATE='2026-07-24T12:31:00Z' \
+  GIT_COMMITTER_DATE='2026-07-24T12:31:00Z' \
+    git -C "$case_repository" commit -qm \
+      'Freeze source with hostile archive attributes'
+  set_source_binding \
+    "$case_repository" \
+    "$fixture_root/$name-source.tar"
+  write_receipt_set "$case_repository" "$strict_archive_digest"
+  git -C "$case_repository" add docs/receipts
+  GIT_AUTHOR_DATE='2026-07-24T12:32:00Z' \
+  GIT_COMMITTER_DATE='2026-07-24T12:32:00Z' \
+    git -C "$case_repository" commit -qm \
+      'Bind hostile archive-attribute source'
+  expect_strict_failure "$case_repository" \
+    "attested Source commit contains forbidden tracked archive-attribute file: $expected_path"
+}
+
+new_archive_attribute_case \
+  hostile-root-gitattributes \
+  .gitattributes \
+  'docs/decisions/** export-ignore' \
+  .gitattributes
+
+source_commit="$strict_source_commit"
+source_tree="$strict_source_tree"
+archive_digest="$strict_archive_digest"
+
+new_archive_attribute_case \
+  hostile-nested-gitattributes \
+  docs/specifications/.gitattributes \
+  '*.md export-subst' \
+  docs/specifications/.gitattributes
+
+source_commit="$strict_source_commit"
+source_tree="$strict_source_tree"
+archive_digest="$strict_archive_digest"
 
 GIT_CONFIG_COUNT=1 \
 GIT_CONFIG_KEY_0=core.worktree \
@@ -1335,7 +1643,7 @@ sed 's#| Status | `MergeAuthorized` |#| Status | `In progress` |#' \
   "$receipt" >"$receipt.tmp"
 mv "$receipt.tmp" "$receipt"
 expect_strict_failure "$strict_case" \
-  'attestation DOC-CONF-22 Status must be MergeAuthorized'
+  "attestation $canonical_g0_record_id Status must be MergeAuthorized"
 
 new_strict_case completion-declaration
 receipt="$strict_case/docs/receipts/doc-00-g0.md"
@@ -1344,7 +1652,7 @@ sed \
   "$receipt" >"$receipt.tmp"
 mv "$receipt.tmp" "$receipt"
 expect_strict_failure "$strict_case" \
-  'attestation DOC-CONF-22 lacks the canonical merge-authorization declaration'
+  "attestation $canonical_g0_record_id lacks the canonical merge-authorization declaration"
 
 new_strict_case completion-actor
 receipt="$strict_case/docs/receipts/doc-00-g0.md"
@@ -1352,7 +1660,7 @@ sed 's#| Actor | `Codex /root` |#| Actor | `principal-architect` |#' \
   "$receipt" >"$receipt.tmp"
 mv "$receipt.tmp" "$receipt"
 expect_strict_failure "$strict_case" \
-  'attestation DOC-CONF-22 Actor must be Codex /root'
+  "attestation $canonical_g0_record_id Actor must be Codex /root"
 
 new_strict_case positive-review-declaration
 receipt="$strict_case/docs/receipts/reviews/rev-18.md"
@@ -1375,11 +1683,11 @@ expect_strict_failure "$strict_case" \
 new_strict_case stale-consolidation-evidence-range
 receipt="$strict_case/docs/receipts/consolidations/consol-03.md"
 sed \
-  's#FND-152..320 reconciliation.#FND-152..319 reconciliation.#' \
+  's#FND-152..365 reconciliation.#FND-152..364 reconciliation.#' \
   "$receipt" >"$receipt.tmp"
 mv "$receipt.tmp" "$receipt"
 expect_strict_failure "$strict_case" \
-  'attestation CONSOL-03 Evidence references must be FND-152..320 reconciliation.'
+  'attestation CONSOL-03 Evidence references must be FND-152..365 reconciliation.'
 
 new_strict_case duplicate-review-actor
 receipt="$strict_case/docs/receipts/reviews/rev-18.md"
@@ -1401,7 +1709,7 @@ text = text.replace("[REV-18](reviews/rev-18.md)", "REV-18", 1)
 path.write_text(text)
 PY
 expect_strict_failure "$strict_case" \
-  'attestation DOC-CONF-22 must reference [REV-18](reviews/rev-18.md) exactly once'
+  "attestation $canonical_g0_record_id must reference [REV-18](reviews/rev-18.md) exactly once"
 
 new_strict_case extra-g0-record-reference
 receipt="$strict_case/docs/receipts/doc-00-g0.md"
@@ -1419,7 +1727,7 @@ text = text.replace(
 path.write_text(text)
 PY
 expect_strict_failure "$strict_case" \
-  'attestation DOC-CONF-22 must contain only the 21 canonical sub-attestation links in registry order'
+  "attestation $canonical_g0_record_id must contain only the 21 canonical sub-attestation links in registry order"
 
 new_strict_case missing-g0-check-reference
 receipt="$strict_case/docs/receipts/doc-00-g0.md"
@@ -1428,7 +1736,7 @@ sed \
   "$receipt" >"$receipt.tmp"
 mv "$receipt.tmp" "$receipt"
 expect_strict_failure "$strict_case" \
-  'attestation DOC-CONF-22 must reference repository check git diff --check exactly once'
+  "attestation $canonical_g0_record_id must reference repository check git diff --check exactly once"
 
 new_strict_case missing-change-aware-g0-reference
 receipt="$strict_case/docs/receipts/doc-00-g0.md"
@@ -1437,7 +1745,7 @@ sed \
   "$receipt" >"$receipt.tmp"
 mv "$receipt.tmp" "$receipt"
 expect_strict_failure "$strict_case" \
-  'attestation DOC-CONF-22 must reference exactly one change-aware repository check `DOCUMENTATION_BASE_REF=origin/main ./scripts/check-documentation.sh /absolute/pr-body-path` without shell operators'
+  "attestation $canonical_g0_record_id must reference exactly one change-aware repository check \`DOCUMENTATION_BASE_REF=origin/main ./scripts/check-documentation.sh /absolute/pr-body-path\` without shell operators"
 
 new_strict_case missing-change-aware-body-path
 receipt="$strict_case/docs/receipts/doc-00-g0.md"
@@ -1446,7 +1754,7 @@ sed \
   "$receipt" >"$receipt.tmp"
 mv "$receipt.tmp" "$receipt"
 expect_strict_failure "$strict_case" \
-  'attestation DOC-CONF-22 must reference exactly one change-aware repository check `DOCUMENTATION_BASE_REF=origin/main ./scripts/check-documentation.sh /absolute/pr-body-path` without shell operators'
+  "attestation $canonical_g0_record_id must reference exactly one change-aware repository check \`DOCUMENTATION_BASE_REF=origin/main ./scripts/check-documentation.sh /absolute/pr-body-path\` without shell operators"
 
 new_strict_case change-aware-shell-operator
 receipt="$strict_case/docs/receipts/doc-00-g0.md"
@@ -1455,7 +1763,7 @@ sed \
   "$receipt" >"$receipt.tmp"
 mv "$receipt.tmp" "$receipt"
 expect_strict_failure "$strict_case" \
-  'attestation DOC-CONF-22 must reference exactly one change-aware repository check `DOCUMENTATION_BASE_REF=origin/main ./scripts/check-documentation.sh /absolute/pr-body-path` without shell operators'
+  "attestation $canonical_g0_record_id must reference exactly one change-aware repository check \`DOCUMENTATION_BASE_REF=origin/main ./scripts/check-documentation.sh /absolute/pr-body-path\` without shell operators"
 
 new_strict_case change-aware-redirection
 receipt="$strict_case/docs/receipts/doc-00-g0.md"
@@ -1464,7 +1772,7 @@ sed \
   "$receipt" >"$receipt.tmp"
 mv "$receipt.tmp" "$receipt"
 expect_strict_failure "$strict_case" \
-  'attestation DOC-CONF-22 must reference exactly one change-aware repository check `DOCUMENTATION_BASE_REF=origin/main ./scripts/check-documentation.sh /absolute/pr-body-path` without shell operators'
+  "attestation $canonical_g0_record_id must reference exactly one change-aware repository check \`DOCUMENTATION_BASE_REF=origin/main ./scripts/check-documentation.sh /absolute/pr-body-path\` without shell operators"
 
 new_strict_case change-aware-command-substitution
 receipt="$strict_case/docs/receipts/doc-00-g0.md"
@@ -1473,7 +1781,7 @@ sed \
   "$receipt" >"$receipt.tmp"
 mv "$receipt.tmp" "$receipt"
 expect_strict_failure "$strict_case" \
-  'attestation DOC-CONF-22 must reference exactly one change-aware repository check `DOCUMENTATION_BASE_REF=origin/main ./scripts/check-documentation.sh /absolute/pr-body-path` without shell operators'
+  "attestation $canonical_g0_record_id must reference exactly one change-aware repository check \`DOCUMENTATION_BASE_REF=origin/main ./scripts/check-documentation.sh /absolute/pr-body-path\` without shell operators"
 
 new_strict_case truncated-g0-clippy-reference
 receipt="$strict_case/docs/receipts/doc-00-g0.md"
@@ -1482,7 +1790,7 @@ sed \
   "$receipt" >"$receipt.tmp"
 mv "$receipt.tmp" "$receipt"
 expect_strict_failure "$strict_case" \
-  'attestation DOC-CONF-22 must reference repository check cargo clippy --workspace --all-targets --all-features --locked -- -D warnings -F missing-docs -F unsafe-code exactly once'
+  "attestation $canonical_g0_record_id must reference repository check cargo clippy --workspace --all-targets --all-features --locked -- -D warnings -F missing-docs -F unsafe-code exactly once"
 
 new_strict_case binding-drift
 receipt="$strict_case/docs/receipts/reviews/rev-18.md"
@@ -1815,10 +2123,14 @@ GIT_COMMITTER_DATE='2026-07-24T14:09:10Z' \
     stale-divergent-history
 git -C "$stale_divergent_repository" checkout HEAD -- \
   docs/receipts \
-  docs/specifications/v1-proof-program.md
+  docs/specifications/v1-delivery-program.md \
+  docs/specifications/v1-proof-program.md \
+  scripts/check-v1-delivery-program.py
 git -C "$stale_divergent_repository" add \
   docs/receipts \
-  docs/specifications/v1-proof-program.md
+  docs/specifications/v1-delivery-program.md \
+  docs/specifications/v1-proof-program.md \
+  scripts/check-v1-delivery-program.py
 GIT_AUTHOR_DATE='2026-07-24T14:09:20Z' \
 GIT_COMMITTER_DATE='2026-07-24T14:09:20Z' \
   git -C "$stale_divergent_repository" commit -qm 'Hide stale divergent receipts'
@@ -1971,11 +2283,41 @@ source_commit="$strict_source_commit"
 source_tree="$strict_source_tree"
 archive_digest="$strict_archive_digest"
 
+missing_conformance_replacement="$fixture_root/replacement-missing-conformance"
+cp -R "$strict_repository" "$missing_conformance_replacement"
+printf '\nMissing conformance successor fixture.\n' \
+  >>"$missing_conformance_replacement/docs/specifications/v1-proof-program.md"
+git -C "$missing_conformance_replacement" add \
+  docs/specifications/v1-proof-program.md
+GIT_AUTHOR_DATE='2026-07-24T13:40:00Z' \
+GIT_COMMITTER_DATE='2026-07-24T13:40:00Z' \
+  git -C "$missing_conformance_replacement" commit -qm \
+    'Freeze replacement without conformance successor'
+set_source_binding \
+  "$missing_conformance_replacement" \
+  "$fixture_root/replacement-missing-conformance.tar"
+write_receipt_set "$missing_conformance_replacement" "$strict_archive_digest"
+git -C "$missing_conformance_replacement" add docs/receipts
+GIT_AUTHOR_DATE='2026-07-24T13:45:00Z' \
+GIT_COMMITTER_DATE='2026-07-24T13:45:00Z' \
+  git -C "$missing_conformance_replacement" commit -qm \
+    'Bind replacement without conformance successor'
+expect_strict_failure "$missing_conformance_replacement" \
+  "changed reviewed archive must append exactly one next conformance receipt $next_conformance_id"
+
+source_commit="$strict_source_commit"
+source_tree="$strict_source_tree"
+archive_digest="$strict_archive_digest"
+
 replacement_repository="$fixture_root/replacement-repository"
 cp -R "$strict_repository" "$replacement_repository"
 prior_archive_digest="$archive_digest"
 printf '\n' >>"$replacement_repository/docs/specifications/v1-proof-program.md"
-git -C "$replacement_repository" add docs/specifications/v1-proof-program.md
+append_conformance_successor "$replacement_repository"
+git -C "$replacement_repository" add \
+  docs/specifications/v1-delivery-program.md \
+  docs/specifications/v1-proof-program.md \
+  scripts/check-v1-delivery-program.py
 GIT_AUTHOR_DATE='2026-07-24T14:00:00Z' \
 GIT_COMMITTER_DATE='2026-07-24T14:00:00Z' \
   git -C "$replacement_repository" commit -qm 'Freeze replacement source'
@@ -2054,11 +2396,21 @@ import sys
 
 path = Path(sys.argv[1])
 text = path.read_text()
+section_start = text.index("#### Manual conformance receipt `DOC-CONF-22`")
+section_end = text.index(
+    "#### Manual conformance receipt `DOC-CONF-23`",
+    section_start,
+)
+section = text[section_start:section_end]
 old = "This source receipt\ncontains no self-referential final digest"
 new = "This source receipt\ncontains no circular final digest"
-if text.count(old) != 1:
+if section.count(old) != 1:
     raise SystemExit("expected one DOC-CONF-22 mutation target")
-path.write_text(text.replace(old, new, 1))
+path.write_text(
+    text[:section_start]
+    + section.replace(old, new, 1)
+    + text[section_end:]
+)
 PY
 git -C "$rewritten_conformance_repository" add \
   docs/specifications/v1-delivery-program.md
@@ -2123,7 +2475,7 @@ for path in receipt_root.rglob("*.md"):
     path.write_text(text)
 PY
 expect_strict_failure "$same_digest_replacement" \
-  'replacement attestation DOC-CONF-22 must bind a new archive digest'
+  "replacement attestation $canonical_g0_record_id must bind a new archive digest"
 
 deleted_history_repository="$fixture_root/replacement-deleted-source-history"
 cp -R "$strict_repository" "$deleted_history_repository"
@@ -2762,7 +3114,9 @@ path.write_text(text.replace(old, new, 1))
 PY
 printf '\n' \
   >>"$historical_checker_repository/docs/specifications/v1-proof-program.md"
+append_conformance_successor "$historical_checker_repository"
 git -C "$historical_checker_repository" add \
+  docs/specifications/v1-delivery-program.md \
   docs/specifications/v1-proof-program.md \
   scripts/check-v1-delivery-program.py
 GIT_AUTHOR_DATE='2026-07-24T14:45:00Z' \

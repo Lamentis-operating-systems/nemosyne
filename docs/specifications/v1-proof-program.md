@@ -142,21 +142,30 @@ and claims must use registered or visibly qualified symbols.
 | \(\mathcal I_{\mathrm{plan}}\) | permissionless planning input | Output language, budget, planning configuration, and permitted exact-surface inventory; no raw request or \(Q\) | [Planning specification](focus-and-expectation-planning.md) |
 | \(\mathcal S_{\mathrm{plan}}\) | private current-call and expected-set planning scope | Nonserializable compiler-private borrow of the current \(\mathcal I_A\)'s invocation witness and the exact selected \(\mathcal A\)'s set-instance witness; it validates both branch witness pairs and has no semantic, ordering, numerical, diagnostic, serialization, or product-byte effect | [Planning specification](focus-and-expectation-planning.md) |
 | \(L\) | canonical plan | Sole `FocusExpectationPlan` | [Planning specification](focus-and-expectation-planning.md) |
+| \(C_F(L)\) | checked live conditioning composite | Canonical `VectorConditionedFocusSemanticsV1` plus request-local binding view and private `ConditioningInstanceWitness`; only the canonical semantics enter plan identity | [Planning specification](focus-and-expectation-planning.md#vector-conditioned-focus-input) |
+| \(C_A(L),C_V^{sem}(L),C_V^{bind}(L)\) | checked least-privilege views | Adapter-visible numerical query plus weighted semantic-vector set; validator-only canonical semantics/handle map; and validator-only request-local provenance/custody binding | [Renderer specification](vector-to-attention-renderer.md#renderer-projection-view) |
+| \(\omega_F\) | private conditioning-instance witness | Noncloneable, nonserializable live join from which the compiler derives equality-only candidate and validator bindings without changing canonical content or bytes | [Renderer specification](vector-to-attention-renderer.md#renderer-projection-view) |
+| \(C_R^A,C_R^V\) | renderer-configuration views | Unconstructible adapter-only and validator-only borrows carrying one full-\(K_R\) identity and commitment; neither is an independently authenticated partial configuration | [Renderer specification](vector-to-attention-renderer.md#rendering-boundary) |
+| \(\eta_i\) | dense adapter plan-item handle | Canonical model-visible handle resolved only by \(C_V^{sem}\) to `PlanItemSemanticKey`, qualifiers, slots, and ceiling | [Renderer specification](vector-to-attention-renderer.md#renderer-projection-view) |
+| \(m_i,a_i\) | typed vector member and finite unit-interval value | One admitted semantic memory-vector artifact with request-local relevance weight; the weight is not truth, probability, authority, utility, safety, or action priority | [Renderer specification](vector-to-attention-renderer.md#renderer-projection-view) |
+| \(U_F=A_{\alpha,C_R^A}(C_A)\) | bounded untrusted adapter result | Candidate-family output envelope carrying the common canonical `FocusSupportTraceV1` and either a registered structural-shape or bound-text payload | [Renderer specification](vector-to-attention-renderer.md#renderer-projection-view) |
+| \(S_F\) | untrusted slot-bearing surface | Deterministic adapter-side projection of \(U_F\) using only `AdapterConfigurationViewV1`; no plan, validator view, or complete \(K_R\) enters this step | [Renderer specification](vector-to-attention-renderer.md#rendering-boundary) |
 | \(\beta_L\) | exact canonical plan bytes | Canonical bytes of `PlanCanonicalEnvelopeV1(L)`; exact equality, not digest equality or Rust referent identity, defines canonical plan equivalence | [Planning specification](focus-and-expectation-planning.md#canonical-plan-content-identity) |
 | \(c_L\) | sealed `PlanContentId` | Domain-separated typed digest identity of \(\beta_L\); equality is necessary but insufficient for canonical equivalence until the exact-byte collision check succeeds | [Planning specification](focus-and-expectation-planning.md#canonical-plan-content-identity) |
 | \(c_R\) | sealed `RendererConfigurationId` | Domain-separated typed identity recomputed from the exact authenticated renderer configuration \(K_R\), independent from \(c_L\) | [Renderer specification](vector-to-attention-renderer.md#rendering-boundary) |
 | \(\beta_R\) | exact canonical renderer-configuration bytes | Canonical bytes \(\operatorname{CE}_{v1}(K_R)\); exact authenticated byte equality, not Rust referent identity or ID equality alone, defines renderer-configuration equivalence | [Renderer specification](vector-to-attention-renderer.md#rendering-boundary) |
 | \(\rho_i\) | renderer item | One canonical renderer projection item | [Renderer specification](vector-to-attention-renderer.md) |
 | \(\mathcal F_R\) | finite facet set | Versioned renderer-facet vocabulary | [Renderer specification](vector-to-attention-renderer.md) |
-| \(\mathbf n_i,\varphi_i,\kappa_i,\mathbf m_i,\iota_i,\delta_i\) | typed renderer fields | Scalar features, item role, canonical rank, presence mask, proposition identity, and disposition | [Renderer specification](vector-to-attention-renderer.md) |
-| \(\mathcal R_i,\mathcal U_i,\mathcal B_i^{\mathrm{src}},\mathcal X_i^{\mathrm{slot}}\) | typed finite renderer fields | Required relations, authority ceiling, source bindings, and exact-slot bindings | [Renderer specification](vector-to-attention-renderer.md) |
+| \(\mathbf n_i,\varphi_i,\kappa_i,\mathbf m_i,\eta_i,\delta_i\) | typed adapter-visible renderer fields | Scalar features, safe item role, canonical rank, presence mask, dense `AdapterPlanItemHandleV1`, and disposition; no semantic or source identity | [Renderer specification](vector-to-attention-renderer.md) |
+| \(\mathcal R_i,\mathcal Q_i,\mathcal X_i^{\mathrm{slot}}\) | typed finite adapter-visible fields | Safe relations, required qualifiers, and exact-slot metadata without payload bytes | [Renderer specification](vector-to-attention-renderer.md) |
+| \(\mathcal U_i,\mathcal B_i^{\mathrm{src}}\) | typed finite validator-only fields | Canonical authority ceiling in \(C_V^{sem}\) and request-local source/provenance bindings in \(C_V^{bind}\); neither enters the adapter | [Renderer specification](vector-to-attention-renderer.md) |
 | \(\mathcal V_{\mathrm{exact}},\mathcal V_{\mathrm{slotmeta}}\) | exact sidecar and safe projection | Authoritative exact values and model-visible metadata without payload bytes | [Renderer specification](vector-to-attention-renderer.md) |
-| \(\mathcal P_{\mathrm{soft}}\) | continuous prefix | Learned model-input projection of the canonical plan | [Renderer specification](vector-to-attention-renderer.md) |
-| \(\mathcal B_{\mathrm{attr}}\) | finite attribution-label set | Nonempty token-to-proposition training labels | [Renderer specification](vector-to-attention-renderer.md) |
-| \(V_{\mathrm{ctx}}\) | opaque `ValidationContext<'plan>` | Compiler-built, witness-erased context tied to its source-plan borrow and containing exact prompt evidence, the semantic numerical-query projection, sealed \(c_L\), private \(\beta_L\) comparison capsule, sealed \(c_R\), private \(\beta_R\) commitment, validator-only projections, and resolved limits; the lifetime prevents outliving or unchecked detachment but does not encode referent identity | [Renderer specification](vector-to-attention-renderer.md) |
-| \(V_{\mathrm{view}}\) | logical least-privilege `ValidationView<'plan>` | Read-only projection \(\pi_{\mathrm{val}}(V_{\mathrm{ctx}})\) supplied to the independent validator; it exposes only the bounded semantic, exact-value, identity, and control fields required for validation and never the backing compiler-private context, raw plan, witness, or private comparison capsule | [Renderer specification](vector-to-attention-renderer.md) |
-| \(Z_{\mathrm{slot}}\) | opaque `RenderedAttention<'plan>` | Pre-substitution text, complete segmentation, untrusted semantic bindings, claimed exact-slot occurrences, origins, private sealed \(c_L\), private \(\beta_L\) comparison capsule, sealed \(c_R\), and private \(\beta_R\) commitment; its lifetime is tied to the source-plan borrow without asserting referent identity, and no independent identity input exists | [Renderer specification](vector-to-attention-renderer.md) |
-| \(Z_{\mathrm{exact}}\) | opaque `SubstitutedAttention<'plan>` | Exact-slot-substituted render value preserving the candidate lifetime, sealed \(c_L\), private \(\beta_L\) comparison capsule, sealed \(c_R\), and private \(\beta_R\) commitment; substitution permits separately borrowed plan/configuration values only when exact canonical contents match and rejects every mismatch | [Renderer specification](vector-to-attention-renderer.md) |
+| \(\mathcal P_{\mathrm{soft}}\) | candidate-specific continuous prefix | Optional learned model-input projection used only by a registered soft-prefix family such as `VF-LATENT-PREFIX-01` | [Renderer specification](vector-to-attention-renderer.md#soft-prefix-projection) |
+| \(\mathcal B_{\mathrm{attr}}\) | finite candidate-specific support-label set | Node-, span-, or token-to-proposition labels required by the registered candidate objective; nonempty only when that objective requires them | [Renderer specification](vector-to-attention-renderer.md) |
+| \(V_{\mathrm{ctx}}\) | opaque `ValidationContext<'plan>` | Compiler-built, invocation-witness-erased context tied to its source-plan borrow and containing exact prompt evidence, the semantic numerical-query projection, sealed \(c_L\), private \(\beta_L\) comparison capsule, sealed \(c_R\), private \(\beta_R\) commitment, validator-only \(C_V^{sem}/C_V^{bind}\), resolved limits, and an equality-only binding derived from \(\omega_F\); the lifetime prevents outliving or unchecked detachment but does not encode referent identity | [Renderer specification](vector-to-attention-renderer.md) |
+| \(V_{\mathrm{view}}\) | logical least-privilege `ValidationView<'plan>` | Read-only projection \(\pi_{\mathrm{val}}(V_{\mathrm{ctx}})\) supplied to the independent validator; it exposes only bounded semantic, exact-value, identity, control, and opaque conditioning-equality operations required for validation and never the backing compiler-private context, raw plan, readable/constructible witness, or private comparison capsule | [Renderer specification](vector-to-attention-renderer.md) |
+| \(Z_{\mathrm{slot}}\) | opaque `RenderedAttention<'plan>` | Pre-substitution text, complete segmentation, untrusted semantic bindings, claimed exact-slot occurrences, origins, opaque equality-only conditioning binding, private sealed \(c_L\), private \(\beta_L\) comparison capsule, sealed \(c_R\), and private \(\beta_R\) commitment; its lifetime is tied to the source-plan borrow without asserting referent identity, and no independent identity input exists | [Renderer specification](vector-to-attention-renderer.md) |
+| \(Z_{\mathrm{exact}}\) | opaque `SubstitutedAttention<'plan>` | Exact-slot-substituted render value preserving the candidate lifetime, opaque conditioning binding, sealed \(c_L\), private \(\beta_L\) comparison capsule, sealed \(c_R\), and private \(\beta_R\) commitment; substitution permits separately borrowed plan/configuration values only when exact canonical contents match and rejects every mismatch | [Renderer specification](vector-to-attention-renderer.md) |
 | \(T'\) | attention bytes | Validated attention text | [Renderer specification](vector-to-attention-renderer.md) |
 | \(O\) | compiled bytes | Exact successful product output | [Product contract](v1-product-contract.md) |
 | \(K\) | immutable artifact identity | Pinned compiler configuration and execution envelope | [Reference architecture](v1-reference-architecture.md) |
@@ -301,6 +310,23 @@ usageGate(Q,\mathcal M_E,\mathcal I_A;K)
 C^{r} = retrieve(Q,\mathcal M_Q;K)
 \]
 
+Every admitted source in \(C^r\) carries one validated pair: its derived
+numerical projection and its independently reconstructed immutable
+authoritative proposition projection. A memory pair binds the same tagged
+source, record version, derived-artifact identity, memory revision, complete
+record-bound `ExactSidecarCustodyBindingV1`, and the sole
+`ExactSidecarRefV1` nested inside that binding. The
+authoritative projection includes the verified content-derived regime and
+schema identities, scope, provenance, conflict, disclosure, and authority
+fields needed by consolidation. A failed pair, custody, nested-reference, or
+sidecar check terminates the read; it never becomes a missing facet.
+Inside `focusCandidates`, the request-proposition substep constructs the
+separate closed `Request` source variant and joins its numerical and
+authoritative projections through tagged request identity, validated exact
+request projection, source receipt, and attribution. A memory-backed
+projection uses only the closed `Memory` join above. No optional, hybrid,
+namespace-reinterpreted, or cross-variant source form enters consolidation.
+
 \[
 N = derive(Q,C^{r},V_{\mathrm{sig}};K)
 \]
@@ -325,6 +351,173 @@ or a semantic relation.
 \[
 F = focusCandidates(Q,\mathcal A;K)
 \]
+
+Within that outer boundary, the reference path validates the complete finite
+source set. For every activated record \(i\in\mathcal A\), it flattens the
+finite canonical set \(\mathcal S_i^M\) of paired focus-visible memory
+proposition-plane sources:
+
+\[
+\mathcal S_M=
+\operatorname{CanonicalSort}
+\left(\mathop{\biguplus}_{i\in\mathcal A}\mathcal S_i^M\right),
+\qquad
+n_{\mathrm{src}}^M
+=|\mathcal S_M|
+=\sum_{i\in\mathcal A}|\mathcal S_i^M|.
+\]
+
+With \(\mathcal S=\mathcal R_Q\uplus\mathcal S_M\),
+\(n=n_Q+n_{\mathrm{src}}^M\). A record may contribute zero, one, or several
+sources and is not itself one consolidation source. The reference checks the
+\(n(n-1)/2\) unordered-pair work ceiling and enumerates every pair. Numerical
+projections may order that exact set but cannot omit from it. Exceeding the
+ceiling returns
+`FocusCandidateError::Consolidation` with inner
+`PropositionConsolidationError::PairWorkCapacityExceeded` before any partition.
+An optimized path first supplies
+`ExhaustiveConsolidationPairSetWitnessV1`, proving machine-checked equality
+over the source set, exhaustive pair set, equivalence-contract identity, and
+checked pair-work ceiling.
+Consolidation then partitions only inside true equivalence classes. Every
+admitted cluster is complete-link: all unordered source pairs and every
+cluster-level invariant must pass. The canonical reference algorithm processes
+tagged sources in order, keeps clusters ordered by their smallest member, and
+places each into the first cluster compatible with every existing member,
+otherwise a new singleton; graph connectivity and
+representative-only comparison are forbidden. Every optimized implementation
+must reproduce that exact result. Failure returns one closed
+`FocusCandidateError` outer tag with its unchanged inner cause and no partial
+\(F\).
+
+Numerical values may order work and contribute bounded relevance only. The
+proof treats equivalence, compatibility, conflict, and group membership as
+functions solely of independently validated authoritative projections. Any
+test path in which vector equality, similarity, activation, threshold reach,
+or numerical traversal changes one of those relations is a counterexample.
+
+The proof domain for the five non-request inner families is the exact finite
+ordered union below, with cardinalities \(22,14,15,3,21\):
+
+```text
+FocusAggregateValidationError =
+  UnknownEligibleSetSchema
+| EligibleSetSchemaMismatch
+| InvocationWitnessUnavailable
+| EligibleSetWitnessUnavailable
+| MissingSourceReceiptField
+| DuplicateSourceReceiptField
+| SourceReceiptIdentityMismatch
+| SourceReceiptConfigurationMismatch
+| ExactSidecarIntegrity(ExactSidecarIntegrityErrorV1)
+| ActivatedRecordBindingMismatch
+| InvalidActivationValue
+| ActivationExplanationReferenceMismatch
+| ProvenanceBindingMismatch
+| AuthorityCeilingMismatch
+| AllowedUseCeilingMismatch
+| DuplicateActivatedRecord
+| NonCanonicalActivatedRecordOrder
+| ActivatedRecordLimitExceeded
+| RetrievalCandidateLimitMismatch
+| RetrievalCompletenessClassMismatch
+| RetrievalIndexIdentityMismatch
+| RetrievalRepresentationIdentityMismatch
+
+AuthoritativePropositionProjectionError =
+  ProjectionArtifactUnavailable
+| ProjectionArtifactIdentityMismatch
+| MissingProjection
+| DuplicateProjection
+| UnknownProjectionSchema
+| ProjectionSchemaMismatch
+| ForbiddenSourceVariant
+| MissingSourceBindingField
+| UnexpectedSourceBindingField
+| SourceBindingMismatch
+| ExactProjectionMismatch
+| ExactSidecarIntegrity(ExactSidecarIntegrityErrorV1)
+| CustodyBindingMismatch
+| ProjectionLimitExceeded
+
+PropositionConsolidationError =
+  EquivalenceContractUnavailable
+| InvalidEquivalenceContract
+| CompleteLinkContractUnavailable
+| InvalidExhaustivePairSetWitness
+| ExhaustiveSourceSetMismatch
+| ExhaustivePairSetMismatch
+| ExhaustiveEquivalenceContractMismatch
+| ExhaustivePairWorkCeilingMismatch
+| PairWorkCapacityExceeded
+| ComparisonWorkCapacityExceeded
+| ConsolidationWorkspaceCapacityExceeded
+| ExactSlotValueConflict
+| ClusterCompatibilityViolation
+| NonCanonicalPartition
+| OptimizedPartitionMismatch
+
+FocusCandidateCapacityError =
+  CandidateLimitExceeded
+| SupportBindingLimitExceeded
+| ControlExclusionLimitExceeded
+
+FocusCandidateConstructionError =
+  UnknownFocusRole
+| DuplicateFocusRole
+| NonTotalFocusRoleOrder
+| FocusCandidateOrderKeyMismatch
+| DuplicateFocusCandidateOrderKey
+| MissingRequiredQualification
+| ExactBindingMismatch
+| UnresolvedContradiction
+| DuplicatePropositionSemanticKey
+| EmptyCandidateSupport
+| CandidateSupportPartitionMismatch
+| CandidatePropositionIdentityMismatch
+| InvalidCandidateActivation
+| CandidateSourceReceiptMismatch
+| CandidateInvocationWitnessMismatch
+| CandidateEligibleSetWitnessMismatch
+| CandidateAuthorityCeilingExceeded
+| CandidateAllowedUseCeilingExceeded
+| CandidateSurfaceAuthorityCeilingExceeded
+| InvalidMandatoryClassification
+| NonCanonicalCandidateSetOrder
+```
+
+No unknown or catch-all member is admitted. The executable oracle enumerates
+every discriminant exactly once, proves the owner declaration order and
+smallest-canonical-key tie-break, and checks the reference architecture's
+exhaustive disjoint per-variant `CompileError`/CLI/retry mapping. It also
+enumerates the separate twelve-member `RequestPropositionError` family; that
+request family is not counted among the five sets above.
+
+The proof oracle accounts for source enumeration and consolidation as
+\[
+O\!\left(
+n_a+n_{\mathrm{src}}^Mc_{\mathrm{src}}^M
++n\log(1+n)+n^2d_{\mathrm{eq}}
++s_\phi+n_\phi\log(1+n_\phi)
+\right)
+\]
+time and \(O(n_a+n+s_\phi+n_\phi)\) request-local state. Source-set identity,
+pair count, pair-work ceiling, optimized witness, complexity, and fixtures all
+use flattened \(n_{\mathrm{src}}^M\), never activated-record count \(n_a\).
+
+The proof uses the reference architecture's total typed public mapping:
+retained sidecar-integrity causes become `MemoryUnavailable`; missing or
+incompatible pinned projection/equivalence/complete-link artifacts become
+`ArtifactUnavailable`; projection, pair-work, comparison,
+consolidation-workspace, and post-consolidation candidate ceilings become
+`ResourceFailure`;
+`ExactSlotValueConflict` becomes public `PlanningFailure` without invoking the
+planner; invalid cross-plane joins, exhaustive-pair witnesses, partitions, and
+candidate invariants become `InternalInvariantViolation`; and request
+proposition reasons use their closed reason table. The outer source is never
+discarded. Cross-stage order is the six `FocusCandidateError` variants; within
+one completed stage, inner declaration order and then the smallest canonical
+affected source, pair, cluster, or candidate key wins.
 
 \[
 E = expectations(Q,\mathcal A;K)
@@ -358,17 +551,52 @@ invocation share the first witness but not the second and therefore cannot
 join.
 
 \[
+C_F(L)=
+\operatorname{vectorConditioningInput}(L),
+\qquad
+\left(C_A(L),C_V^{sem}(L),C_V^{bind}(L),\omega_F\right)=
+\operatorname{splitViews}(C_F(L))
+\]
+
+\[
+\left(C_R^A,C_R^V\right)=
+\operatorname{splitConfigurationViews}(K_R),
+\qquad
+U_F=
+A_{\alpha,C_R^A}\left(C_A(L)\right),
+\qquad
+S_F=
+\operatorname{surface}_{\alpha,C_R^A}(U_F),
+\qquad
+Z_{\mathrm{slot}}=
+\operatorname{seal}_{K_R}(S_F,U_F,L)
+\]
+
+\[
 V_{\mathrm{ctx}}=
 buildValidationContext(
-\mathsf R,\mathcal I_A,Q,L;
+\mathsf R,\mathcal I_A,Q,L,
+C_V^{sem}(L),C_V^{bind}(L),\omega_F,C_R^V;
 \Theta_{\mathrm{call}}
 )
 \]
 
-\[
-Z_{\mathrm{slot}}=
-\operatorname{render}_{K_R}(L)
-\]
+Here \(\alpha\) is the registered adapter family. \(U_F\) is the common
+bounded output envelope. A structural-shape family derives \(S_F\) through
+its registered deterministic lexicalizer; a fused adapter-decoder returns a
+bound-text payload inside \(U_F\), and `surface` performs only its registered
+deterministic structural projection. Both candidate-side operations receive
+only \(C_A,C_R^A\). The compiler-owned `seal` step receives \(L,K_R\) only to
+recompute and retain authenticated bindings; it performs no learned or
+semantic text generation. \(U_F\) and \(S_F\) carry the same canonical
+`FocusSupportTraceV1`, opaque equality-only binding derived from private
+\(\omega_F\), and full-\(K_R\) commitment.
+\(C_V^{sem}\), \(C_V^{bind}\), and \(C_R^V\) remain
+exclusively in the independent validation path. The configuration views are
+unconstructible borrows of one authenticated \(K_R\), not partial
+configurations. No equation permits memory text, semantic-key/provenance
+exposure to the adapter, vector-to-text reconstruction, or
+relevance-to-truth/authority promotion.
 
 \[
 c_L=\operatorname{PlanContentId}(L),
@@ -408,7 +636,7 @@ V_{\mathrm{view}}=\pi_{\mathrm{val}}(V_{\mathrm{ctx}})
 
 \[
 T' =
-validate(Z_{\mathrm{exact}},V_{\mathrm{view}},K_R)
+validate(Z_{\mathrm{exact}},V_{\mathrm{view}},C_R^V)
 \]
 
 \[
@@ -421,8 +649,12 @@ call's `CompileAdmissionTicketV1` has been consumed. The separate
 runtime-registration ticket remains live across successful compile calls until
 `Compiler::close(self)` conditionally removes its registration or an exclusive
 lifecycle transition retires its generation. Process loss returns no `O`;
-startup reconciliation terminalizes the admission record or keeps it
-conservatively generation-fenced until the old runtime cannot survive.
+on an ordinary noncollision path, startup reconciliation terminalizes the
+admission record or keeps it conservatively generation-fenced until the old
+runtime cannot survive. A committed collision instead reconstructs the exact
+basis, revoke disposition, rejected release guard, and pending monotonic
+`CollisionTerminalRemovalStateV1`; an ambiguous containment outcome remains
+under its exact reconciliation fence.
 
 The displayed successful path substitutes from \(L\). The substitution
 contract also accepts any separately constructed \(L'\equiv_{\mathrm{can}}L\).
@@ -627,31 +859,38 @@ foreign branch witnesses is insufficient. The plan retains the scope's exact
 witness, not a value reconstructed from \(B_Q\), \(\Lambda_A\), or either
 branch.
 
-After planning, each call independently constructs and validates
+After planning, each call independently constructs \(C_F(L)\), splits
+\(C_A,C_V^{sem},C_V^{bind},\omega_F\), derives \(C_R^A,C_R^V\) from complete
+authenticated \(K_R\), executes the adapter with only \(C_A,C_R^A\), and
+constructs
 \(V_{\mathrm{ctx}}=buildValidationContext(\mathsf R,\mathcal I_A,
-Q,L;\Theta_{\mathrm{call}})\). The builder reconstructs the expected sealed
+Q,L,C_V^{sem},C_V^{bind},\omega_F,C_R^V;\Theta_{\mathrm{call}})\).
+The builder reconstructs the expected sealed
 query from the retained request and pinned configuration, compares the whole
 canonical query envelope and `BoundQueryContentId`, requires
 \(\operatorname{binding}(Q)=\pi_Q(\Lambda_A(L))\), validates the plan's
 private \(\omega_A\) against the current \(\mathcal I_A\), and checks the
 plan's configuration, policy, language, and budget against the resolved
-controls. It then consumes and erases the witness while returning an opaque
-`ValidationContext<'plan>` that borrows its source plan and retains only sealed
+controls. It erases the invocation and plan witnesses while returning an
+opaque `ValidationContext<'plan>` that borrows its source plan and retains only sealed
 deterministic \(c_L\), private exact \(\beta_L\) comparison capsule, sealed
 \(c_R\), private exact \(\beta_R\) canonical-\(K_R\) comparison capsule, and
-minimized semantic and validator projections. Its lifetime
+minimized \(C_V^{sem}/C_V^{bind}\) projections plus an equality-only
+conditioning binding derived from \(\omega_F\). Its lifetime
 prevents it from outliving that borrow or being detached unchecked; it does
 not encode referent identity. The context has no witness accessor, identity
 mutator, or independent identity input. The compiler projects
 \(V_{\mathrm{view}}=\pi_{\mathrm{val}}(V_{\mathrm{ctx}})\); candidate
 validation receives only the candidate, that least-privilege read-only view,
-and authenticated \(K_R\), never the backing context, a second raw plan, or a
-witness. Before semantic interpretation, the compiler and validator enforce
+and \(C_R^V\), never complete \(K_R\), the backing context, a second raw plan,
+or a readable or constructible witness. Before semantic interpretation,
+shared render-domain code rejects unequal candidate/view conditioning
+bindings, then the compiler and validator enforce
 the complete
-\((c_L,\beta_L,c_R,\beta_R)\) contract with their separately owned checks. A
-separately constructed plan is interchangeable only when its exact
-`PlanCanonicalEnvelopeV1` bytes and renderer configuration are identical; it
-must then yield identical substitution, validation, and product bytes.
+\((c_L,\beta_L,c_R,\beta_R)\) contract with their separately owned checks.
+Separately constructed canonical-content-identical executions must yield
+identical substitution, validation, and product bytes, but their live candidate
+wrappers are not interchangeable across conditioning bindings.
 Different valid canonical bytes fail `PlanIdentityMismatch`, different
 renderer configuration ID or canonical-content commitment fails
 `RendererConfigurationMismatch`, and equal `PlanContentId` with different
@@ -759,7 +998,7 @@ normative and move only with a same-change registry update.
 | `ALG-SER-01` | [Product output](v1-product-contract.md#successful-output) | Validated attention bytes plus retained prompt bytes to one compiled byte string; exact byte serialization; total after validation. File/stdin sources have already been streamed under `AbsoluteIngressLimitsV1`; already-owned API and direct-argument values have been checked before request construction or further internal allocation. An adapter buffers the complete serialized value before delivery | Prompt is the final byte-identical suffix. Test normalization, line endings, nested headers, trailing bytes, each exact ingress maximum and maximum plus one byte, ceiling-plus-one bounded reads for stream-backed sources, no further internal allocation after an oversized owned value is detected, zero stdout before delivery, and transport-prefix invalidation through exit `10` | `API-01`, `CLI-01`, `SYS-01` | F1, F9; G7 |
 | `ALG-MEM-01` | [Numerical query state](cognitive-memory-activation-and-focus.md#numerical-query-state) | Authenticated pinned \(K\) plus the exact validated compile request produce one sealed \(\widehat B_{\mathrm{in}}\), pure \(Q_{\mathrm{num}}\), independently derived \(B_Q=(request,situation,configuration)\), and sealed \(Q=\operatorname{bindQuery}(\mathsf R,\widehat B_{\mathrm{in}};K)\) with private projections and canonical `BoundQueryContentId`; no post-ingress split constructor or field replacement exists; request/situation IDs are domain-separated typed content identities over injective canonical envelopes; typed failure; presence differs from numeric zero; exact prompt remains outside both query projections; no caller-owned ID, principal, trusted time, policy, or authorization-view input | Same numerical content/configuration produces bit-identical \(Q_{\mathrm{num}}\); same complete request/configuration produces the same canonical \(Q\); changed content/configuration separates subject to the digest-collision assumption; recomputation mismatch and observed collision evidence fail closed. Test prompt/situation/context/control mutations, numerical/binding noninterference, map permutation, cross-request whole-query swaps, compile-fail split-projection construction, defensive numerical-only and binding-only corruption, constant/reused/caller IDs, collision witnesses, configuration substitution, locators, content identities, and ambient/trusted-time noninterference | `SIT-01`, `ENC-01` | F2, F3, F10, F12; G3 |
 | `ALG-MEM-09` | [Minimized trusted signal context](cognitive-memory-activation-and-focus.md#minimized-trusted-signal-context) | One sealed \(\mathcal I_A\) and preflighted \(K\) to one private \(\Sigma_{\mathrm{sig}}\), then validation of its carried brand, copied trusted values, context schema, and social-identity schema against the independently supplied current \(\mathcal I_A\) to typed \(V_{\mathrm{sig}}=(t_{\mathrm{auth}},u_{\mathrm{auth}})\); total through typed artifact or invariant failure; no public constructor, independently supplied authentication projection, serialization, digest reconstruction, or fallback | The aggregate constructor prevents mixed-\(\Gamma_A\), mixed-\(I\), and mixed-time assembly; a complete context from another call fails because membership is anchored to the current aggregate rather than a second value returned beside the context; the brand is erased before signal math; social source tags cannot alias and schema rotation requires an authenticated one-to-one migration; excluded authority/request fields are noninterfering; test every mixed-projection counterexample plus missing, malformed, duplicate, copied-value mutation, wrong-owner/lifetime, whole-context cross-call/schema, social-schema/rotation/migration, ambient-time, request-fallback, and renderer-exposure cases | `API-01`, `SIG-01`, `SEC-01` | F2, F3, F10, F12; G4, G8 |
-| `ALG-MEM-02` | [Eligible memory view](cognitive-memory-activation-and-focus.md#eligible-memory-view) | Authorized snapshot plus one sealed \(\mathcal I_A\) to \(\mathcal M_E\), then sealed \(Q,\mathcal M_E,\mathcal I_A\) to \(\mathcal M_Q\); stages borrow only the numerical projection for semantic use and trusted fields only through their aggregates; total for valid policy artifacts; hard gates precede scores; no \(B_Q\)-dependent semantics | Excluded records cannot crowd candidates and mixed-\(I\)/mixed-time/split-query inputs are unrepresentable; mutate only unauthorized, deleted, invalid, usage-incompatible, and binding-only inputs; include forged internal-corruption counterexamples | `MEM-02`, `RET-01`, `SEC-01` | F2, F3, F12; G2-G3 |
+| `ALG-MEM-02` | [Eligible memory view](cognitive-memory-activation-and-focus.md#eligible-memory-view) | Authorized snapshot plus one sealed \(\mathcal I_A\) to \(\mathcal M_E\), then sealed \(Q,\mathcal M_E,\mathcal I_A\) to \(\mathcal M_Q\); every admitted memory source carries its own derived numerical projection and independently validated immutable authoritative projection joined on tagged source, record version, source-derived artifact, memory revision, and one complete `ExactSidecarCustodyBindingV1` containing the sole `ExactSidecarRefV1`; the effect-free prelookup authenticates record/regime/schema/custody before one sealed `ExactSidecarResolvedSnapshotV1` supplies postlookup inputs; lookup recomputes canonical bytes, content ID, complete reference and record ID, and validates nested references, custody, and revision before exposure; total for valid policy artifacts; hard gates precede scores; no \(B_Q\)-dependent semantics | Excluded records cannot crowd candidates; missing, corrupt, rebound, invalidly nested, custody-mismatched, cross-source, cross-record, cross-artifact, or cross-revision state cannot degrade to absence or zero; logical erasure and last-reference GC remain distinct. Mutate every join and identity field, nonidentical complete custody-binding reuse, dangling nested deletion, equal digest across regimes/schemas, and collision witnesses; prove complete `(regime_id, content_id)` trust-domain quarantine reaches every ledger-linked record/artifact/backup/export while unrelated domains remain available. Exercise all `CollisionObservationOriginV1` variants, `CollisionQuarantineBasisV1` scopes, atomic revoke versus bounded `CollisionTerminalRemovalStateV1`, final product/probe/management guard races, restart reconciliation, and disjoint `CollisionRecoveryTransactionV1` new-regime-or-erasure recovery with permanent tombstone, without granting the compiler a management capability | `MEM-02`, `RET-01`, `SEC-01` | F2, F3, F12; G2-G3 |
 | `ALG-MEM-03` | [Direct cue activation](cognitive-memory-activation-and-focus.md#direct-cue-activation) | Sealed \(Q\), compatible query-memory facets, and registered calibration artifacts to finite calibrated cues; cue arithmetic borrows only \(\operatorname{numerical}(Q)\); metric, calibration, missingness, and canonical accumulation are pinned; no binding or ambient input reaches the math | Inspectable bounded cue lineage; separately valid same-content queries are equal, while a malformed sealed query rejects before this stage; test incompatible spaces, nonfinite values, duplicated evidence, and attempted split-query construction or mutation | `SIG-01`, `ACT-00` | F8, F10; G4 |
 | `ALG-MEM-04` | [Base availability](cognitive-memory-activation-and-focus.md#base-availability-from-frequency-and-recency) | Valid history statistics plus trusted \(t_{\mathrm{auth}}\) supplied only by validated \(V_{\mathrm{sig}}\) to bounded availability; checked log-sum-exp with finite ceilings and canonical accumulation; typed underflow/nonfinite failure; no ambient clock | Recency and frequency affect accessibility, not truth or authority; test extreme finite ages/decay, raw-power underflow counterexamples, future and duplicate events, context substitution, and ambient-clock perturbation | `SIG-01`, `EVAL-01` | F3, F4, F8, F10; G4 |
 | `ALG-MEM-05` | [Signal derivation and kernel composition](cognitive-memory-activation-and-focus.md#signal-derivation-and-existing-kernel-composition) | Sealed \(Q\), eligible candidate facets, and source-tagged trusted fields from validated \(V_{\mathrm{sig}}\) to the separately owned finite temporal, spatial, goal, procedure, hazard, deadline, and two stable social derivations under one family budget; signal math borrows only \(\operatorname{numerical}(Q)\); missingness stays typed; deadline duration/scale are finitely bounded, division is checked, and one pinned exponential plus explicit zero-underflow boundary is total or returns `InvalidUrgencyArithmetic`; social identities use one pinned comparison schema and typed authenticated, declared, and memory-participant domains; no policy or authorization capability | Context affects relevance without overriding policy; test deadline-over-constraint, every finite deadline boundary, checked division, exact-zero underflow, invalid exponential output, authenticated-versus-declared social subjects, partner permutation/duplication/cardinality, social schema compatibility/rotation/migration, unknown partner IDs, family-budget failure, cross-call/schema substitution, split-query unrepresentability, social-as-authorization, and risk-as-probability errors | `SIG-01`, `EVAL-01`, `SEC-01` | F2, F3, F5, F8; G4 |
@@ -767,7 +1006,7 @@ normative and move only with a same-change registry update.
 | `ALG-MEM-11` | [Canonical spreading-graph construction](cognitive-memory-activation-and-focus.md#canonical-spreading-graph-construction) | Finite unique canonical \(C^r\) plus a snapshot-bound raw-key-ordered relation iterator with explicit `limit`/`has_more`, usage-compatible typed relations, total relation ranks, and configured node/edge/hop ceilings to canonical \(C^r\subseteq V_g\subseteq\mathcal M_Q\), unique typed edges, and \(W\) in exactly the same node order as \(a^{(0)}\); breadth-by-depth expansion and validation/error precedence are canonical before semantic admission; exact power-of-two fixed-point weights and checked integer row budgets construct a row-substochastic matrix without rounded-sum acceptance, unbounded materialization, prefix truncation, or silent normalization | No input permutation can select a different error or admitted graph; no ineligible neighbor, duplicate edge, dimension drift, row mass above one, or over-limit prefix can enter propagation. Invalid limit/rank artifacts map to `ArtifactUnavailable`, node/edge/integer bounds to non-retryable same-input `ResourceFailure`, and remaining graph errors to `ActivationFailure`, retaining the typed source. Test empty/isolated/relation-only graphs, raw and accepted order, multi-invalid permutations, iterator materialization bounds and `has_more`, orientation, duplicate/mixed-version edges, node/edge/hop boundaries, fixed-point conversion, integer overflow, row mass at/either side of one, unauthorized neighbors, exact routing, and zero-size complexity domains | `SIG-01`, `CORE-02`, `PERF-01` | F2, F8, F10; G4 |
 | `ALG-MEM-06` | [Bounded spreading activation](cognitive-memory-activation-and-focus.md#bounded-spreading-activation) | \(a^{(0)}\) and \(W\) from `ALG-MEM-10/11` to bounded propagation; finite depth; canonical sparse `f64` order; checked arithmetic; exact binary-rational component-mass checks; configuration-derived forward-error bound; only exact mass in \((1,1+\varepsilon_{\mathrm{mass}}]\) is divided by an upward binary64 denominator and then exactly rechecked, otherwise typed `InvalidSpreadingArithmetic` | Every accepted iterate is finite, nonnegative, and has exact stored-component mass at most one without general clamping; no ineligible graph crossing; test the nearest-sum-downround fixture, normalization-still-above-one fixture, bound edges, nonfinite arithmetic, cycles, signed zero, and post-correction failure | `CORE-01`, `CORE-02`, `PERF-01` | F2, F8; G4 |
 | `ALG-MEM-07` | [Kernel composition](cognitive-memory-activation-and-focus.md#signal-derivation-and-existing-kernel-composition) | Derived channels and gates to activation candidates; exact channel identities, no defaults, typed errors | Preserve kernel bounds and explainability; test hidden zero fill and reused channel lineage | `ACT-00`, `ACT-01`, existing kernel tests | F8, F10; G4 |
-| `ALG-MEM-08` | [Proposition consolidation](cognitive-memory-activation-and-focus.md#request-local-proposition-consolidation) | One sealed \(Q\), one complete \(\mathcal A=\texttt{EligibleActivatedMemorySet<'call>}\) carrying inseparable \(\Lambda_A\) plus private \(\omega_A,\sigma_A\), and pinned \(K\) to `deriveRequestPropositions(&BoundQuery, &EligibleActivatedMemorySet<'call>; K)`; the implementation borrows \(Q_{\mathrm{num}}\), \(B_Q\), \(\Lambda_A\), \(\omega_A\), and \(\sigma_A\) only internally, requires \(B_Q=\pi_Q(\Lambda_A)\), and returns one complete bounded `FocusCandidateSet` preserving both witnesses; registered equivalence and conflict only; total through the named typed request-proposition or join error; \(B_Q\) is not semantic evidence and a valid zero-record \(\mathcal A\) still admits request-only focus | Deduplicate without losing conflict, authority, or provenance; preserve semantics under permitted nonsemantic instance correspondence. Split query or lineage/witness assembly is unrepresentable at this API; `PLAN-01` preserves but cannot classify either witness because it has no independent planning scope. Test whole-query join mismatch, both aggregate witnesses, same-call set reconstruction, compile-fail mixed-projection construction, empty-memory request-only focus, embedding-only equivalence, cloned sources, and complete cross-request aggregate swaps; current-call and exact-set rejection belong to `PLAN-02` | `PLAN-01`, `EVAL-01` | F5, F6, F12; G4 |
+| `ALG-MEM-08` | [Proposition consolidation](cognitive-memory-activation-and-focus.md#request-local-proposition-consolidation) | `focusCandidates(&BoundQuery, &EligibleActivatedMemorySet<'call>; K)` consumes one sealed \(Q\), one complete \(\mathcal A\) carrying inseparable \(\Lambda_A\), private \(\omega_A,\sigma_A\), and one numerical/independently validated authoritative pair per source, then returns one complete bounded `FocusCandidateSet` preserving both witnesses or the closed outer `FocusCandidateError`. `deriveRequestPropositions` is its first private substep. `Request` joins tagged request identity, validated exact request projection, receipt, and attribution; `Memory` joins tagged memory identity, record, artifact, revision, and one complete custody binding containing its sole sidecar ref. The reference flattens every record's zero-or-more focus-visible proposition-plane sources into \(\mathcal S_M\), uses \(n=n_Q+n_{\mathrm{src}}^M\), checks the \(n(n-1)/2\) work ceiling, and enumerates every unordered source pair; numerical facets may only order that complete set and contribute relevance. An optimized path supplies `ExhaustiveConsolidationPairSetWitnessV1` over the exact source set, pair set, equivalence-contract identity, and checked ceiling. Authoritative equality over canonical `EquivalenceIdentityProjectionV1` keys defines buckets, and only authoritative projections decide compatibility, conflict, and grouping. Within each bucket the canonical complete-link reference algorithm processes tagged sources in order, keeps clusters ordered by smallest member, and places each source into the first cluster compatible with every existing member, otherwise a new singleton; every optimized implementation returns the same partition. Pair-work overflow is `Consolidation(PropositionConsolidationError::PairWorkCapacityExceeded)`; outer `Capacity` remains post-consolidation focus-candidate construction. Outer precedence is `EligibleActivatedSet`, `RequestProposition`, `AuthoritativeProjection`, `Consolidation`, `Capacity`, `CandidateInvariant`; within a stage, inner declaration order then the smallest affected source/pair/cluster/candidate key wins, preserving the unchanged inner source and returning no partial set | No record-count substitution, pair-set omission, connected-component, representative-only, unconstrained union-find, or traversal-dependent merge; numerical equality, similarity, activation, or threshold never proves identity, compatibility, or group membership. Test zero/one/many sources per record and the flattened source-set identity, pair count, ceiling, complexity, every closed source join and namespace swap, missing per-source pair, cross-record/artifact/revision/custody substitution, pair-ceiling boundaries, omitted/extra optimized pair and wrong source-set/equivalence-contract/ceiling witness identity, equivalence-key laws, all complete-link fields, the ordered nontransitive \(a\sim b,b\sim c,a\not\sim c\) triad producing `{a,b},{c}` under every input permutation, reference-versus-optimized partition equivalence, all 75 exact non-request and 12 request inner errors including projection, pair, comparison, workspace, and candidate limits plus exact-slot conflicts, authenticated unknown-discriminant rejection, cross- and within-stage precedence, exact inner-cause/public mapping preservation, separation of pair-work from post-consolidation capacity, empty-memory request-only focus, and complete cross-request aggregate swaps; `PLAN-01` receives only success and `PLAN-02` alone classifies current call/set witnesses | `PLAN-01`, `EVAL-01` | F5, F6, F12; G4 |
 | `ALG-ACT-01` | [Activation mathematics](situation-conditioned-activation.md#mathematics) | Valid profile and candidates to complete ranking; implemented `f64`, canonical channels, exact score tie then `CandidateId` | \(E_i,R_i,A_i\in[0,1]\), monotonicity, deterministic reconstruction | Existing `nemosyne-core` tests, `ACT-00` | F8; G4 |
 | `ALG-EXP-00` | [Situation and expectation query](predictive-attention-and-expectation.md#situation-and-expectation-query) | One sealed \(Q\), the complete immutable `&EligibleActivatedMemorySet<'call>` instance also supplied to `ALG-MEM-08`, carrying inseparable \(\Lambda_A\) plus \(\omega_A,\sigma_A\), and pinned \(K\) to exact \(\operatorname{binding}(Q)=\pi_Q(\Lambda_A)\) validation and a canonical finite set of at most \(F_{\max}\) frame queries. Any expectation-private view is derived only inside this call; no branch projection, reconstructed set, or independently supplied lineage is accepted. The stage is total through the closed `ExpectationQueryBindingError`, artifact error, resource error, or valid zero-frame result | \(B_Q\) is borrowed only as a deterministic content/configuration join and never becomes semantic evidence or call identity; focus and expectation consume one complete eligible activated set and preserve both witnesses, while frame-query meaning and order remain invariant across separately valid same-content calls and corresponding nonsemantic instance lineage. Test exact-instance routing through fresh set branding, same-call reconstruction rejection at planning, compile-fail projection/reconstruction overloads, every binding-error mapping, valid same-content repetition, defensive whole-query corruption, paired-valid instance correspondence, permutation, zero frame, frame ceiling, and complete cross-request aggregate swap | `EXP-01`, `EXP-02`, `API-01` | F2, F3, F10, F12, F15; G4, G8 |
 | `ALG-EXP-01` | [Expectation hard eligibility](predictive-attention-and-expectation.md#expectation-projection-hard-eligibility) | \(\psi,\tau_i,K\) to \(\chi_{i,\psi}\); closed use, observation, frame, condition, missing-facet, and typed-reliability policy | Ineligible evidence cannot regain support through scores; test predicted evidence, unknown passive conditions, unavailable reliability, and incompatible reliability contracts | `EXP-01`, `EXP-02` | F2, F12, F15; G4 |
@@ -785,11 +1024,11 @@ normative and move only with a same-change registry update.
 | `ALG-PLAN-03` | [Cost contract](focus-and-expectation-planning.md#cost-contract) | Renderable projection and rendered bytes to checked integer bound and measured cost; one unit, canonical accumulation, no saturation | Accepted bound is conservative and zero iff \(G=\varnothing\); test slot expansion, overflow, and tokenizer mismatch | `PLAN-02`, `REN-04`, `PERF-01` | F7; G4, G6 |
 | `ALG-PLAN-04` | [Feasible subsets](focus-and-expectation-planning.md#feasible-subsets) | Finite closures to structural and budget-feasible sets; explicit \(\mathcal J\) and cardinality ceilings | Budget cannot create false empty success; test control-only and all-nonempty-over-budget cases | `PLAN-02`, `EVAL-01` | F7, F9; G4 |
 | `ALG-PLAN-05` | [Unified selection](focus-and-expectation-planning.md#canonical-unified-selection) | Finite feasible closure subsets to \(X^*\); complete unified bit objective over branch-tagged `PropositionSemanticKey`/`ExpectationItemSemanticKey`, `RelationSemanticKey`, and slot keys containing value-independent owner-plus-locator semantics; no epsilon, cost utility, or request-instance tie-break | Unique deterministic cross-branch result without cross-scale score comparison and equivariant across separately valid same-content calls; permute every input, vary only permitted nonsemantic \(\Lambda_A\)-derived instance identities and private invocation witnesses, mutate exact payloads without changing owner/key/order, test semantic-key collisions, distinct same-locator owners, same-owner value conflict, the equal-role/equal-activation one-of-two budget counterexample, and repairable dependencies | `PLAN-02` exhaustive oracle and equivalence tests | F3, F9, F10, F15; G4 |
-| `ALG-VAL-00` | [Rendering boundary](vector-to-attention-renderer.md#rendering-boundary) | After planning, compiler-owned `buildValidationContext` maps one retained request, sealed invocation, sealed \(Q\), selected \(L\), authenticated \(K_R\), and call controls to opaque \(V_{\mathrm{ctx}}\), then projects only \(V_{\mathrm{view}}=\pi_{\mathrm{val}}(V_{\mathrm{ctx}})\) to the independent validator. The builder revalidates the query/lineage/call/control joins, erases the witness, recomputes `PlanCanonicalEnvelopeV1`, and retains minimized validation data plus \(c_L,\beta_L,c_R,\beta_R\). Candidate construction, substitution, context construction, and validation independently derive \(c_R,\beta_R\) from authenticated \(K_R\); no caller supplies either. Substitution owns the closed eleven-variant error including configuration mismatch, plan collision, and final renderer cost; validation owns only plan/configuration mismatch through the view. The compiler compares equal-ID plan-byte capsules before the independent validator. The boundary is total through the named closed errors and returns no partial semantic value | Malformed query or foreign-call plan rejects in the builder. Canonically different plan content is the owning substitution/validator `PlanIdentityMismatch`; equal plan ID with unequal \(\beta_L\) is `PlanContentIdentityCollision`; any renderer ID or canonical-content disagreement, including equal \(c_R\) with unequal \(\beta_R\), is `RendererConfigurationMismatch` and quarantines. Separately authenticated byte-identical \(K_R\) values and canonical-content-identical plans are interchangeable and produce identical bytes. Test every included/excluded plan and renderer field, \(K_R\)-only plan-ID noninterference, query corruption, foreign witness, lifetime/detachment, no-context-import and view-only access, all eleven substitution variants and precedence, both validator mismatches, plan/configuration same-ID/different-byte cases, successful equal-content swaps, and no partial semantic result | `API-01`, `VAL-01`, `REN-06` | F2, F3, F6, F9, F12; G4, G8 |
-| `ALG-REND-01` | [Renderer projection](vector-to-attention-renderer.md#renderer-projection-view) | \(G(L)\), safe slot metadata, and language to typed tensors; fixed facets, masks, and canonical rank. Each exact slot exposes only `RendererSlotId`, content-independent `ExactSlotOwnerSemanticKey`, `ExactSlotSemanticLocator`, `SlotSemanticKey`, type, role, bounds, permissions, schema, and formatter; authoritative values, surface content identities/bytes, binding instances, \(B_Q\), and \(\Lambda_A\) remain privileged | Preserve selected semantics without exact payload access. Changing only an exact value plus its content identity/formatted bytes preserves owner keys, slot keys, IDs, order, and every pre-substitution tensor while deterministic substituted/product bytes may change; independent same-locator owners remain distinct and one owner-plus-locator cannot carry conflicting values; alter masked and validator-only fields and reject model-visible payload or lineage leakage | `REN-01`, `REN-02`, `VAL-01` | F5, F6, F17; G4 |
-| `ALG-REND-02` | [Latent resampler](vector-to-attention-renderer.md#typed-latent-resampler) | Bounded item tensors to bounded continuous prefix; fixed dimensions and deterministic runtime identity | Canonical-order determinism and no hidden state; test rank permutation, missing facets, and precision drift | `REN-02`, `REN-03`, `PERF-01` | F10, F17; G4, G6 |
-| `ALG-REND-03` | [Generation](vector-to-attention-renderer.md#generation) | Nonempty prefix to slot-bearing claim, then substitution and validation to \(T'\) or error; frozen decoding and checked slots | No answer, action, unsupported claim, or exact-value invention; test injection, smuggling, language, and cost violations | `REN-04`, `VAL-01`, `SEC-01`, `SYS-01` | F7, F17; G4, G7 |
-| `ALG-REND-04` | [Training objective](vector-to-attention-renderer.md#combined-objective) | Frozen examples to candidate parameters; research-only; manifest-bound weights, seeds, splits, masks, and numeric policy | Training does not itself prove faithfulness; test leakage, attribution gaming, and nonfinite runs | `REN-05`, `REN-06` | F17 empirical support only; G4, G6 |
+| `ALG-VAL-00` | [Rendering boundary](vector-to-attention-renderer.md#rendering-boundary) | After planning, the compiler constructs one checked \(C_F(L)=(C_A,C_V^{sem},C_V^{bind},\omega_F)\), lends only \(C_A\) plus `AdapterConfigurationViewV1` to the selected adapter, and retains both validator planes plus `ValidationConfigurationViewV1` for `buildValidationContext`. \(C_A\) and \(C_V^{sem}\) are plan content; \(C_V^{bind}\) and private noncloneable \(\omega_F\) are request-local and nonsemantic. The bounded candidate and validation context retain only opaque equality bindings derived from \(\omega_F\), and the validator compares them before resolving each `AdapterPlanItemHandleV1` through the total \(C_V^{sem}\) map to semantic key, qualifiers, slots, and ceiling. Both configuration views borrow one authenticated \(K_R\) and carry \(c_R,\beta_R\), but adapter code cannot inspect validator artifacts, thresholds, calibration, or corpora. The builder maps the retained request, sealed invocation and \(Q\), selected \(L\), call controls, bounded shape/text, and common trace to opaque \(V_{\mathrm{ctx}}\), recomputes \(\beta_L,c_L\), and retains minimized validation state. Substitution owns the closed eleven-variant configuration/plan/collision/slot/final-cost errors; validation owns plan/configuration/conditioning mismatch plus bounded trace and semantic verdict. The boundary is total and returns no partial semantic value | Unauthorized, unselected, incompatible, duplicate, malformed, or cross-bound members reject before \(C_A\) exists. Foreign/reconstructed conditioning bindings, forged/out-of-range/remapped handles, or configuration-view commitment mismatch reject before semantics. Canonically different plan content is `PlanIdentityMismatch`; equal plan ID with unequal \(\beta_L\) is `PlanContentIdentityCollision`; renderer ID or canonical-content disagreement is `RendererConfigurationMismatch`. Content-identical calls must independently produce identical bytes/verdicts, but live candidate wrappers cannot cross conditioning bindings. Test bidirectional conditioning/configuration compile isolation, every included/excluded field, actual-vector/weight/query preservation, irrelevant/zero-weight noninterference, handle-map and trace reconstruction/failures, unsupported claims, answer leakage, exact-value invention, \(K_R\)-only plan-ID noninterference, query corruption, foreign binding, lifetime/detachment, all eleven substitution variants and precedence, validator mismatches, separately executed equal-content equality, and no partial semantic result | `API-01`, `VAL-01`, `REN-06` | F2, F3, F6, F9, F12, F17; G4, G8 |
+| `ALG-REND-01` | [Renderer projection](vector-to-attention-renderer.md#renderer-projection-view) | \(L\) to checked \(C_F(L)=(C_A,C_V^{sem},C_V^{bind},\omega_F)\); copy the actual admitted query, semantic vectors, relevance-only weights, masks, safe roles/relations/qualifiers, typed slot references, and dense adapter handles while keeping semantic-key mapping in \(C_V^{sem}\) and request-local provenance/custody in \(C_V^{bind}\). Independently split authenticated \(K_R\) into commitment-bound least-privilege adapter/validator configuration borrows | Byte-identical source-to-plan binding, finite values, canonical set/handle semantics, disjoint views, no memory-text, semantic-key, provenance, threshold, corpus, or identifier reconstruction in the adapter, and rejection before adapter execution of unauthorized, unselected, incompatible, duplicate, malformed, or unjoinable members | `REN-01`, `REN-02`, `VAL-01` | F5, F6, F17; G4 |
+| `ALG-REND-02` | [Vector-conditioned adapter](vector-to-attention-renderer.md#renderer-projection-view) | Registered family \(\alpha\) maps bounded \(C_A(L)\) and `AdapterConfigurationViewV1` to one bounded untrusted shape carrying an opaque equality binding derived from \(\omega_F\), the full-\(K_R\) commitment, dense adapter handles, and common canonical `FocusSupportTraceV1`; projection, pooling, set encoding, cross-attention, resampling, soft prompting, fused decoding, and decoder-free realization remain manifest-bound candidates | Query conditionality, relevant-memory contribution, permutation and duplicate invariance, relevance-only weight behavior, external unauthorized-record noninterference, configuration-information-flow isolation, complete qualifier/support trace through validator-only handle resolution, finite bounds, and no hidden state or source-text path | `REN-02`, `REN-03`, `PERF-01` | F10, F17; G4, G6 |
+| `ALG-REND-03` | [Realization and validation](vector-to-attention-renderer.md#generative-candidate-generation) | Checked shape or conforming fused output to typed slot-bearing candidate, deterministic substitution, independent validation, and \(T'\) or one typed error; decoder/terminator behavior applies only to token-generating families | No answer, action, unsupported claim, authority promotion, qualifier loss, exact-value invention, malformed support trace, or raw-source reconstruction; test injection, smuggling, language, slot, trace, and cost violations | `REN-04`, `VAL-01`, `SEC-01`, `SYS-01` | F7, F17; G4, G7 |
+| `ALG-REND-04` | [Training objective](vector-to-attention-renderer.md#training-example-contract) | Runtime-identical \(C_A\) and adapter configuration view, paired validator-only \(C_V^{sem},C_V^{bind}\) and validation configuration view retained only by the harness, bounded target shape and common support trace plus text only where applicable, and labels to candidate parameters; research-only and manifest-bound by family, seeds, splits, masks, losses, and numeric policy | Training input cannot include memory/source prose, semantic keys, provenance, validator configuration, hidden teacher text, original prompt, exact payload, or validator-only fields; training does not itself prove faithfulness; test split roots, leakage, configuration leakage, attribution gaming, and nonfinite runs | `REN-05`, `REN-06` | F17 empirical support only; G4, G6 |
 
 The predictive specification keeps finer derivation identities because several
 proof obligations share one executable stage. Their aggregation is complete
@@ -889,6 +1128,97 @@ memory-policy revision, both pinned time values, and one compiler-artifact and
 execution set even when a writer or updater publishes a later revision
 concurrently.
 
+Snapshot consistency also covers every authoritative exact sidecar and
+derived/authoritative proposition pair. Before exposure, the reader
+executes an effect-free prelookup over only the retained record, authenticated
+local definition registries, logical ledger, and authorization state. It first
+recomputes the record-version identity, then validates the complete
+content-derived `ExactSidecarIdentityRegimeId`, `ExactSidecarSchemaId`, and
+per-record `ExactSidecarCustodyBindingV1`, without physical lookup, collision
+witness access, cache fill, nested traversal, backup/export access, or
+quarantine. The full regime field set and definition-identity contract are
+owned normatively by the cognitive-memory specification; no summary here
+narrows them. Only after those four ordered checks pass does it resolve one
+sealed, revision-, ledger-, and integrity-fence-bound
+`ExactSidecarResolvedSnapshotV1`. Postlookup evaluates every applicable
+presence, envelope-schema, physical-custody, canonical-byte, reference,
+collision, and nested-reference predicate before selecting the earliest cause
+from the single public precedence. It also verifies that both
+projections name that record version, the same source-derived artifact, and
+`r`. Atomic publication and recovery ensure that a snapshot observes either
+the complete old record/sidecar/custody set or the complete new set. Missing,
+corrupt, rebound, mixed-revision, custody-mismatched, or invalid nested-
+reference state fails closed; it cannot be represented as an absent exact
+value or a valid numerical projection. An observed collision requires two
+distinct independently valid canonical contents that each recompute under the
+identical verified regime to the same typed identity after the
+higher-precedence regime, schema, content, and reference checks pass. It
+quarantines the complete `(regime_id, content_id)` trust domain and every
+custody-ledger-reachable record, artifact, backup, and export.
+That old identity trust domain remains permanently unusable: it cannot be
+repaired in place, cleared, or rolled back under the collided identity.
+Resolution either republishes every retained meaning under a new identity
+regime and new referring record versions or erases every authorized copy,
+while retaining the old collision tombstone. Authenticated repair or
+still-valid rollback remains available only for noncollision integrity
+failures.
+
+After collision classification and only after every earlier public cause is
+absent, the store preserves exactly one closed
+`CollisionObservationOriginV1::{Compile, TerminalProbe, Management}` member
+with its typed admission or probe, resolved snapshot, and final
+`product_release_guard_id`, `terminal_probe_result_guard_id`, or
+`lifecycle_commit_guard_id`; the `Management` member additionally carries
+independently authenticated management authorization. Cross-origin field reuse
+is invalid. It then authenticates one `CollisionQuarantineBasisV1` over the
+store, trust key, exact origin, permanent tombstone, expected/next fence
+generations, complete witness, affected-custody/derived-artifact and
+active-admission/snapshot closure commitments, and either proven
+`CompleteReverseIndex` scope or `WholeStoreGeneration` fallback.
+
+One crash-atomic containment linearization commits the basis, creates or
+verifies the permanent tombstone, advances the root integrity fence, records
+every required revoke disposition, and closes semantic-read, product-release,
+probe-pass, lifecycle-mutation-commit, and lifecycle admission in scope. It
+does not destroy resources. The separate durable
+`CollisionTerminalRemovalStateV1` later closes revoked resources through
+bounded idempotent steps over one fixed revoke set or generation cursor, with
+positive item/work/byte limits and exact `Committed`, `Aborted`, or
+`ReconciliationRequired` outcomes. Retry and restart preserve the monotonic
+cursor and cannot reopen admission or change the tombstone, fence, or recovery
+eligibility.
+
+Immediately before observable success, each origin validates its typed final
+guard, exact trust-key dependency closure, and captured generation
+linearizably against the root fence. Containment and compile product release,
+passing probe receipt, or management lifecycle commit therefore have one total
+order; a snapshot-time check is insufficient. The compiler receives the
+collision source only after containment commits and receives no management
+capability. Generation mismatch, witness mismatch, unavailable commit, unknown
+outcome, or required reconciliation preserves the corresponding
+`ExactSidecarIntegrityCoordinationError` and maps to `MemoryUnavailable`, exit
+`4`, with no product. Startup reconstructs a proved commit, its origin-specific
+terminal collision disposition, and pending removal work, reruns both phases
+for a proved abort, and keeps an unknown outcome fenced as
+`IntegrityQuarantineReconciliationRequired` without a terminal origin result
+until commit or abort is proven.
+
+Recovery is the disjoint `CollisionRecoveryTransactionV1`, not exact-old-pair
+rollback. It revalidates the exact basis, trust key, permanent tombstone,
+current fence, complete witness set, and affected-custody closure, and permits
+only `NewRegimeRepublication` of every retained meaning under new record
+versions or `CompleteAuthorizedErasure` of every controlled authorized copy.
+Neither disposition clears the old tombstone or permanent non-use rule.
+
+Every controlled retention-bearing copy has one
+`SealedCustodyHoldingReferenceV1`. Its stable content-derived identity binds
+the complete authenticated owner, policy revision, trusted authorization and
+retention interval, source kind/identity/revision, complete custody binding,
+and matching purpose while excluding physical location and authorization
+state. The proof treats independent source obligations as different holdings,
+preserves one identity across atomic movement, forbids caller-selected
+identity inputs, and proves that a holding grants storage only.
+
 After exact request authentication, the compiler presents the opaque
 \(\mathcal R_O\) and acquires one active-pair-bound compile-admission ticket.
 Only inside that admitted scope does it resolve and
@@ -924,9 +1254,16 @@ representations, indexes, caches, installed artifacts, semantic logs or
 telemetry, and every persistent value available to retrieval, planning,
 rendering, learning, or the product result.
 \(\mathit{State}_{\mathrm{coord}}\) contains only the content-free lifecycle,
-barrier, epoch, runtime-registration, and bounded active-admission registry
-selected by Decision 0031. Terminalization removes an active record
-crash-atomically and retains no per-invocation terminal row.
+barrier, epoch, runtime-registration, bounded active-admission registry
+selected by Decision 0031, and the typed collision tombstone, integrity fence,
+`CollisionQuarantineBasisV1`, revoke dispositions, and
+`CollisionTerminalRemovalStateV1` commitments selected by Decision 0032. These
+integrity values bind only store/trust-domain identities, generations,
+resource identities, cursors, limits, and witness/closure commitments, never
+memory meaning or sidecar bytes. Ordinary noncollision terminalization removes
+an active record crash-atomically and retains no per-invocation terminal row.
+A collision-revoked origin is the explicit exception: containment retains its
+record and live resources until bounded terminal removal proves exact closure.
 
 Let \(\mathcal A_{\mathrm{runtime}}\) be the separate closed operational
 runtime-registration relation. It admits only: creation of one content-free
@@ -966,13 +1303,45 @@ coordination identities and closed lifecycle disposition. They contain no
 prompt, situation statement, request metadata payload, memory content, derived
 semantic value, output, or write authority.
 The configured concurrent-admission ceiling bounds the active registry, and
-terminalization retains no per-invocation terminal row.
-Let \(\mathcal A_{\mathrm{admission}}^*\) be the reflexive-transitive closure
-of those primitive transitions. Every **returning** compile call has a finite
+ordinary terminalization retains no per-invocation terminal row. A
+collision-origin record instead remains under the integrity relation below
+until its exact closure receipt or durable generation recovery fence satisfies
+the terminal-removal contract.
+Let \(\mathcal A_{\mathrm{integrity}}\) be the separate closed store-owned
+transition relation containing only:
+
+1. effect-free collision classification with one closed
+   `CollisionObservationOriginV1::{Compile, TerminalProbe, Management}`;
+2. construction and authentication of one `CollisionQuarantineBasisV1`;
+3. one crash-atomic containment commit or its fail-closed reconciliation,
+   atomically advancing the fence and recording every logical revoke
+   disposition without destroying resources;
+4. monotonic bounded, idempotent, resource-safe
+   `CollisionTerminalRemovalStateV1` steps or their reconciliation.
+
+The compiler cannot invoke this relation directly or receive its capability.
+Containment can arise only after the corresponding admitted `Compile`, bounded
+`TerminalProbe`, or independently authorized `Management` origin has
+effectlessly classified a postlookup collision and excluded every earlier
+integrity cause; a compiler can induce only the `Compile` origin. Compile
+release, terminal-probe pass, management lifecycle commit, and containment
+share one linearizable guard/fence order.
+
+The separately authorized management relation
+\(\mathcal A_{\mathrm{collision\_recovery}}\) contains
+`CollisionRecoveryTransactionV1`. It selects only complete new-regime
+republication or complete controlled-custody erasure while preserving the old
+tombstone. It can change semantic state, is not callable by the compiler, and
+is deliberately excluded from \(\mathcal A_{\mathrm{coord}}\) and every
+read-only compile trace. Let
+\(\mathcal A_{\mathrm{coord}}=
+\mathcal A_{\mathrm{admission}}\cup\mathcal A_{\mathrm{integrity}}\), and let
+\(\mathcal A_{\mathrm{coord}}^*\) be its reflexive-transitive closure. Every
+**returning** compile call has a finite
 coordination trace \(s_0,\ldots,s_n\), where \(s_0\) is the initial
 \(\mathit{State}_{\mathrm{coord}}\), \(s_n\) is the final
 \(\mathit{State}_{\mathrm{coord}}'\), and every adjacent state-changing pair
-belongs to \(\mathcal A_{\mathrm{admission}}\). A pre-admission failure or
+belongs to \(\mathcal A_{\mathrm{coord}}\). A pre-admission failure or
 rejected admission has \(n=0\), creates no record, and leaves coordination state
 unchanged. A returning call therefore has the transition:
 
@@ -987,20 +1356,23 @@ unchanged. A returning call therefore has the transition:
 \qquad
 (\mathit{State}_{\mathrm{coord}},
  \mathit{State}_{\mathrm{coord}}')
- \in \mathcal A_{\mathrm{admission}}^* .
+ \in \mathcal A_{\mathrm{coord}}^* .
 \]
 
 Abrupt process loss has no `result` transition. It leaves a finite prefix ending
-with either no record, one visible `Live` active record, or an unavailable
-coordination state. Before any later admission, a separate startup trace either
-proves and completes the already-committed removal or advances each surviving
-record to the conservative `RecoveryFenced` disposition. A recovery-fenced
-record grants no semantic work and blocks admission and exclusive lifecycle
-operations; it may remain indefinitely if liveness cannot be disproved. A
-later, separately justified trace removes it only after topology-specific
-evidence proves that the old holder and every bound snapshot cannot survive.
-No timeout, retry, or inferred absence converts that prefix into a returned
-result.
+with either no record, one visible `Live` active record, one durably
+collision-revoked origin with committed basis/fence/revoke disposition and
+pending `CollisionTerminalRemovalStateV1`, or an unavailable or ambiguous
+coordination state under its recovery fence. Before any later admission, a
+separate startup trace either proves and completes ordinary removal, restores
+the exact committed collision basis and pending monotonic cleanup cursor, or
+advances each surviving unclassified record to the conservative
+`RecoveryFenced` disposition. A recovery-fenced record grants no semantic work
+and blocks admission and exclusive lifecycle operations; it may remain
+indefinitely if liveness cannot be disproved. A later, separately justified
+trace removes it only after topology-specific evidence proves that the old
+holder and every bound snapshot cannot survive. No timeout, retry, or inferred
+absence converts that prefix into a returned result or clears collision state.
 
 The proof requires:
 
@@ -1010,13 +1382,21 @@ The proof requires:
 - a compile dependency graph with read-only semantic storage capabilities and
   only the closed content-free coordination capability;
 - complete transition coverage showing that every durable compile-side write is
-  in \(\mathcal A_{\mathrm{admission}}\);
-- terminal or conservatively fenced disposition for each admitted record, with
-  no product success or compile-core error returned before removal; the sole
-  returning exception is a typed admission-finalization failure that exposes no
-  product bytes, preserves a visible or explicitly unavailable fail-closed
-  coordination state, and transfers resolution to startup reconciliation or
-  separately authorized repair; abrupt loss returns no result;
+  in \(\mathcal A_{\mathrm{coord}}\), with
+  \(\mathcal A_{\mathrm{integrity}}\) available only to the store's
+  verified-read boundary and never to compiler logic;
+- terminal or conservatively fenced disposition for each admitted record.
+  Ordinary paths return no product success or compile-core error before
+  removal. One returning exception is a typed admission-finalization failure
+  that exposes no product bytes, preserves a visible or explicitly unavailable
+  fail-closed coordination state, and transfers resolution to startup
+  reconciliation or separately authorized repair. The other is collision:
+  after durable containment and final release-guard rejection, the exact
+  collision may return while the revoked admission, snapshot, and resources
+  remain in bounded terminal-removal state; a containment coordination error
+  returns only with the origin reconcilable or fenced under its exact outcome.
+  Neither case is ordinary finalization failure, and abrupt loss returns no
+  result;
 - a bounded active registry whose cardinality never exceeds the configured
   ceiling and whose repeated successful-call churn leaves no terminal rows;
 - a bounded runtime-registration registry proving clean-provisioning and
@@ -1037,7 +1417,7 @@ The proof requires:
 Request-local allocation remains nonpersistent. Content-bearing access logs,
 semantic telemetry, cache publication, re-indexing, consolidation, artifact
 mutation, or any durable transition outside
-\(\mathcal A_{\mathrm{admission}}\) violates F4.
+\(\mathcal A_{\mathrm{coord}}\) violates F4.
 
 #### F5: Authority non-amplification
 
@@ -1301,11 +1681,17 @@ part of V1.
 #### F17: Renderer semantic non-amplification
 
 Every assertion-bearing rendered segment must bind to one selected focus or
-expectation proposition and every mandatory relation or qualifier for that
-proposition. Validation rejects an unknown hypothesis, promoted fact,
-probability statement, answer, action recommendation, lost condition or
-horizon, hidden material alternative, or unsupported connective. Therefore a
-successful renderer result is a lexicalized view of `L`, not a second semantic
+expectation proposition through one structurally valid
+`FocusSupportTraceV1` node and preserve every mandatory relation or qualifier
+for that proposition. The adapter receives only \(C_A(L)\) and \(C_R^A\),
+never memory prose, source-text reconstruction, exact payloads,
+validator-only \(C_V^{sem}(L)\) or \(C_V^{bind}(L)\), or \(C_R^V\).
+Validation rejects an unknown hypothesis, promoted fact, probability
+statement, authority increase, answer, action recommendation, lost condition
+or horizon, hidden material alternative, malformed support trace, or
+unsupported connective. Relevance weights cannot become truth, confidence,
+authority, utility, safety, or action priority. Therefore a successful
+renderer result is a bounded lexicalized view of `L`, not a second semantic
 inference path. Neural validation remains empirical and fallible; F17 defines
 the contract to test rather than proving a model can satisfy it.
 
@@ -1323,10 +1709,10 @@ the contract to test rather than proving a model can satisfy it.
 | `V1-R08` | Declared language, finite budget, faithful empty attention, and budget error | Planner, renderer, and validation | Per-language evaluation and exact budget-boundary tests |
 | `V1-R09` | Local memory and no compile network access or compiler-initiated disclosure beyond the authorized local result channel | Runtime and packaging | F11, network-denied integration, capability audit, result-channel authorization, artifact-authenticity, and storage-location tests |
 | `V1-R10` | No caller-supplied trust or internal identity, no focus/planning authorization capability, no discovery, downstream AI invocation, or automatic learning | Compile dependency boundary | Private trusted-type and ingress construction, all-field forgery, cancellation authority-noninterference, static no-authority-edge, capability, and prohibited-call tests |
-| `V1-R11` | Numerical relevance after ingress with retained exact evidence | Encoding through planning | Schema, reconstruction-limit, provenance, and perturbation tests |
+| `V1-R11` | Numerical relevance after ingress with content-addressed exact evidence and partition-safe validated two-plane consolidation | Encoding through planning | Normative complete regime-owner definition; custody-binding-only memory wire shape; effect-free four-check prelookup; sealed `ExactSidecarResolvedSnapshotV1` postlookup; stable sealed-holding obligations; closed `CollisionObservationOriginV1`; authenticated `CollisionQuarantineBasisV1`; atomic logical revoke/fence/tombstone containment; separately bounded idempotent `CollisionTerminalRemovalStateV1`; final linearizable product/probe/management guards; restart reconciliation; exact coordination mapping; disjoint `CollisionRecoveryTransactionV1` with permanent old tombstone and only new-regime republication or complete erasure; well-founded nested references; one independently validated projection pair per proposition-plane source; numerical-order/relevance-only authority; closed variant-specific cross-plane joins; flattened \(n_{\mathrm{src}}^M\) source/pair/complexity accounting; bounded exhaustive unordered-pair enumeration or exact `ExhaustiveConsolidationPairSetWitnessV1` equality over source set, pair set, equivalence identity, and ceiling; true authoritative identity equivalence; complete-link canonical partition; pair-work versus post-consolidation capacity classification; exact five-family discriminant closure and total per-variant focus-error mapping/precedence; reconstruction-limit, exact-slot-conflict, scope, provenance, disclosure, authority, and cross-plane perturbation tests |
 | `V1-R12` | Coding agents are the first supported domain and claims remain bounded | End-to-end harness and release process | Sealed coding-task outcomes and frozen evidence receipts |
 | `V1-R13` | Memory management remains separate from compile | Compile capability boundary | Absence of management dependencies, forbidden semantic-write detection, exact coordination-transition auditing, and explicit rejection of management requests |
-| `V1-R14` | Versioned transition evidence with outcome representation, observation status, and state-typed reliability lineage | Transition schema and memory read boundary | Constructor, provenance, condition, horizon, status, version, every cross-state migration pair, and exact rollback fixtures |
+| `V1-R14` | Versioned transition evidence with content-bound exact sidecar, outcome representation, observation status, and state-typed reliability lineage | Transition schema and memory read boundary | Checked content-derived regime/schema/custody-domain/sidecar/record constructors, full-binding mutation with no free duplicate ref, custody-ledger and field-identical complete-binding deduplication, stable per-obligation sealed holdings, nested-reference deletion safety, complete permanent collision-domain quarantine across all three observation origins, atomic containment versus bounded terminal removal, final-guard races, crash/restart reconciliation, separate new-regime-or-erasure recovery with permanent tombstone, publication/recovery, logical erasure versus last-reference collection, policy-bounded noncollision rollback with no resurrection or post-erasure claim, provenance, condition, horizon, status, version, and every cross-state migration pair |
 | `V1-R15` | Focus, expectation, goal, action, answer, fact, and probability remain distinct | Domain types, combined plan, renderer, and validator | Type-boundary, corruption, semantic-fidelity, and leakage tests |
 | `V1-R16` | Zero to a finite number of competing expectations | Expectation kernel | Empty, single, tied, alternative, cardinality, and canonical-order properties |
 | `V1-R17` | Complete expectation qualification | Expectation kernel and combined planner | Condition, horizon, support, counterevidence, uncertainty, exact-slot, and authority-closure reconstruction |
@@ -1375,13 +1761,126 @@ Implementation evidence must include:
   fail before proposition construction, while true unobserved digest
   collisions remain covered only by the declared cryptographic assumption;
 - fuzzing of framing, metadata, state decoding, and persistent input;
-- model-based storage tests for snapshot publication and concurrent writers;
+- model-based storage tests for snapshot publication and concurrent writers,
+  including sidecar-plus-record atomic visibility and restart from every
+  injected publication boundary;
+- exact-sidecar checked-construction properties: permitted input permutation
+  produces identical canonical bytes, content-derived schema and regime IDs,
+  complete custody binding containing its sole reference, and record-version
+  identity; identity preservation is
+  asserted only when the complete canonical regime, its recomputed ID, the
+  canonical schema, its recomputed ID, and the canonical envelope bytes are
+  identical. Changing any identity-regime member, schema content, locator,
+  type, presence state, or exact value changes the required identities, and
+  the record identity binds the full custody binding whose nested reference is
+  `(regime_id, schema, content_id)` even when a digest happens to be equal. It
+  contains no free duplicate reference. Stable empty content
+  remains explicit. Multi-invalid fixtures prove exact construction
+  precedence: `UnknownIdentityRegime`, `IdentityRegimeMismatch`,
+  `UnknownSchema`, `SchemaIdentityMismatch`, `UnknownCustodyDomain`,
+  `CustodyDomainIdentityMismatch`, `InvalidBinding`, `DuplicateLocator`,
+  `InvalidPresence`, `LimitExceeded`, then `NonCanonicalEncoding`.
+  Every failure publishes nothing and never enters compilation. Runtime
+  custody mismatch remains the distinct `ExactSidecarCustodyMismatch` public
+  path;
+- revision-pinned exact-sidecar lookup fixtures for missing, truncated,
+  corrupt, regime- or schema-mismatched, rebound, custody-mismatched, and
+  binding-inconsistent cross-record or cross-revision content. Same-reference
+  byte-identical cross-record reuse and deduplication remain valid only under
+  field-for-field identical complete `ExactSidecarCustodyBindingV1` values and
+  retain distinct per-record logical ledger entries.
+  Collision fixtures require two distinct canonical contents that each
+  independently pass decoding and re-encoding and recompute under one
+  identical regime to the same typed identity. Multi-invalid fixtures prove
+  exact precedence: `RecordVersionIdentityMismatch`,
+  `ExactSidecarIdentityRegimeMismatch`, `ExactSidecarSchemaMismatch`,
+  `ExactSidecarCustodyMismatch`, `ExactSidecarMissing`,
+  `ExactSidecarContentMismatch`, `ExactSidecarReferenceMismatch`,
+  `ExactSidecarContentIdentityCollision`, then
+  `ExactSidecarNestedReferenceInvalid`. No external sidecar lookup or
+  trust-domain quarantine occurs before the first four checks pass. A
+  collision quarantines the complete
+  `(regime_id, content_id)` trust domain and every custody-ledger-reachable
+  record, artifact, backup, and export while leaving unrelated domains
+  available. Fixtures cover every
+  `CollisionObservationOriginV1::{Compile, TerminalProbe, Management}` member,
+  reject missing or cross-origin fields, and require independently
+  authenticated management authorization. Fault injection around the
+  `CollisionQuarantineBasisV1` containment linearization proves complete-
+  reverse-index or whole-generation scope, atomic tombstone/fence/revoke
+  disposition commit, exact `ExactSidecarIntegrityCoordinationError` mapping,
+  committed/aborted/unknown restart reconciliation, and no synchronous
+  resource destruction. Product release, passing probe receipt, and management
+  lifecycle commit race containment through their final typed guards and have
+  one total order. `CollisionTerminalRemovalStateV1` fixtures cover canonical
+  revoke-set and generation cursors, every positive per-step bound,
+  committed/aborted/reconciliation outcomes, idempotent retry and restart,
+  exact closure receipts, and the impossibility of reopening or resetting
+  work. `CollisionRecoveryTransactionV1` rejects old-pair rollback, witness
+  selection, later-equality repair, and field drift from the basis; fixtures
+  accept only complete new-regime/new-record-version republication or complete
+  authorized controlled-custody erasure while retaining the collision
+  tombstone across purge, restore, reprovisioning, reinstallation, and store
+  replacement. Every invalid case returns no partial retrieval result;
+- sealed-holding fixtures derive one stable identity from the complete
+  owner/policy/trusted-time/source/binding/purpose obligation, reject
+  caller-selected identity inputs, keep independent source obligations
+  distinct, preserve identity across physical movement, prevent one holding
+  from satisfying another, and grant storage only;
+- nested exact-sidecar record references accept only schema-permitted already
+  verified immutable targets in strict prior memory revisions; self, current-
+  revision, forward, unresolved, unverified, and finally erased targets reject
+  as `ExactSidecarNestedReferenceInvalid`. Logical deletion and physical
+  collection reject while a retained inbound reference exists, and migration
+  constructs and verifies a staged dependency-ordered revision chain before
+  one active-installation switch;
+- migration and recovery fixtures proving that unchanged canonical sidecar
+  bytes preserve their reference only under identical verified regime and
+  schema identities, changed regime, schema, or content creates a new complete
+  reference and record-version identity, count-preserving replacement and
+  cross-custody binding fail, logical erasure remains distinct from physical
+  last-reference collection, and backup plus rollback restore the exact
+  record/sidecar/custody state only while the policy-bound artifact remains
+  retained and resurrection is permitted. After final erasure, status and
+  evidence report rollback unavailable and never resurrect, reconstruct, or
+  claim rollback from target or numerical state;
 - metamorphic tests for input permutations, absent optional metadata, and
   irrelevant candidate additions;
 - canary memories that are highly relevant but unauthorized;
 - unauthorized near-neighbor additions that would crowd a global top-k;
 - stale, superseded, contradictory, low-confidence, and malicious memories;
 - exact values that cannot be reconstructed safely from a lossy vector;
+- paired-plane proposition fixtures with one independently validated
+  authoritative projection per numerical source. Exhaust every field of the
+  request-specific and memory-specific joins; reject missing pairs, hybrid,
+  untagged, request-with-persistent-fields, memory-with-request-attribution,
+  namespace substitution, and cross-record/artifact/revision/custody binding.
+  Records contributing zero, one, and several focus-visible proposition-plane
+  sources prove that flattened \(n_{\mathrm{src}}^M\), not activated-record
+  count, determines source-set identity, \(n(n-1)/2\) pair count, work
+  ceiling, complexity, and every unordered pair. The reference checks that
+  exact pair-work ceiling and enumerates every unordered source pair; optimized
+  paths supply
+  `ExhaustiveConsolidationPairSetWitnessV1` for exact source-set, pair-set,
+  equivalence-contract-identity, and ceiling equality. Ceiling overflow is
+  `Consolidation(PropositionConsolidationError::PairWorkCapacityExceeded)`,
+  while outer `Capacity` remains
+  post-consolidation construction. True identity equivalence defines buckets,
+  and complete-link validation
+  preserves exact-value, temporal/social/modal scope, provenance/dependency,
+  conflict, disclosure, and authority distinctions. The nontransitive triad
+  \(a<b<c\), \(a\sim b,b\sim c,a\not\sim c\) produces `{a,b},{c}` under every
+  input permutation; the bounded reference and optimized partitioners agree;
+- closed `FocusCandidateError` fixtures cover every outer tag and inner cause,
+  unchanged source, total public mapping, projection, pair, comparison, and
+  consolidation-workspace limits, exact-slot conflict, post-consolidation
+  capacity, invalid witness/partition, and candidate-invariant paths.
+  Authenticated decoding rejects every unknown family or discriminant before
+  focus evaluation rather than routing it through a catch-all. Multi-error
+  fixtures prove outer pipeline order and, within one completed stage, inner
+  declaration order followed by the smallest canonical
+  source/pair/cluster/candidate key. No failure produces partial or empty focus
+  and planning is never invoked;
 - cross-project relevant records and same-project irrelevant records;
 - focus and expectation projections with identical and deliberately mismatched
   lineage identities;
@@ -1481,7 +1980,10 @@ Implementation evidence must include:
 - crashes, timeouts, resource exhaustion, and partial-output prevention;
 - blocked network access, semantic-state write detection, an exact durable
   coordination-write allowlist, content-exclusion checks, and admission-record
-  terminalization or fencing under every failure path; and
+  ordinary terminalization, conservative fencing, or collision logical
+  revocation with retained resources under bounded
+  `CollisionTerminalRemovalStateV1`, as selected by the exact failure path;
+  and
 - cold and warm invocation on every supported platform.
 
 These tests establish conformance only for their declared implementation and
@@ -1502,9 +2004,9 @@ Each hypothesis is falsifiable and configuration-specific.
 | H5c | Adding a correct qualified expectation to the same focus plan improves the applicable manifest's prospectively frozen expectation-eligible tasks over focus-only attention without exceeding frozen anchoring, leakage, and harm limits | Focus-plus-expectation versus token-matched focus-only |
 | H5d | A deliberately wrong dominant expectation is distinguishable from both correct and abstaining conditions by two prospectively frozen semantic negative-control checks while its task harm, anchoring, and every leakage class remain below frozen safety bounds | Wrong-expectation negative control versus correct and abstaining conditions |
 | H5e | Combined plan selection improves mandatory closure, qualification, alternative preservation, and budget use over independent focus and expectation truncation | Combined planner over frozen branch outputs |
-| H6a | A learned numerical bridge carries the required typed plan information more faithfully than a simple projection | Registered latent resampler versus MLP projection over identical frozen plans and model |
+| H6a | A registered query-conditioned numerical adapter contributes relevant memory evidence beyond query-only while preserving set, weight, qualifier, authority, and leakage boundaries better than the strongest passing simple adapter | Deterministic, query-only, memory-only, uniform/zero/shuffled-weight, weighted-pooling or linear, set-adapter, and every stronger registered family over identical frozen inputs |
 | H6b | The local renderer preserves focus and expectation meaning without material unsupported claims, probability inflation, fact promotion, exact-value errors, answer leakage, or action selection | Candidate renderer versus deterministic and expert rendering |
-| H6c | The qualified release checkpoint is the smallest tested local model that passes every frozen renderer and resource gate | Model slate compared under identical plan, adapter, training, quantization, and hardware conditions |
+| H6c | The qualified release configuration is the smallest tested complete adapter and optional-decoder artifact that passes every frozen renderer and resource gate | Complete registered configuration cohorts compared under identical plan semantics, runtime-input schema, evaluation, quantization pairing, and hardware conditions |
 | H7 | The complete compiler improves context-dependent task success without unacceptable harm on context-independent tasks | Candidate V1 versus prompt only and the strongest frozen non-oracle |
 | H8 | V1 meets frozen local resource budgets on reference hardware | Cold/warm operational measurements |
 
@@ -1635,19 +2137,23 @@ component-level ablations over immutable intermediates:
 | Focus consolidation | record-level top-k; canonical-proposition grouping without corroboration bonus; accepted support-dependency and conflict-preserving consolidation |
 | Expectation derivation | no expectation; nearest transition; unbudgeted dominant outcome; dependency-budgeted deterministic baseline with alternatives and abstention; any later learned set predictor |
 | Combined plan selection | independent branch truncation; score-only top-k; exhaustive canonical closure selection; any optimized implementation proven equivalent over supported limits |
-| Adapter | deterministic plan labels; two-layer MLP prefix; typed latent resampler with `8`, `16`, and `32` virtual tokens |
-| Training | frozen model with bridge only; identical bridge plus LoRA; quantized and unquantized inference |
-| Local model | The mandatory cohort slate, deployment pairing, and capacity fallback owned by the local-renderer model-qualification specification |
+| Adapter | deterministic rendering; query-only; memory-only; uniform, zero, and shuffled weights; weighted pooling or linear projection; small permutation-invariant set adapter; every stronger registered family. Latent-prefix counts `8`, `16`, and `32` apply only to `VF-LATENT-PREFIX-01` |
+| Training | no-training deterministic controls; adapter-only learned candidates; adapter-plus-LoRA only for a registered decoder-backed escalation; paired reference and deployment precision |
+| Local model | For an authorized model-backed candidate only, the cohort slate, deployment pairing, and capacity fallback owned by the local-renderer model-qualification specification; a model-free baseline release has no mandatory local-model cohort |
 
 No model comparison may use a different semantic plan, target set, split,
 exact-slot policy, or validation rule. General benchmark scores are descriptive
 metadata and cannot select the Nemosyne renderer.
 
-The selectable V1 latent-prefix cardinality domain is exactly
-`\{8, 16, 32\}`. A `64`-token configuration may be executed only as a
-nonselectable resource and saturation stress diagnostic. It cannot qualify a
-renderer, win a cohort, become a fallback, or support a release claim without
-a later decision that reopens this frozen domain.
+For candidate `VF-LATENT-PREFIX-01` only, the selectable latent-prefix
+cardinality domain is exactly `\{8, 16, 32\}`. Its `64`-latent-query
+configuration may be executed only as a nonselectable resource and saturation
+stress diagnostic. This candidate-local domain neither selects nor requires a
+latent-prefix architecture nor constrains the family-specific capacity domain
+of another registered adapter candidate. The `64`-query diagnostic cannot
+qualify `VF-LATENT-PREFIX-01`, win a cohort, become a fallback, or support a
+release claim without a later decision that reopens this candidate-local
+domain.
 
 These comparisons isolate:
 
@@ -1751,6 +2257,14 @@ disjoint observations.
 
 Measure:
 
+- query conditionality under frozen memory evidence;
+- relevant-memory contribution beyond query-only and memory-only controls;
+- set-order invariance and duplicate non-amplification;
+- relevance-weight sensitivity without truth, authority, or action promotion;
+- rejection of unauthorized, unselected, or incompatible input members and
+  external-state noninterference from records outside the sealed input;
+- noninterference from admitted irrelevant and zero-weight members;
+- canonical `FocusSupportTraceV1` validity and qualifier coverage;
 - clause-level source traceability;
 - mandatory-proposition coverage;
 - unsupported-claim rate;
@@ -1766,7 +2280,8 @@ Measure:
 - mandatory exact-slot recall and authorized-slot precision;
 - wrong-slot, duplicate-slot, and altered exact-value rates;
 - exact budget compliance; and
-- raw-source copying beyond explicitly permitted exact values.
+- raw-source copying, source-canary recovery, nearest-text lookup, or
+  reconstruction beyond explicitly permitted exact values.
 
 #### Downstream behavior
 
@@ -2542,13 +3057,14 @@ outcomes, or estimands:
 Renderer qualification and fallback selection additionally freeze one
 family-wise error-control procedure or one fully predeclared sequential testing
 order before any mandatory-cohort result is accessible. Its family contains
-every selectable renderer cohort, checkpoint capacity, deployment pairing,
-adapter, training regime, quantization, mandatory seed aggregation, release
-gate, and fallback decision. The same manifest fixes alpha allocation or
+every selectable renderer cohort, adapter family, family-specific structural
+capacity, optional decoder checkpoint, deployment pairing, training regime,
+quantization, mandatory seed aggregation, release gate, and fallback decision.
+The same manifest fixes alpha allocation or
 spending, stopping rules, failure and missingness handling, and the sole
 selection order. A cohort, seed, gate, or fallback omitted from that family is
-nonselectable; exploratory `64`-token stress results and other diagnostics
-cannot enter it retrospectively.
+nonselectable; the `VF-LATENT-PREFIX-01` exploratory 64-latent-query stress
+result and other diagnostics cannot enter it retrospectively.
 
 Use paired cluster-aware analysis. The default independent cluster is the
 connected component induced by every known shared dependence, including
@@ -2836,6 +3352,67 @@ The development suite must include:
   contradiction;
 - downstream agent output fed back as if it were an independent observation;
 - an exact name, path, time, or number lost by numerical compression;
+- two numerically identical proposition projections with different exact
+  values, scopes, provenance roots, dependency groups, disclosure ceilings, or
+  authority, including a forged cross-record, cross-artifact, and
+  cross-revision authoritative projection; hybrid or untagged authoritative
+  sources; and `Request`/`Memory` namespace substitution;
+- a missing, truncated, schema-mismatched, rebound, cross-revision, or corrupt
+  exact sidecar; a binding-inconsistent cross-record or cross-revision swap;
+  a regime-ID or schema-ID recomputation mismatch; an equal content digest
+  under a different regime or schema while preserving the old full reference;
+  valid byte-identical shared-sidecar reuse under a field-identical complete
+  custody binding; deduplication under any nonidentical complete custody
+  binding; a count-preserving sidecar swap;
+  and two distinct independently canonical contents that recompute under one
+  identical identity regime to the same typed content identity;
+- malformed retained bytes presented as a collision instead of the
+  higher-precedence content mismatch, and canonical bytes with a different
+  recomputed identity presented as a collision instead of reference mismatch;
+- an unauthenticated record, regime, schema, or custody binding that triggers
+  external sidecar resolution or trust-domain quarantine before its owning
+  higher-precedence check;
+- a sidecar nested reference to itself or to a current-revision, forward,
+  unresolved, unverified, or finally erased record version; deletion or
+  collection of a still-referenced prior target;
+- collision quarantine limited to the first observed record instead of every
+  record, artifact, backup, and export reachable from the complete
+  `(regime_id, content_id)` custody trust domain;
+- a missing, hybrid, or cross-origin `CollisionObservationOriginV1`, compile
+  admission treated as management authorization, incomplete
+  `CollisionQuarantineBasisV1` closure, or reverse-index scope accepted without
+  completeness proof instead of whole-generation fallback;
+- physical resource destruction inside the atomic containment section,
+  ordinary terminalization required before collision return, an unbounded or
+  resettable terminal-removal queue, duplicate/skip cursor behavior, or retry
+  after a `ReconciliationRequired` cleanup step without first proving the last
+  committed cursor;
+- product release, passing probe receipt, or management lifecycle mutation
+  without its final typed guard/fence validation, or any outcome claimed to
+  succeed after containment won the linearization order;
+- repair in place, quarantine clearing, or rollback under a collided old
+  identity, one witness selected as winner, or later equality treated as
+  repair instead of a matching `CollisionRecoveryTransactionV1` performing
+  new-regime/new-record-version republication of every retained meaning or
+  complete authorized erasure of every controlled copy while preserving the
+  old tombstone;
+- a crash at every sidecar/record publication boundary that would expose a
+  new record with old, absent, or unverified exact content;
+- a migration that changes one sidecar field or identity-regime member while
+  preserving the old reference or transition-record version identity, and a
+  claimed rollback after policy-authorized erasure of its required source
+  record/sidecar/custody state or resurrection of a finally erased record;
+- one numerical source reusing another source's authoritative projection; a
+  request projection joined through memory fields or a memory projection
+  joined through request receipt/attribution;
+- a nontransitive consolidation triad merged by connected components,
+  representative-only comparison, greedy union-find, or input order; and an
+  optimized partition that differs from the bounded canonical oracle;
+- an optimized consolidation path that omits or adds one unordered pair or
+  presents `ExhaustiveConsolidationPairSetWitnessV1` for a different source
+  set, equivalence-contract identity, or pair-work ceiling;
+- a `FocusCandidateError` flattened to empty focus, generic planning failure,
+  or a different inner cause, and planning invoked after any focus error;
 - an embedding collision or misleading nearest neighbor;
 - a deleted record retained by a derived index;
 - validity boundaries immediately before, at, and after a timestamp;
@@ -2863,8 +3440,8 @@ The proof program proceeds in risk order:
 | G1: Product headroom | The exact `g1_prompt`, `g1_situation`, `g1_placebo`, `g1_focus`, `g1_correct`, `g1_wrong`, and `g1_abstain` conditions pass their construction, neutral-carrier, placebo-irrelevance, and tokenizer-exact size audits; `g1_focus` passes all three frozen superiority gates over \(I_D^{(\mathrm{G1})}\), all three non-inferiority gates over \(I_I^{(\mathrm{G1})}\), and every population-harm and conditional-reversal bound; on separate positive-exposure \(I_E^{(\mathrm{G1})}\), `g1_correct` passes contribution gates, both correct-versus-wrong and abstaining-versus-wrong semantic differentiation pass, and `g1_wrong` remains below every harm, anchoring, and class-specific leakage maximum; all task/cluster/required-subgroup, family-wise or sequential multiplicity, and no-reuse gates pass. An invalid attempted envelope, complete G1 run manifest, or threshold prevents `ValidForOutcomeAccess` and returns `Rejected` when matching rejection evidence is valid; missing, invalid, wrong-subject, or mismatched guard evidence returns `CustodyEvidenceUnavailable`. Neither failure returns a receipt claim without its required witness, an admission, or a capability. Under an already valid run manifest, any missing, invalid, empty, underexposed, or zero-denominator required outcome cell is `Inconclusive` before outcome-dependent analysis | Reject, narrow, or defer the premise before architecture implementation |
 | G2: Evidence harness | Formal obligations are reviewed; one versioned manifest, receipt, split, lineage, baseline, and analysis harness can represent every required condition and preserve failed or inconclusive results | Do not select implementation technologies |
 | G3: Predictive semantics | The deterministic expectation baseline passes transition-schema, dependency-budget, alternative, abstention, observation-assessment, and non-probability contracts on curated and adversarial evidence | Correct or simplify predictive semantics before renderer or persistence integration |
-| G4: Renderer feasibility | Under the frozen family-wise or sequential qualification procedure, a deterministic renderer or registered numerical bridge plus the smallest passing selectable local checkpoint faithfully renders frozen expert focus-and-expectation plans and exact slots within local budgets across every mandatory cohort and seed; every fallback decision is resolved by the same procedure | Replace or constrain the bridge, model, or rendering contract; do not weaken a failed gate |
-| G5: Memory read and snapshots | Supplied revisions, authorization views, pinned indexes, concurrent publication, and compile/management separation satisfy their contracts | Do not build persistent-memory retrieval |
+| G4: Focus/planning and renderer feasibility | The bounded focus reference flattens zero-or-more proposition-plane sources per activated record, uses \(n=n_Q+n_{\mathrm{src}}^M\) for source identity, pair count, ceiling, complexity, and tests, then checks the exact pair-work ceiling and enumerates every unordered source pair; every optimized implementation supplies `ExhaustiveConsolidationPairSetWitnessV1` over that exact source set, pair set, equivalence-contract identity, and ceiling and agrees on variant-safe joins, true identity buckets, complete-link canonical partitions, total focus-error mapping, and cross-/within-stage precedence. Under the frozen family-wise or sequential qualification procedure, the byte-identical checked adapter view and paired validator view then compare deterministic, query-only, memory-only, weight-intervention, weighted-pooling or linear, set-adapter, and every stronger registered family. The smallest passing complete adapter and optional-decoder configuration must preserve the common support trace, qualifiers, authority, exact slots, no-text boundary, and local budgets across every mandatory cohort and seed; every fallback decision is resolved by the same procedure | Correct the exhaustive focus partition/error contract or replace or constrain the adapter, optional decoder, or rendering contract; do not weaken a failed gate |
+| G5: Memory read and snapshots | Supplied revisions, authorization views, pinned indexes, normatively complete content-derived exact-sidecar regime/schema/custody-domain identities, custody-binding-only record and source shapes, effect-free record/regime/schema/custody prelookup, one sealed postlookup snapshot, stable source-bound sealed holdings, field-identical complete-binding deduplication, well-founded prior-revision nested references and deletion safety, one independently validated derived/authoritative pair per source with variant-specific joins, closed `CollisionObservationOriginV1`, authenticated `CollisionQuarantineBasisV1` with reverse-index or whole-generation scope, crash-atomic tombstone/fence/logical-revoke containment separated from bounded idempotent `CollisionTerminalRemovalStateV1`, final linearizable product/probe/management guards, committed/aborted/unknown restart reconciliation, exact coordination-error mapping, disjoint `CollisionRecoveryTransactionV1` new-regime-or-erasure recovery with permanent old tombstone, logical erasure versus last-reference collection, noncollision no-resurrection rollback, atomic publication/recovery, declared integrity-error precedence, concurrent publication, and compiler/management capability separation satisfy their contracts | Do not build persistent-memory retrieval |
 | G6: Retrieval | Required-proposition and eligible-transition recall plus cross-context behavior beat frozen simple baselines | Replace or simplify retrieval |
 | G7: Activation and planning | Fixed-intermediate comparisons show value for signal derivation, activation, focus construction, expectation derivation, and combined closure selection over their strongest simpler baselines | Do not calibrate or integrate a mechanism without added value |
 | G8: Vertical slice | All critical invariants, offline boundaries, and resource budgets hold in one local end-to-end integration | Do not build release packaging |
@@ -3235,6 +3812,36 @@ fixtures that preserve:
 - authorization before candidate generation;
 - historical validity without revival of current instruction authority;
 - provenance-root duplicate suppression and unresolved conflict;
+- content-addressed exact-sidecar construction, immutable lookup, atomic
+  sidecar-plus-record publication, revision-pinned verification, migration,
+  the owner specification's complete content-derived
+  regime/schema/custody-domain definitions, custody-binding-only record/source
+  shapes, effect-free prelookup plus sealed postlookup snapshot, stable
+  per-obligation holdings, well-founded prior-revision nested references and
+  deletion protection, field-identical complete-binding deduplication,
+  logical erasure versus last-reference collection, policy-bounded
+  noncollision rollback with no resurrection or post-erasure claims, complete
+  `CollisionObservationOriginV1` coverage, authenticated
+  `CollisionQuarantineBasisV1`, crash-atomic tombstone/fence/logical-revoke
+  containment, bounded idempotent `CollisionTerminalRemovalStateV1` cursors and
+  outcomes, final product/probe/management guard races, restart
+  reconciliation, exact coordination mapping, and disjoint
+  `CollisionRecoveryTransactionV1` with new-regime/new-record-version
+  republication or complete authorized-copy erasure as its only dispositions
+  while the old tombstone remains permanent; plus declared error precedence
+  and collision-witness handling;
+- one paired numerical and independently validated authoritative proposition
+  projection per source, exhaustive variant-specific `Request` and `Memory`
+  joins, zero/one/many proposition-plane sources per record and flattened
+  \(n_{\mathrm{src}}^M\) source/pair/complexity accounting, bounded exhaustive
+  unordered-pair enumeration with numerical ordering only, exact optimized
+  pair-set/source-set/equivalence-identity witnesses,
+  true identity equivalence, complete-link compatibility and canonical
+  partitioning, nontransitive triad and optimized-reference equivalence
+  fixtures, and closed
+  total `FocusCandidateError` inner/outer mapping, projection-limit and
+  exact-slot-conflict disposition, cross-stage precedence, within-stage inner
+  declaration order plus smallest affected key, and source preservation;
 - transition kind, condition, horizon, observation status, dependency budget,
   typed reliability and every source/target migration pair, exact rollback,
   alternative-family, unknown-support, jointly qualifying coverage/proximity,
@@ -3248,11 +3855,12 @@ fixtures that preserve:
 - \(K_R\)-only perturbations leave `PlanCanonicalEnvelopeV1` and
   `PlanContentId` unchanged while changing the separately authenticated
   renderer configuration identity or canonical-content commitment;
-- renderer, substitution, context construction, and validation compare both
-  `RendererConfigurationId` and exact authenticated canonical \(K_R\) content;
-  separately authenticated equal-content values are equivalent, whereas
-  projections, narrower reconstructions, unauthenticated values, and
-  same-ID/different-byte values fail closed;
+- compiler preflight, substitution, and context construction retain complete
+  authenticated \(K_R\). Adapter and validation boundaries receive only
+  disjoint \(C_R^A\) and \(C_R^V\) borrows carrying the same
+  `RendererConfigurationId` and exact full-\(K_R\) commitment; independent
+  equal-content executions are equivalent, whereas reconstructed, widened,
+  unauthenticated, or same-ID/different-byte views or commitments fail closed;
 - file/stdin prompt sources are streamed under `AbsoluteIngressLimitsV1` with
   at most one detection byte beyond the ceiling; already-owned API values and
   direct argument text are checked at each exact maximum and maximum plus one
@@ -3328,8 +3936,12 @@ after the sealed outcomes are known.
 - [Superseded Decision 0012: Adopt numerical cognitive memory and focus compilation](../decisions/0012-adopt-numerical-cognitive-memory-and-focus-compilation.md)
 - [Superseded Decision 0013: Adopt a vector-prefix local renderer qualification path](../decisions/0013-adopt-a-vector-prefix-local-renderer-qualification-path.md)
 - [Decision 0014: Adopt memory-grounded predictive attention](../decisions/0014-adopt-memory-grounded-predictive-attention.md)
-- [Decision 0015: Render qualified focus-and-expectation plans](../decisions/0015-render-qualified-focus-and-expectation-plans.md)
-- [Decision 0016: Adopt sealed compile-integrity boundaries](../decisions/0016-adopt-sealed-compile-integrity-boundaries.md)
+- [Superseded Decision 0015: Render qualified focus-and-expectation plans](../decisions/0015-render-qualified-focus-and-expectation-plans.md)
+- [Superseded Decision 0016: Adopt sealed compile-integrity boundaries](../decisions/0016-adopt-sealed-compile-integrity-boundaries.md)
 - [Decision 0017: Control evaluation interventions and pre-access evidence](../decisions/0017-control-evaluation-interventions-and-pre-access-evidence.md)
+- [Superseded Decision 0019: Establish render-domain and bounded validation](../decisions/0019-establish-render-domain-and-bounded-validation.md)
+- [Superseded Decision 0023: Bind complete renderer training state](../decisions/0023-bind-complete-renderer-training-state.md)
 - [Decision 0025: Complete pre-access and statistical guards](../decisions/0025-complete-pre-access-and-statistical-guards.md)
 - [Decision 0031: Complete compile and update admission handoffs](../decisions/0031-complete-compile-and-update-admission-handoffs.md)
+- [Decision 0032: Bind authoritative exact sidecars and two-plane consolidation](../decisions/0032-bind-authoritative-exact-sidecars-and-two-plane-consolidation.md)
+- [Decision 0034: Adopt the vector-conditioned focus-adapter boundary](../decisions/0034-adopt-vector-conditioned-focus-adapter-boundary.md)

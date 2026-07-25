@@ -48,6 +48,75 @@ create_fixture() {
   git -C "$destination" config user.email 'documentation-check@example.invalid'
 }
 
+append_fixture_conformance_if_needed() {
+  local repository="$1"
+
+  if ! git -C "$repository" rev-parse --verify HEAD >/dev/null 2>&1; then
+    return
+  fi
+  if [[ -z "$(
+    git -C "$repository" status --porcelain -- \
+      docs/specifications \
+      docs/decisions
+  )" ]]; then
+    return
+  fi
+
+  python3 - \
+    "$repository" \
+    "$repository/docs/specifications/v1-delivery-program.md" <<'PY'
+from pathlib import Path
+import re
+import subprocess
+import sys
+
+repository = sys.argv[1]
+path = Path(sys.argv[2])
+base_text = subprocess.run(
+    [
+        "git",
+        "-C",
+        repository,
+        "show",
+        "HEAD:docs/specifications/v1-delivery-program.md",
+    ],
+    check=True,
+    stdout=subprocess.PIPE,
+    text=True,
+).stdout
+text = path.read_text()
+pattern = re.compile(
+    r"^#### Manual conformance receipt `DOC-CONF-([0-9]+)`$",
+    re.MULTILINE,
+)
+base_ids = [int(value) for value in pattern.findall(base_text)]
+current_ids = [int(value) for value in pattern.findall(text)]
+first_receipt = re.compile(
+    r"^#### Manual conformance receipt$\n\n"
+    r"`DOC-CONF-01` records ",
+    re.MULTILINE,
+)
+if len(first_receipt.findall(base_text)) != 1:
+    raise SystemExit("fixture base has no unique DOC-CONF-01 receipt")
+if base_ids != list(range(2, len(base_ids) + 2)):
+    raise SystemExit("fixture base has invalid conformance history")
+identifier = base_ids[-1] + 1 if base_ids else 2
+if current_ids == base_ids + [identifier]:
+    raise SystemExit(0)
+if current_ids != base_ids:
+    raise SystemExit("fixture worktree has unexpected conformance history")
+marker = "\n### Required repository checks"
+if text.count(marker) != 1:
+    raise SystemExit("fixture has no unique conformance append boundary")
+section = (
+    f"\n#### Manual conformance receipt `DOC-CONF-{identifier:02d}`\n\n"
+    "Test-fixture successor for one reviewed-archive change. "
+    "It is not DOC-00 evidence.\n"
+)
+path.write_text(text.replace(marker, f"{section}{marker}", 1))
+PY
+}
+
 write_decision() {
   local repository="$1"
   local identifier="$2"
@@ -71,6 +140,8 @@ write_decision() {
     printf '\n## Alternatives\n\nOriginal alternative.\n'
     printf '\n## Consequences\n\nOriginal consequence.\n'
   } > "$file"
+
+  append_fixture_conformance_if_needed "$repository"
 }
 
 write_specification() {
@@ -96,6 +167,8 @@ write_specification() {
     printf '\n## Open questions\n\nNone.\n'
     printf '\n## References\n\nReferences.\n'
   } > "$file"
+
+  append_fixture_conformance_if_needed "$repository"
 }
 
 write_body() {
@@ -354,7 +427,7 @@ git -C "$approved_governance_fixture" commit -qm governance-change
 approved_governance_head="$(git -C "$approved_governance_fixture" rev-parse HEAD)"
 
 printf '%s\n' \
-  'Documentation impact: decision' \
+  'Documentation impact: specification-and-decision' \
   'Documentation reason: This fixture records the governance change in a new decision.' \
   > "$temporary_directory/approved-governance-body.md"
 
@@ -417,11 +490,23 @@ import sys
 
 path = Path(sys.argv[1])
 text = path.read_text()
+section_start = "#### Manual conformance receipt `DOC-CONF-22`"
+section_end = "#### Manual conformance receipt `DOC-CONF-23`"
+if text.count(section_start) != 1 or text.count(section_end) != 1:
+    raise SystemExit("expected unique DOC-CONF-22 and DOC-CONF-23 boundaries")
+prefix, remainder = text.split(section_start, 1)
+section, suffix = remainder.split(section_end, 1)
 old = "This source receipt\ncontains no self-referential final digest"
 new = "This source receipt\ncontains no circular final digest"
-if text.count(old) != 1:
+if section.count(old) != 1:
     raise SystemExit("expected one DOC-CONF-22 mutation target")
-path.write_text(text.replace(old, new, 1))
+path.write_text(
+    prefix
+    + section_start
+    + section.replace(old, new, 1)
+    + section_end
+    + suffix
+)
 PY
 git -C "$conformance_history_fixture" add .
 git -C "$conformance_history_fixture" commit -qm rewrite-conformance-history
@@ -477,7 +562,7 @@ do
   )"
   write_body \
     "$temporary_directory/digest-rebaseline-body.md" \
-    'decision' \
+    'specification-and-decision' \
     'This fixture attempts a protected digest rebaseline with an unrelated decision.'
   expect_repository_check_failure \
     "$digest_rebaseline_fixture" \
@@ -521,7 +606,7 @@ rebound_digest_head="$(
 )"
 write_body \
   "$temporary_directory/rebound-protected-digest-body.md" \
-  'decision' \
+  'specification-and-decision' \
   'This fixture verifies that protected digest rebinding is rejected.'
 expect_repository_check_failure \
   "$rebound_digest_fixture" \
@@ -605,7 +690,7 @@ lying_digest_head="$(
 )"
 write_body \
   "$temporary_directory/lying-protected-digest-body.md" \
-  'decision' \
+  'specification-and-decision' \
   'This fixture verifies that the head checker cannot report its own digest values.'
 expect_repository_check_failure \
   "$lying_digest_fixture" \
@@ -750,7 +835,7 @@ authorized_digest_rebaseline_head="$(
 )"
 write_body \
   "$temporary_directory/authorized-digest-rebaseline-body.md" \
-  'decision' \
+  'specification-and-decision' \
   'This fixture explicitly supersedes Decision 0030 before rebaselining both digests.'
 (
   cd "$authorized_digest_rebaseline_fixture"
@@ -801,7 +886,7 @@ git -C "$rewrite_fixture" commit -qm rewrite
 rewrite_head="$(git -C "$rewrite_fixture" rev-parse HEAD)"
 
 printf '%s\n' \
-  'Documentation impact: decision' \
+  'Documentation impact: specification-and-decision' \
   'Documentation reason: This fixture attempts to rewrite an accepted historical decision.' \
   > "$temporary_directory/rewrite-body.md"
 
@@ -837,7 +922,7 @@ git -C "$supersede_fixture" commit -qm supersede
 supersede_head="$(git -C "$supersede_fixture" rev-parse HEAD)"
 
 printf '%s\n' \
-  'Documentation impact: decision' \
+  'Documentation impact: specification-and-decision' \
   'Documentation reason: This fixture supersedes one accepted decision with another record.' \
   > "$temporary_directory/supersede-body.md"
 
@@ -881,7 +966,7 @@ git -C "$metadata_title_decision_fixture" commit -qm supersede
 metadata_title_decision_head="$(git -C "$metadata_title_decision_fixture" rev-parse HEAD)"
 write_body \
   "$temporary_directory/metadata-title-decision-body.md" \
-  'decision' \
+  'specification-and-decision' \
   'This fixture preserves metadata-like text while superseding a decision.'
 (
   cd "$metadata_title_decision_fixture"
@@ -1060,7 +1145,7 @@ git -C "$documented_governance_rename_fixture" commit -qm documented-governance-
 documented_governance_rename_head="$(git -C "$documented_governance_rename_fixture" rev-parse HEAD)"
 write_body \
   "$temporary_directory/documented-governance-rename-body.md" \
-  'decision' \
+  'specification-and-decision' \
   'This fixture records the workflow rename in an accepted decision.'
 (
   cd "$documented_governance_rename_fixture"
@@ -1105,12 +1190,13 @@ printf '\nGovernance change backed by a moved decision.\n' >> "$moved_decision_f
 git -C "$moved_decision_fixture" mv \
   moved-governance-decision.md \
   docs/decisions/0001-moved-governance-decision.md
+append_fixture_conformance_if_needed "$moved_decision_fixture"
 git -C "$moved_decision_fixture" add .
 git -C "$moved_decision_fixture" commit -qm move-governance-decision
 moved_decision_head="$(git -C "$moved_decision_fixture" rev-parse HEAD)"
 write_body \
   "$temporary_directory/moved-decision-body.md" \
-  'decision' \
+  'specification-and-decision' \
   'This fixture records the governance change in a moved accepted decision.'
 (
   cd "$moved_decision_fixture"
@@ -1139,7 +1225,7 @@ git -C "$self_supersede_fixture" commit -qm self-supersede
 self_supersede_head="$(git -C "$self_supersede_fixture" rev-parse HEAD)"
 write_body \
   "$temporary_directory/self-supersede-body.md" \
-  'decision' \
+  'specification-and-decision' \
   'This fixture attempts to supersede a decision with the same record.'
 expect_repository_check_failure \
   "$self_supersede_fixture" \
@@ -1175,7 +1261,7 @@ git -C "$rejected_replacement_fixture" commit -qm rejected-replacement
 rejected_replacement_head="$(git -C "$rejected_replacement_fixture" rev-parse HEAD)"
 write_body \
   "$temporary_directory/rejected-replacement-body.md" \
-  'decision' \
+  'specification-and-decision' \
   'This fixture attempts to replace an accepted decision with a rejected record.'
 expect_repository_check_failure \
   "$rejected_replacement_fixture" \
@@ -1205,7 +1291,7 @@ git -C "$existing_replacement_fixture" commit -qm existing-replacement
 existing_replacement_head="$(git -C "$existing_replacement_fixture" rev-parse HEAD)"
 write_body \
   "$temporary_directory/existing-replacement-body.md" \
-  'decision' \
+  'specification-and-decision' \
   'This fixture attempts to reuse an existing decision as a new replacement.'
 expect_repository_check_failure \
   "$existing_replacement_fixture" \
@@ -1241,7 +1327,7 @@ git -C "$lower_identifier_replacement_fixture" commit -qm lower-identifier-repla
 lower_identifier_replacement_head="$(git -C "$lower_identifier_replacement_fixture" rev-parse HEAD)"
 write_body \
   "$temporary_directory/lower-identifier-replacement-body.md" \
-  'decision' \
+  'specification-and-decision' \
   'This fixture attempts to replace a decision with a lower identifier.'
 expect_repository_check_failure \
   "$lower_identifier_replacement_fixture" \
@@ -1276,7 +1362,7 @@ git -C "$initially_superseded_decision_fixture" commit -qm fabricated-history
 initially_superseded_decision_head="$(git -C "$initially_superseded_decision_fixture" rev-parse HEAD)"
 write_body \
   "$temporary_directory/initially-superseded-decision-body.md" \
-  'decision' \
+  'specification-and-decision' \
   'This fixture attempts to add a decision in an already superseded state.'
 expect_repository_check_failure \
   "$initially_superseded_decision_fixture" \
@@ -1312,7 +1398,7 @@ git -C "$metadata_rewrite_fixture" commit -qm metadata-rewrite
 metadata_rewrite_head="$(git -C "$metadata_rewrite_fixture" rev-parse HEAD)"
 write_body \
   "$temporary_directory/metadata-rewrite-body.md" \
-  'decision' \
+  'specification-and-decision' \
   'This fixture hides a historical rewrite behind a metadata-looking prefix.'
 expect_repository_check_failure \
   "$metadata_rewrite_fixture" \
@@ -1349,7 +1435,7 @@ git -C "$decision_trailing_lines_fixture" commit -qm add-trailing-lines
 decision_trailing_lines_head="$(git -C "$decision_trailing_lines_fixture" rev-parse HEAD)"
 write_body \
   "$temporary_directory/decision-trailing-lines-body.md" \
-  'decision' \
+  'specification-and-decision' \
   'This fixture appends blank lines while superseding a decision.'
 expect_repository_check_failure \
   "$decision_trailing_lines_fixture" \
@@ -1650,7 +1736,7 @@ git -C "$rejected_governance_fixture" commit -qm rejected-governance
 rejected_governance_head="$(git -C "$rejected_governance_fixture" rev-parse HEAD)"
 write_body \
   "$temporary_directory/rejected-governance-body.md" \
-  'decision' \
+  'specification-and-decision' \
   'This fixture changes governance but records only a rejected decision.'
 expect_repository_check_failure \
   "$rejected_governance_fixture" \
@@ -1679,7 +1765,7 @@ git -C "$ambiguous_status_governance_fixture" commit -qm ambiguous-status
 ambiguous_status_governance_head="$(git -C "$ambiguous_status_governance_fixture" rev-parse HEAD)"
 write_body \
   "$temporary_directory/ambiguous-status-governance-body.md" \
-  'decision' \
+  'specification-and-decision' \
   'This fixture attempts to authorize governance with ambiguous status metadata.'
 expect_repository_check_failure \
   "$ambiguous_status_governance_fixture" \
