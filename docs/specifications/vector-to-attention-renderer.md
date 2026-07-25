@@ -1104,13 +1104,13 @@ which typed proposition role without exposing the slot's exact payload.
 `E_relations` uses the closed relation vocabulary and the canonical rank of
 each relation target; it does not embed arbitrary record identifiers.
 `E_qualifiers` and `E_disposition` encode only closed adapter-safe semantic
-contracts. Authority ceilings remain exclusively in \(C_V^{sem}\) and never
-enter \(h_{R,i}\). Essential support and provenance identities
-\(\mathcal B_i^{\mathrm{src}}\)
-remain available to the attribution head and validator but are not projected
-as semantic features: arbitrary identifiers must not change prose. Thus every
-plan field is retained, while only fields with an authored surface-realization
-role enter \(h_{R,i}\).
+contracts. Authority ceilings and essential support and provenance identities
+\(\mathcal B_i^{\mathrm{src}}\) remain exclusively in \(C_V^{sem}\) and never
+enter \(h_{R,i}\), the attribution head, or another learned path. The
+attribution head addresses an item only through its dense canonical
+`AdapterPlanItemHandleV1` \(\eta_i\). Thus every plan field remains available
+to its owning validator plane, while only fields with an authored
+surface-realization role enter \(h_{R,i}\).
 
 The item matrix is:
 
