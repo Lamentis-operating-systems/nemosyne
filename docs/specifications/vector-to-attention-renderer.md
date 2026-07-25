@@ -4,29 +4,36 @@ Status: Proposed
 
 ## Purpose
 
-This specification proposes one concrete V1 candidate for rendering a bounded
-structured numerical attention plan as natural-language attention text. The
-candidate uses typed numerical projectors, a small latent resampler, dynamic
-soft-prefix embeddings, and a local Qwen-family causal language model in
-non-thinking mode.
+This specification defines the V1 vector-conditioned focus-rendering boundary
+and the evidence required to choose an implementation. A learned adapter
+receives a checked numerical query/task context plus a bounded, weighted set of
+the actual verified semantic vectors supporting the selected plan. It produces
+an untrusted bounded focus shape or a bound focus-text candidate. It never
+receives past memory prose as prompt context and does not reconstruct the text
+from which a vector was derived.
 
-The renderer is a surface-realization component. It does not retrieve memory,
-rank candidates, select propositions, resolve conflicts, change authority, or
-answer the original user prompt. It receives only the authoritative plan
-envelope selected by the upstream compiler and a compatible pinned rendering
-configuration. Language and budget are fields of that envelope, not separate
-inputs.
+The renderer is subordinate to the authoritative plan and independent
+validator. It does not retrieve or rerank memory, select truth, change
+authority, authorize disclosure, choose an action, call a tool, persist a
+result, or answer the original user prompt. Relevance weights can shape
+emphasis only; they are not truth, probability, confidence, authority, utility,
+safety, or action priority. Language and finite output bounds come from the
+plan, not independent caller inputs.
 
-Decision 0015 retains this vector-prefix qualification path for the combined
-focus-and-expectation plan and supersedes the focus-only renderer contract in
-Decision 0013. Decision 0016 fixes the sealed plan-content,
-renderer-configuration, exact-byte collision, substitution, and independent
-validation joins used below. The specification remains `Proposed` because no
-implementation or qualifying evidence exists. In particular, the initial
-dimensions, release checkpoint, quantization, production runtime, and decoding
-configuration remain subject to the verification and ablation gates defined
-below. They are not biological claims and are not asserted to reproduce human
-thought.
+Decision 0034 supersedes the earlier selected latent vector-prefix path while
+retaining its exact-slot, render-domain, complete-artifact, deterministic
+baseline, independent-validation, and evidence-based selection boundaries.
+Direct projection, weighted pooling, set encoders, cross-attention, latent
+resampling, soft prompting, fused decoding, and other bounded registered
+architectures remain empirical candidates. The concrete projector/resampler/
+soft-prefix formulas below define one candidate family only.
+
+Decision 0016 fixes the sealed plan-content, renderer-configuration, exact-byte
+collision, substitution, and independent validation joins used below. The
+specification remains `Proposed` because no implementation or qualifying
+evidence exists. No adapter family, dimensions, model, checkpoint,
+quantization, runtime, or decoder configuration is selected, and none of these
+contracts is a biological claim or a claim to reproduce human thought.
 
 ## Definitions
 
@@ -39,6 +46,9 @@ This table owns symbols reused only inside this specification:
 | Symbol | Local meaning |
 | --- | --- |
 | \(\ell_L,B_L\) | Resolved language and post-substitution budget copied from \(L\) |
+| \(C_F,Q_F,\mathcal M_F,\mathcal Q_F,\mathcal R_F\) | Checked vector-conditioned input, numerical query/task context, memory-origin evidence set, request/situation-origin evidence set, and safe structural controls |
+| \(m_i,k_i,a_i\) | One weighted semantic evidence item, its complete semantic/source binding, and its relevance-only activation weight |
+| \(F_\theta\) | One registered architecture-specific bounded focus shape produced by adapter configuration \(\theta\) |
 | \(v_{i,f}\) | One item value in renderer facet space \(f\) |
 | \(d_f,d_a,d_{\mathrm{LM}}\) | Facet, adapter, and language-model hidden dimensions |
 | \(h_{R,i},H_R\) | One renderer-projected item and the canonical renderer item matrix |
@@ -76,9 +86,11 @@ H(\operatorname{CE}_{v1}(K_R))
 \]
 
 The authenticated canonical envelope for \(K_R\) contains every artifact,
-schema, tokenizer, formatter, decoder, validator, threshold, limit, runtime,
-numerical-policy, and compatibility field listed under
-[Artifact identity](#artifact-identity). `RendererConfigurationId` is
+schema, adapter, validator, threshold, limit, runtime, numerical-policy, and
+compatibility field applicable to the registered family and listed under
+[Artifact identity](#artifact-identity). Decoder, tokenizer, vocabulary,
+formatter, generation, and LoRA fields use closed explicit absent variants
+for deterministic or decoder-free families. `RendererConfigurationId` is
 independent of `PlanContentId`; neither identity may be supplied, replaced, or
 mutated by a caller or model. Every checked renderer boundary recomputes the
 configuration identity from the exact authenticated \(K_R\) it receives.
@@ -92,17 +104,31 @@ inject this value. Preflight normally constructs one sealed value for a compile
 call. Correctness is exact authenticated canonical-content equality, not Rust
 referent identity: a separately authenticated value is equivalent exactly when
 its complete canonical bytes and `RendererConfigurationId` equal the selected
-\(K_R\). A projection, narrower configuration, unauthenticated reconstruction,
-caller-created replacement, or equal ID associated with different canonical
-bytes does not satisfy the boundary. The renderer and validator receive no
+\(K_R\). An independently authenticated partial configuration, unauthenticated
+reconstruction, caller-created replacement, or equal ID associated with
+different canonical bytes does not satisfy the boundary.
+
+The compiler alone derives `AdapterConfigurationViewV1` and
+`ValidationConfigurationViewV1` as private nonowning borrows of that complete
+value. Each view carries the same opaque `RendererConfigurationId` and
+`RendererConfigurationCommitment`; neither is an independently authenticated
+configuration or a substitute for the full value. The adapter view exposes
+only the selected family, compatible input/output schemas, candidate
+checkpoint and numerical runtime, finite resource bounds, and
+candidate-required decoder/tokenizer fields through closed present/absent
+variants. The validation view exposes only structural/semantic validator
+artifacts, calibration, thresholds, corpus identities, validation limits, and
+candidate-compatibility fields. Neither domain can read or construct the other
+view. In particular, the adapter cannot inspect verifier models, thresholds,
+calibration, corpus identities, or validator-only controls. Neither view grants
 installation-resolution, trust-root, update, filesystem, network, registry,
-installation, or mutation capability with the value.
+installation, or mutation capability.
 
 The shared artifact domain defines an opaque
 `RendererConfigurationCommitment` over the exact canonical \(K_R\) bytes. It
 has no public bytes, constructor, mutation, or serialization API; candidate and
-context domains may retain it and compare it with an authenticated
-configuration. `RenderedAttention`, `SubstitutedAttention`, and
+context domains may retain it and compare it with a view borrowed from an
+authenticated configuration. `RenderedAttention`, `SubstitutedAttention`, and
 `ValidationContext` carry both this commitment and
 `RendererConfigurationId`. An equal ID with unequal commitments is
 `RendererConfigurationMismatch`, quarantines the configuration path, and is
@@ -140,10 +166,11 @@ the validated
 single sealed `BoundQuery` returned by the situation boundary.
 `ResolvedCallControls<'configuration>` retains a private nonowning borrow of
 the exact preflight-created `AuthenticatedRendererConfiguration`; it neither
-copies nor reconstructs \(K_R\). Context construction uses that borrow, and
-the renderer, substitution boundary, and validator normally receive reborrows
-of the same object. The enforceable check remains exact authenticated content
-equality. The builder:
+copies nor reconstructs \(K_R\). Context construction and exact substitution
+use that borrow. The adapter and independent validator receive only their
+respective configuration views derived from it. The enforceable check remains
+the common `RendererConfigurationId` and exact full-content commitment. The
+builder:
 
 1. revalidates the retained request against the sealed
    `AuthenticatedInvocation`;
@@ -244,13 +271,21 @@ fn build_validation_context<'call, 'plan, 'configuration>(
     invocation: &AuthenticatedInvocation<'call>,
     query: &BoundQuery,
     plan: &'plan FocusExpectationPlan<'call>,
+    conditioning: &FocusConditioningValidationViewV1<'call, 'plan>,
     controls: &ResolvedCallControls<'configuration>,
 ) -> Result<ValidationContext<'plan>, ValidationContextError>;
+
+fn split_configuration_views<'configuration>(
+    configuration: &'configuration AuthenticatedRendererConfiguration,
+) -> (
+    AdapterConfigurationViewV1<'configuration>,
+    ValidationConfigurationViewV1<'configuration>,
+);
 
 fn validate<'plan>(
     candidate: &SubstitutedAttention<'plan>,
     view: &ValidationView<'plan>,
-    configuration: &AuthenticatedRendererConfiguration,
+    configuration: &ValidationConfigurationViewV1<'_>,
 ) -> Result<AcceptedAttention, RendererValidationError>;
 ```
 
@@ -260,16 +295,22 @@ public unchecked constructor. The render and substitution boundaries are the
 only checked candidate constructors; the compiler-owned builder is the only
 context constructor; and `validate` is the only accepted-output constructor.
 `ValidationContext<'plan>` privately retains the minimized semantic and
-validator-control state required by the checks below and implements or
-projects the logical `ValidationView<'plan>` contract. It has no getter for
-the raw plan, invocation, planning scope, or witness and cannot outlive `L`.
+validator-control state required by the checks below and one equality-only
+`ConditioningBinding<'plan>` derived by the compiler from the private
+`ConditioningInstanceWitness`. It implements or projects the logical
+`ValidationView<'plan>` contract. It has no getter for the raw plan,
+invocation, planning scope, witness, or binding value and cannot outlive `L`.
 `validate` receives only that view, not the backing context type, `L`, or any
-invocation capability. The concrete view representation remains open under
-`OD-03` and `OD-04`; the signature names the required logical boundary.
+invocation capability. Shared render-domain code exposes only a total
+candidate-to-view binding comparison; it exposes no witness bytes, ordering,
+hash, constructor, clone, serialization, or semantic feature. The concrete
+view representation remains open under `OD-03` and `OD-04`; the signature
+names the required logical boundary.
 
 At the crate boundary, dependency-light `nemosyne-render-domain` owns the
-opaque candidate, token-origin, segmentation, slot-registry, validation-view,
-and \((c_L,\beta_L,c_R,\beta_R)\) handle contracts.
+opaque candidate, token-origin, segmentation, slot-registry, equality-only
+conditioning-binding, validation-view, and
+\((c_L,\beta_L,c_R,\beta_R)\) handle contracts.
 `nemosyne-compiler` owns and constructs the private context, while
 `nemosyne-validator` owns only the independent validation algorithm over those
 shared read-only domain types. Checked render-domain constructors accept only
@@ -309,8 +350,8 @@ Candidate validation can return
 `RendererValidationError::PlanIdentityMismatch` when the candidate's sealed
 plan content identity differs from the one exposed by the validation view and
 `RendererValidationError::RendererConfigurationMismatch` when the candidate,
-view, and exact supplied \(K_R\) do not carry one identical valid
-`RendererConfigurationId` and exact canonical configuration commitment. Equal
+view, and supplied `ValidationConfigurationViewV1` do not carry one identical
+valid `RendererConfigurationId` and exact canonical configuration commitment. Equal
 ID with different canonical bytes is the same mismatch class and additionally
 quarantines the configuration path. It cannot produce or reinterpret any
 `ValidationContextError`.
@@ -334,55 +375,77 @@ content-equivalent, but their fresh call brands, plan witnesses, and permitted
 request-local instance identities differ. Their semantic validation
 projections, validation verdicts, and successful product bytes must be
 identical. Their separately constructed canonical-content-identical plans
-therefore have the same `PlanContentId`; a candidate created from either plan
-may be validated against either corresponding content-equivalent context and
-must produce identical substitution, validation, and product bytes under that
-same `RendererConfigurationId` and byte-identical authenticated canonical
-\(K_R\) content. Each
-context builder still validates its own plan witness against its independently
-supplied current invocation before creating that context. An individual \(B_Q\) or
-\(Q_{\mathrm{num}}\) projection cannot be copied, replaced, or rebound at this
-boundary. A missing, malformed, different, or recomputation-inconsistent
-sealed aggregate, a failed internal
-\(B_Q(Q)=\pi_Q(\Lambda_A(L))\) join, or a plan witness from the other call
-fails before candidate validation. No witness is retained in either successful
-context. Only privileged instance receipts outside the product may differ.
-The validator may not turn an opaque binding's byte representation or order
-into a semantic feature or tie-break.
+therefore have the same `PlanContentId`, but each compile mints a distinct
+`ConditioningInstanceWitness`. A candidate wrapper from one compile cannot be
+validated against the other compile's retained validation view. Re-executing
+the adapter and validator independently for each live composite must produce
+identical substitution, verdict, and product bytes under the same
+`RendererConfigurationId` and byte-identical authenticated canonical \(K_R\)
+content. The witness establishes only the live \(C_A\)-to-\(C_V^{bind}\) join;
+it is excluded from canonical plan/configuration content and cannot affect
+model features, candidate payload, semantic checks, or product bytes.
 
-The candidate renderer computes:
+Each context builder still validates its own plan witness against its
+independently supplied current invocation before creating that context. An
+individual \(B_Q\) or \(Q_{\mathrm{num}}\) projection cannot be copied,
+replaced, or rebound at this boundary. A missing, malformed, different, or
+recomputation-inconsistent sealed aggregate, a failed internal
+\(B_Q(Q)=\pi_Q(\Lambda_A(L))\) join, a plan witness from another call, or a
+foreign/reconstructed conditioning witness fails before semantic validation.
+Only privileged instance receipts outside the product may differ. The
+validator may not turn an opaque binding's byte representation or order into a
+semantic feature or tie-break.
+
+The selected candidate computes from only its least-privilege adapter views:
 
 \[
+U_F =
+A_{\alpha,C_R^A}\!\left(C_A(L)\right),
+\qquad
+S_F =
+\operatorname{surface}_{\alpha,C_R^A}(U_F),
+\qquad
 Z_{\mathrm{slot}} =
-\operatorname{render}_{K_R}(L)
+\operatorname{seal}_{K_R}(S_F,U_F,L).
 \]
 
-where \(Z_{\mathrm{slot}}\) is an opaque
-`RenderedAttention<'plan>` value whose lifetime is tied to the borrowed source
-plan. The lifetime prevents the candidate from outliving that borrow and
-prevents unchecked detachment; it does not prove that a later plan borrow
-refers to the same object. Its sole checked constructor accepts the complete
-`FocusExpectationPlan`, not a caller-supplied plan identifier, and seals that
+\(U_F\) is the bounded untrusted focus envelope defined below and \(S_F\) is
+its untrusted slot-bearing surface. For a structural-shape payload,
+`surface` is the registered deterministic lexicalizer. For a bound-text
+payload, it is the registered deterministic validation and projection of that
+payload. Both operations receive only \(U_F\) and
+`AdapterConfigurationViewV1`; neither receives \(L\), \(C_V\), or complete
+\(K_R\).
+\(Z_{\mathrm{slot}}\) is an opaque `RenderedAttention<'plan>` whose lifetime
+is tied to the borrowed source conditioning view.
+
+The checked shape constructor accepts only the adapter conditioning and
+configuration views and retains opaque equality bindings derived from their
+private witness and full-\(K_R\) commitment. The compiler-owned `seal` boundary
+accepts \(S_F\), \(U_F\), their source plan, and complete authenticated
+\(K_R\); it accepts no caller-supplied identity or configuration and performs
+no learned or semantic text generation. It recomputes and seals the
 plan's deterministic `PlanContentId`, a private exact
-`PlanCanonicalEnvelopeV1` byte-comparison capsule, and the recomputed
-`RendererConfigurationId` plus private exact
-`RendererConfigurationCommitment` of the authenticated \(K_R\) before any
-candidate bytes can exist. This is the second and final bounded full-envelope
-pass described above; it cannot reuse the context capsule as construction
-evidence. The plan capsule exists only to distinguish
-canonical-byte equality from an observed same-identity/different-byte
-collision; it is not model input, semantic content, or a second identity. The
-model runtime cannot construct, replace, or mutate any binding. The value
-contains:
+`PlanCanonicalEnvelopeV1` byte-comparison capsule,
+`RendererConfigurationId`, and a private exact
+`RendererConfigurationCommitment` before a slot-bearing candidate exists.
+This is the second and final bounded full-envelope pass described above. It is
+performed by the checked orchestrator boundary, not by adapter code, and
+cannot reuse the context capsule as construction evidence. The plan capsule
+only distinguishes canonical-byte equality from an observed
+same-identity/different-byte collision; it is not model input, semantic
+content, or a second identity. Neither adapter nor surface runtime can
+construct, replace, or mutate a binding. `RenderedAttention<'plan>` contains:
 
 - generated attention text before exact-value substitution;
 - a complete segmentation of that text;
-- untrusted bindings from output units to planned
-  `PlanItemSemanticKey` values;
-- the exact-value slot occurrences claimed by the renderer; and
+- untrusted bindings from output units to
+  `AdapterPlanItemHandleV1` values;
+- the exact-value slot occurrences claimed by the renderer;
+- the opaque equality-only conditioning binding;
 - the private sealed plan content identity;
 - the private exact canonical-plan byte-comparison capsule; and
-- the private sealed renderer-configuration identity; and
+- the private sealed renderer-configuration identity;
 - the private exact renderer-configuration content commitment.
 
 Deterministic slot substitution produces:
@@ -420,8 +483,9 @@ from a canonical-content-identical plan is accepted at this identity boundary.
 validator-owned failure when a substituted candidate and validation view
 are canonically different.
 `RendererValidationError::RendererConfigurationMismatch` remains the
-validator-owned failure when the candidate, view, or supplied \(K_R\)
-identities or exact canonical contents differ.
+validator-owned failure when the candidate, view, or supplied
+`ValidationConfigurationViewV1` identities or exact full-\(K_R\) commitments
+differ.
 
 `RendererSubstitutionError` is the closed substitution-owned sum:
 
@@ -469,20 +533,158 @@ V_{\mathrm{view}}
 \pi_{\mathrm{val}}(V_{\mathrm{ctx}}),
 \qquad
 T' =
-\operatorname{validate}(Z_{\mathrm{exact}},V_{\mathrm{view}},K_R)
+\operatorname{validate}(Z_{\mathrm{exact}},V_{\mathrm{view}},C_R^V)
 \]
 
 The successful product result remains the compiled text defined by the V1
-product contract. The numerical prefix, model tokens, segment bindings, and
-slot table are internal artifacts and are not additional product results.
+product contract. Candidate-specific numerical prefixes or model tokens, the
+common shape/trace, segment bindings, and slot table are internal artifacts and
+are not additional product results.
 
 ### Renderer projection view
 
-The renderer does not accept one undifferentiated memory vector. It consumes
-the one authoritative `L` envelope; it does not construct a second renderer
-plan. The planning specification owns every logical item. The selected
-renderable items in that envelope form the finite,
-canonically ordered sequence:
+The compile orchestrator constructs one checked borrowed
+`VectorConditionedFocusInputV1<'call, 'plan>` by joining the canonical
+`VectorConditionedFocusSemanticsV1` sealed into the one authoritative `L`
+envelope with that live plan's request-local custody/source-binding view. The
+composite owns one private `ConditioningInstanceWitness<'call>` and exposes the
+disjoint
+`AdapterConditioningViewV1` \(C_A(L)\) and
+`FocusConditioningValidationViewV1` \(C_V(L)\). A learned adapter consumes only
+\(C_A(L)\); the independent validator consumes \(C_V(L)\). Neither component
+can construct, replace, or read the other's view. The renderer does not accept
+one undifferentiated memory vector, a caller-built vector list, raw plan bytes,
+or a second renderer plan. The planning specification owns membership, source
+bindings, relevance weights, logical items, relations, qualifications,
+language, and bounds.
+
+The checked input is:
+
+\[
+C_F(L)=
+\left(
+C_A(L),
+C_V^{sem}(L),
+C_V^{bind}(L),
+\omega_F
+\right),
+\qquad
+C_A(L)=
+\left(
+Q_F,
+\mathcal M_F,
+\mathcal Q_F,
+\mathcal R_F,
+\ell_L,
+B_L
+\right).
+\]
+
+\(\omega_F\) is the opaque conditioning-instance witness. \(Q_F\) is the
+bounded numerical query/task/situation projection copied from
+the sealed query. \(\mathcal M_F\) is the finite, duplicate-free, canonical
+set of actual verified semantic memory-vector artifacts supporting selected
+renderable plan items. \(\mathcal Q_F\) contains separately tagged request- or
+situation-origin numerical evidence. \(\mathcal R_F\) contains the safe closed
+roles, relations, uncertainty and missingness qualifiers, presence masks,
+activation weights, dense adapter handles, and exact-slot metadata required for
+conditioning. \(C_V^{sem}\) contains lineage-independent validator semantics
+and a total handle-to-plan-item mapping; it is canonical plan content together
+with \(C_A\). \(C_V^{bind}\) contains request-local provenance, custody, and
+source-instance bindings. \(C_V^{bind}\) and \(\omega_F\) are excluded from
+`PlanContentId` and cannot affect model features, scores, canonical order, or
+product bytes.
+
+Each memory member \(m_i\) contains the bit-identical semantic vector facets
+from its admitted derived artifact, their vector-space, encoder, schema,
+normalization, dimension, and presence-mask identities, one activation weight
+\(a_i\in[0,1]\), and one dense canonical `AdapterPlanItemHandleV1`. The
+corresponding `PlanItemSemanticKey`, authoritative projection, artifact/source
+identity, custody, and opaque provenance remain validator-only. Origin and
+integrity do not assert that the encoded proposition is true.
+
+Activation weight is only bounded request-local relevance. It is not truth,
+probability, confidence, authority, disclosure permission, utility, safety,
+or action priority. Zero is distinct from absent and unknown. An adapter may
+use the weight only within its authenticated candidate transform; it cannot
+change input membership, rerank the plan, raise an authority ceiling, remove a
+qualifier, create a proposition, or authorize an exact slot.
+
+`vector_conditioning_input` validates the exact canonical semantics already
+bound by `PlanContentId`, joins the retained live binding view, mints
+\(\omega_F\), and returns an opaque borrow with private fields. It performs no
+encoding, database access, retrieval, text lookup, or normalization of source
+order. Missing or duplicate bindings, nonfinite vectors or weights, unknown or
+incompatible spaces, encoder/schema/dimension mismatch, missing masks,
+incomplete or non-bijective handle mapping, cross-plan sources, unauthorized
+or unselected members, and a bound violation are typed
+`FocusConditioningError` values before any model call.
+Unauthorized or incompatible records outside a sealed valid input are tested
+for external-state noninterference; they are never injected as tolerated
+adapter members.
+
+The architecture-neutral candidate boundary is:
+
+```rust
+trait VectorConditionedFocusAdapter {
+    fn condition<'call, 'plan, 'configuration>(
+        &self,
+        input: &AdapterConditioningViewV1<'call, 'plan>,
+        configuration: &AdapterConfigurationViewV1<'configuration>,
+    ) -> Result<UntrustedBoundedFocusShapeV1<'call, 'plan>, FocusAdapterError>;
+}
+```
+
+The shape's checked constructor borrows the private conditioning witness and
+full-\(K_R\) commitment through those two views and retains only opaque
+equality bindings derived from them. Adapter code cannot supply, clone,
+serialize, or replace either binding. Preflight derives the paired
+`ValidationConfigurationViewV1` from the same complete
+`AuthenticatedRendererConfiguration`; verifier artifacts, thresholds,
+calibration, corpus identities, and validator-only controls have no adapter
+accessor and cannot affect adapter execution.
+
+Every candidate output uses the same canonical `FocusSupportTraceV1`. It
+contains a finite canonical sequence of contiguous `FocusShapeNodeId` values
+and a finite canonical relation sequence. Each assertion-bearing node binds:
+
+- one closed focus or expectation surface role;
+- a nonempty duplicate-free set of admitted `AdapterPlanItemHandleV1` values;
+- the complete required qualifier keys it claims to preserve;
+- any permitted `RendererSlotId` references; and
+- one nonempty candidate-output unit or shape-node range.
+
+Relations contain one closed relation tag plus existing source and target node
+IDs. Before semantic validation, the validator resolves each handle through
+the total \(C_V^{sem}\) bijection to the corresponding
+`PlanItemSemanticKey`, required qualifiers, permitted slots, and semantic
+ceiling. Unknown, forged, out-of-range, duplicate, remapped, or noncanonical
+handles; duplicate nodes; empty support; unknown qualifiers, slots, or
+relation tags; dangling relations; overlapping or out-of-range units; missing
+required qualifier coverage; and any cardinality or byte-bound excess are
+typed `FocusShapeValidationError` values.
+
+`UntrustedBoundedFocusShapeV1` is the common checked adapter-output envelope.
+It contains the sealed plan and
+renderer-configuration bindings, an opaque equality-only conditioning binding
+derived from \(\omega_F\), resolved language and finite bounds, one registered
+adapter-output schema identity, the common support trace, and one finite
+candidate-specific payload accepted by that schema. The validator requires an
+equal conditioning binding from its retained view and the same full-\(K_R\)
+commitment from its configuration view before interpreting the trace. The
+payload is either a registered structural shape or registered bound text. It
+is untrusted, ephemeral, and incapable of raising authority. A deterministic
+lexicalizer may consume the structural-shape payload. A fused adapter-decoder
+returns a bound-text payload inside this same envelope; it cannot construct
+`RenderedAttention<'plan>` directly. Both variants obey the same errors,
+bounds, substitution, and independent-validation contract. The trace contains
+no raw source text, semantic key, exact payload, opaque provenance,
+validator-only control, or authority-raising field. The shape or text is never
+a plan, truth record, memory, answer, action, authorization, tool call, or
+chain of thought.
+
+The selected renderable plan items form the finite, canonically ordered
+sequence:
 
 \[
 \operatorname{items}(G(L))
@@ -500,10 +702,9 @@ Each item is:
 \varphi_i,
 \kappa_i,
 \mathbf m_i,
-\iota_i,
+\eta_i,
 \mathcal R_i,
 \mathcal U_i,
-\mathcal B_i^{\mathrm{src}},
 \mathcal X_i^{\mathrm{slot}},
 \delta_i
 \right)
@@ -517,17 +718,15 @@ where:
 - \(\varphi_i\) is the plan-item role;
 - \(\kappa_i\) is its canonical plan rank;
 - \(\mathbf m_i\) is the facet-presence mask;
-- \(\iota_i\) is the lineage-independent `PlanItemSemanticKey`; the
-  request-local `PlanItemId` remains only in `X_L` and privileged receipts;
-  and
+- \(\eta_i\) is the dense canonical `AdapterPlanItemHandleV1`; its
+  validator-only \(C_V^{sem}\) mapping owns the corresponding
+  `PlanItemSemanticKey`, while request-local `PlanItemId` and source identities
+  remain only in \(C_V^{bind}\) and privileged receipts;
 - \(\mathcal R_i\) contains typed dominant, secondary, conflict, and
   qualification
   relations;
 - \(\mathcal U_i\) is the authority ceiling and
   current-versus-historical usage class;
-- \(\mathcal B_i^{\mathrm{src}}\) contains essential request or
-  authorized-memory support and
-  provenance identities;
 - \(\mathcal X_i^{\mathrm{slot}}\) is the set of typed exact-value slot
   bindings permitted for the
   item; and
@@ -539,20 +738,25 @@ validator-control collection `X_L`, `ell_L`, and `B_L`. Expectation items
 retain their hypothesis kind, condition, horizon, relative-support semantic
 label, counterevidence, coverage, alternatives, uncertainty diagnostics, and
 abstention state. Every upstream plan field has a lossless mapping to either
-the item tensor view, the exact sidecar, or `X_L`; one field cannot have two
-owners. No lossy `FocusExpectationPlan`-to-`RendererPlan` projection exists.
+`AdapterConditioningViewV1`, `FocusConditioningValidationViewV1`, or the exact
+sidecar; one field cannot have two owners. No lossy
+`FocusExpectationPlan`-to-`RendererPlan` projection exists.
 
 The registered projection manifest is exhaustive:
 
-| Plan field | Sole renderer representation | Generative visibility |
+| Plan field | Canonical conditioning representation | Adapter visibility |
 | --- | --- | :---: |
-| Schema and configuration fingerprints | Compatibility check in `X_L` | No |
-| Complete shared `source_receipt` lineage and expectation-bundle identity | Identity checks in `X_L` and attribution receipts | No |
-| Output language | Closed global language embedding plus decoder and validator configuration | Yes |
-| Post-substitution budget | Cost bound, generation limit, and slot substitution | No semantic feature |
-| Empty-attention disposition | Closed global disposition embedding and structural validator | Yes |
-| Canonical item order | \(\kappa_i\) and canonical tensor position | Yes |
-| Proposition meaning and typed numerical facets | \(\{v_{i,f}\}\), \(\mathbf m_i\), and \(\iota_i\) attribution binding | Yes, except the opaque identity |
+| Schema and configuration fingerprints | Compatibility check in \(C_V\) and authenticated adapter-schema identity in \(C_A\) | Closed schema identity only |
+| Complete shared `source_receipt` lineage and expectation-bundle identity | Identity checks in \(C_V\) and attribution receipts | No |
+| Numerical query/task/situation context | \(Q_F\) with typed facets and masks | Yes |
+| Verified selected memory semantic vectors | \(\mathcal M_F\) with typed artifact/space bindings and masks | Vector values yes; opaque identities no |
+| Request/situation numerical evidence | \(\mathcal Q_F\) with closed source role | Yes |
+| Activation weight | Finite \(a_i\in[0,1]\) labeled `RelevanceNotTruthProbabilityAuthorityOrUtility` | Yes |
+| Output language | Closed language field plus candidate and validator configuration | Yes |
+| Post-substitution budget | Finite adapter/output bound plus exact-slot substitution bound | Bound only |
+| Empty-attention disposition | Deterministic no-adapter path and structural validator | No |
+| Canonical item order | Canonical value order and permutation-invariance checks | Yes |
+| Proposition meaning and typed numerical facets | \(\{v_{i,f}\}\), \(\mathbf m_i\), and adapter handle \(\eta_i\); \(C_V^{sem}\) alone maps the handle to `PlanItemSemanticKey` | Meaning and handle yes; semantic key no |
 | Focus or expectation role and hypothesis kind | \(\varphi_i\) from the closed role vocabulary | Yes |
 | Prediction frame, subject/scope, and alternative family | Registered typed facets, presence masks, and required relations in \(\mathcal R_i\); opaque identities in `X_L` | Yes, except opaque identities |
 | Outcome identity and representative transition | Outcome facet plus validator-only proposition and source identities in \(\mathcal B_i^{\mathrm{src}}\) | Meaning yes; identities no |
@@ -562,17 +766,17 @@ The registered projection manifest is exhaustive:
 | Coverage, missingness, novelty, and uncertainty | Registered finite scalars and presence masks in \(\mathbf n_i,\mathbf m_i\), required qualification items/relations, and full diagnostics in `X_L` | Selected qualification yes |
 | Exact values | Typed slot bindings \(\mathcal X_i^{\mathrm{slot}}\) and authorized sidecar \(\mathcal V_{\mathrm{exact}}\) | Placeholder only |
 | Authority ceiling and historical/current use | Closed \(\mathcal U_i\) category and validator ceiling in `X_L` | Category yes; policy internals no |
-| Essential support, provenance roots, and dependency groups | \(\mathcal B_i^{\mathrm{src}}\) attribution binding and `X_L` | No |
-| Mandatory relations | \(\mathcal R_i\) and `X_L` closure check | Yes when lexicalization requires them |
-| Render disposition and omission policy | \(\delta_i\) and `X_L` | Yes when renderable |
-| Exclusions, forbidden surfaces, omitted support, abstention controls, no-answer, and no-action | `X_L` only, except a separately selected renderable abstention proposition | No |
+| Essential support, provenance roots, and dependency groups | \(C_V\) attribution and closure binding | No |
+| Mandatory relations | Safe closed relation in \(C_A\) and authoritative closure check in \(C_V\) | Safe relation only |
+| Render disposition and omission policy | Safe renderable disposition in \(C_A\) and full control in \(C_V\) | Safe renderable disposition only |
+| Exclusions, forbidden surfaces, omitted support, abstention controls, no-answer, and no-action | \(C_V\) only, except a separately selected renderable abstention proposition | No |
 
 An implemented plan schema enumerates every mandatory source field and exactly
 one row-equivalent projection target. Construction rejects a missing mapping,
 two owners, an unknown field, a required scalar without range and semantic
 label, a required facet without a presence bit, or a renderable qualifier that
-exists only in `X_L`. Missing values use explicit masks and typed absence; they
-are never silently encoded as numeric zero.
+exists only in \(C_V\). Missing values use explicit masks and typed absence;
+they are never silently encoded as numeric zero.
 
 For the nonempty render path, global render state is:
 
@@ -580,18 +784,28 @@ For the nonempty render path, global render state is:
 g_L=\ell_L.
 \]
 
-It is projected through registered global prefix positions rather than copied
-into every item. Budget, lineage, policy internals, and opaque identities do
-not enter \(g_L\). The empty disposition is not a model input because
-\(G(L)=\varnothing\) takes the deterministic no-model fast path.
+Each registered family declares how it integrates this closed global value
+without copying candidate-specific semantic hints into the input. Budget,
+lineage, policy internals, and opaque identities do not enter \(g_L\). The
+empty disposition is not adapter input because \(G(L)=\varnothing\) takes the
+deterministic no-adapter fast path.
 
-`X_L` contains exclusions, authority ceilings, dependency groups, required
+\(C_V\) contains exclusions, authority ceilings, dependency groups, required
 qualifiers, omitted support, abstention reasons, and no-answer/no-action
-controls. It is never projected into the generative prefix and none of its
-exact surfaces is a substitution slot. It is passed only to deterministic and
-semantic validators. This prevents a control from becoming a negatively marked
-but still model-visible prompt while ensuring that no control can be silently
-optimized away.
+controls. It is never projected into an adapter or decoder input and none of
+its exact surfaces is a substitution slot. It is passed only to deterministic
+and semantic validators. This prevents a control from becoming a negatively
+marked but still model-visible prompt while ensuring that no control can be
+silently optimized away.
+
+Neither \(C_F\) nor any decoder input contains raw or normalized memory text,
+nearest-memory text, reconstructed source prose, a decimal serialization of
+vectors, original user-prompt tokens or bytes, exact-value payloads, arbitrary
+record/user/provenance identifiers, validator-only exclusion or policy text,
+or retrieval, persistence, action, tool, authorization, filesystem, network,
+or database capabilities. A vector-to-nearest-text lookup or embedding
+inversion before decoding is the forbidden memory-text path under another
+name.
 
 Facet spaces are typed and versioned. A semantic embedding, temporal encoding,
 activation score, authority feature, and uncertainty feature are not
@@ -665,7 +879,8 @@ Within one owner/locator group, any disagreement other than an exact duplicate
 or a permitted-binding-set union is `ConflictingExactSlot`; in particular,
 different authoritative values or formatted bytes cannot be silently split or
 merged. The validated \(\zeta_j\) values are sorted before contiguous
-`RendererSlotId` assignment within the fixed tokenizer vocabulary. The
+`RendererSlotId` assignment. Slot identity is independent of any tokenizer,
+decoder, or candidate-family vocabulary. The
 authoritative value, \(c_j^{\mathrm{surf}}\), surface bytes, \(\iota_j\), and
 every \(B_Q\)-, \(\Lambda_A\)-, or request-instance identity are excluded from
 \(\zeta_j\), slot ordering, and renderer-slot assignment.
@@ -702,7 +917,7 @@ receipts, deterministic substituted bytes and offsets, and the complete
 product bytes. This is an exact-value noninterference contract, not a claim
 that the complete plan serialization is value-independent.
 
-If \(n_j\) is the count of emitted token identity \(s_j\), substitution
+If \(n_j\) is the count of emitted typed slot reference \(s_j\), substitution
 requires:
 
 \[
@@ -710,35 +925,49 @@ n_j^{\min}\leq n_j\leq n_j^{\max}
 \]
 
 A slot is mandatory exactly when \(n_j^{\min}>0\). Every occurrence must lie
-inside an output unit bound to one pair in \(\Omega_j\). Counts, permissions,
-and roles are checked on token identities before text decoding.
+inside an output or shape unit bound to one pair in \(\Omega_j\). Counts,
+permissions, and roles are checked on typed slot references before surface
+realization or substitution.
 
 \[
 b_j =
 \operatorname{surface}_{K_R}(a_j,\tau_j,\ell_L)
 \]
 
-The initial candidate reserves a fixed vocabulary of 64 slot tokens, such as
-`<NV_00>` through `<NV_63>`. Sixty-four is an initial registered capacity for
-evaluation, not a validated optimum. The final maximum must be no greater than
-the plan schema and rendering budget can validate exhaustively.
+A token-generating candidate may map `RendererSlotId` values to pinned atomic
+tokens in its authenticated candidate manifest. `VF-LATENT-PREFIX-01`
+initially reserves 64 tokens, such as `<NV_00>` through `<NV_63>`. A
+deterministic or decoder-free candidate carries typed slot references directly
+and requires no tokenizer vocabulary. Sixty-four is one candidate-specific
+evaluation capacity, not a universal contract or validated optimum. Every
+candidate's maximum must be no greater than the plan schema and rendering
+budget can validate exhaustively.
 
 Formatting an exact timestamp, number, location, path, or identifier into an
-authorized surface form occurs deterministically before model generation.
+authorized surface form occurs deterministically before learned realization.
 Every value type defines length, character, quoting, escaping, and permitted
 placement rules. Arbitrary raw memory text is not an exact-value slot. The
-model chooses only whether and where an allowed slot token appears. It does
-not choose or transform the slot bytes.
+candidate chooses only whether and where an allowed typed slot reference
+appears. It does not choose or transform the slot bytes.
 
 ### Per-facet item projection
 
-Each numerical facet has its own learned projector:
+The equations in this section through
+[Soft-prefix projection](#soft-prefix-projection) define registered candidate
+family `VF-LATENT-PREFIX-01`. They are an experiment manifest, not the
+architecture-neutral adapter contract or a selected V1 implementation. Other
+families may use weighted pooling, a set encoder, direct query-conditioned
+cross-attention, another bounded continuous interface, or no generative
+adapter, provided they consume the identical \(C_F\), expose the required
+support trace, bind all state into \(K_R\), and pass the same qualification.
+
+In this candidate family, each numerical facet has its own learned projector:
 
 \[
 W_f:\mathbb{R}^{d_f}\rightarrow\mathbb{R}^{d_a}
 \]
 
-The initial adapter width is:
+One initial comparison point uses:
 
 \[
 d_a=512
@@ -815,7 +1044,7 @@ types, binding roles, or rank encodings are errors.
 
 ### Typed latent resampler
 
-The registered resampler begins with:
+Candidate `VF-LATENT-PREFIX-01` uses a registered resampler beginning with:
 
 \[
 \mathbf R^{(0)}
@@ -823,7 +1052,7 @@ The registered resampler begins with:
 \mathbb{R}^{N_R^{\mathrm{latent}}\times d_a}
 \]
 
-The initial candidate sets \(N_R^{\mathrm{latent}}=32\), \(d_a=512\), and
+Its initial comparison point sets \(N_R^{\mathrm{latent}}=32\), \(d_a=512\), and
 \(\ell_R=2\). In the general registered contract, \(\ell_R\) resampler blocks
 map the variable-length item matrix to a fixed-size prefix. For renderer block
 index \(b_R\), where
@@ -876,9 +1105,11 @@ authoritative plan.
 
 ### Soft-prefix projection
 
-Let \(d_{\mathrm{LM}}\) be the pinned renderer model's hidden dimension. A
-learned projection maps the resampler output into the model input-embedding
-space:
+Let \(d_{\mathrm{LM}}\) be this candidate's pinned renderer-model hidden
+dimension. A learned projection maps the resampler output into the model
+input-embedding space. This direct soft-prefix integration is specific to
+`VF-LATENT-PREFIX-01`; it is not required of another registered adapter
+family:
 
 \[
 \mathcal P_{\mathrm{soft}} =
@@ -921,17 +1152,19 @@ text, request-dependent language copy, or original user prompt. All continuous
 prefix embeddings precede generated output and are visible through ordinary
 causal attention.
 
-This is an input-dependent soft-prefix adapter. It is distinct from classical
-prefix tuning, in which a task-specific prefix is directly optimized and
-reused across inputs.
+This candidate is an input-dependent soft-prefix adapter. It is distinct from
+classical prefix tuning, in which a task-specific prefix is directly optimized
+and reused across inputs.
 
 ### Candidate language model
 
-The renderer requires a local causal decoder with direct input-embedding
-support, a pinned tokenizer and control template, non-thinking generation, no
-tool or network capability, no model-selected retrieval, and a finite output
-limit derived from the plan budget. The base checkpoint is frozen during the
-first bridge-training phase.
+A generative candidate requires a local decoder with its registered
+vector-conditioning interface, pinned tokenizer and control template,
+non-thinking generation, no tool or network capability, no model-selected
+retrieval, and a finite output limit derived from the plan budget. Direct
+input-embedding support is required only by candidate families that use it.
+Every trainable/frozen partition is declared by that family's manifest; no
+universal bridge-first or LoRA-second schedule is assumed.
 
 The [local renderer model qualification
 specification](local-renderer-model-qualification.md) alone owns candidate
@@ -939,11 +1172,15 @@ names, integration order, comparison cohorts, resource gates, and the
 promotion rule. This specification defines the interface every candidate must
 satisfy and designates no model as best or released.
 
-### Generation
+### Generative-candidate generation
 
-Let \(\Theta_R^{\mathrm{base}}\) be the frozen renderer base-model parameters,
-\(\Delta\Theta_R^{\mathrm{LoRA}}\) an optional renderer LoRA update, and
-\(e_R\) the one pinned atomic renderer-termination token in `K_R`. The token is
+This subsection applies only to a candidate whose frozen manifest selects a
+token-generating decoder. Let \(\Theta_R^{\mathrm{base}}\) be that candidate's
+frozen renderer base-model parameters,
+\(\Delta\Theta_R^{\mathrm{LoRA}}\) an optional renderer LoRA update,
+\(C_A\) the exact runtime `AdapterConditioningViewV1`, \(K_A\) the exact
+runtime `AdapterConfigurationViewV1`, and \(e_R\) the one pinned atomic
+renderer-termination token exposed through \(K_A\). The token is
 distinct from every control, language, exact-slot, and ordinary surface token.
 For visible output tokens \(y_{1:T}\), where
 \(0\leq T\leq N_R^{\mathrm{visible,max}}\), define the complete generated
@@ -958,14 +1195,14 @@ sequence:
 The generation distribution is defined over that complete sequence:
 
 \[
-p(\bar y_{1:T+1}\mid L,K_R)
+p(\bar y_{1:T+1}\mid C_A,K_A)
 =
 \prod_{t=1}^{T+1}
 p_{\Theta_R^{\mathrm{base}}+\Delta\Theta_R^{\mathrm{LoRA}}}
 \left(
 \bar y_t
 \mid
-E_{in}(L,K_R),
+E_{in}(C_A,K_A),
 \bar y_{<t}
 \right)
 \]
@@ -1007,16 +1244,17 @@ metadata outside \(\operatorname{CE}_{v1}(K_R)\); it is never a substitute for
 those exact identity fields. Hardware serial numbers, hostnames, and other
 installation identifiers that cannot affect output bytes are excluded.
 
-Every V1-deployable configuration uses greedy or a separately specified
-deterministic constrained decoder and accepts no request-time random tape. For
-successful uninterrupted executions of one fixed plan, exact sidecar,
-`RendererConfigurationId`, byte-identical authenticated canonical \(K_R\)
-content, and identical deterministic ceilings, the complete token trace,
-segment bindings, substituted attention, and validation result must be
-bit-identical. With retained prompt bytes, framing, and serializer configuration
-also fixed, successful complete product bytes must be bit-identical. Greedy
-decoding alone does not prove those properties. Any different byte-affecting
-runtime, backend, kernel, quantization,
+Every V1-deployable generative decoder configuration uses greedy or a
+separately specified deterministic constrained decoder and accepts no
+request-time random tape. A decoder-free candidate satisfies its registered
+deterministic-output contract instead. For successful uninterrupted executions
+of one fixed plan, exact sidecar, `RendererConfigurationId`, byte-identical
+authenticated canonical \(K_R\) content, and identical deterministic ceilings,
+the complete candidate-output trace, segment bindings, substituted attention,
+and validation result must be bit-identical. With retained prompt bytes,
+framing, and serializer configuration also fixed, successful complete product
+bytes must be bit-identical. Greedy decoding alone does not prove those
+properties. Any different byte-affecting runtime, backend, kernel, quantization,
 device-feature, or execution-control identity creates a different \(K_R\), a
 different `RendererConfigurationId`, and a separately qualified configuration.
 Observed byte drift under one identity invalidates and quarantines that
@@ -1026,16 +1264,19 @@ random source to the callable contract, lineage, and receipts.
 
 ### Slot substitution
 
-The model emits fixed slot-token identities rather than exact slot bytes.
-`SlotRegistryV1` is the authenticated closed registry of every reserved slot
-token identity for one \(K_R\). Each registry entry is tagged exactly one of:
+The candidate emits typed slot references rather than exact slot bytes. A
+token-generating candidate represents those references with pinned atomic token
+identities; deterministic and decoder-free candidates may carry them directly
+in their bounded output schema. `SlotRegistryV1` is the authenticated closed
+registry of every reserved slot reference for one \(K_R\). Each registry entry
+is tagged exactly one of:
 
 - `Authorized`, with exactly one sidecar entry, owner/locator, permitted
   proposition-role binding set, occurrence interval, and exact-surface schema;
   or
 - `Forbidden`, with a registered prohibition reason and no exact surface.
 
-An emitted token identity absent from `SlotRegistryV1` is `UnknownSlot`. An
+An emitted slot identity absent from `SlotRegistryV1` is `UnknownSlot`. An
 identity present with the `Forbidden` tag is `ForbiddenSlot`. The predicates
 are therefore disjoint: sidecar absence alone does not classify a registered
 forbidden token as unknown, and an unregistered token cannot be forbidden.
@@ -1052,11 +1293,13 @@ Substitution is a total deterministic operation only when:
   \(n_j^{\min}\leq n_j\leq n_j^{\max}\); and
 - substitution preserves valid UTF-8 and the attention budget.
 
-The substitution implementation scans token identities before decoding them
-to ordinary text. It must not identify slots through string matching after a
-tokenizer has normalized or split them. Slot expansion inherits the slot
-token's proposition binding, and segmentation offsets are deterministically
-recomputed over the substituted byte sequence.
+For token-generating candidates, the substitution implementation scans token
+identities before decoding them to ordinary text and must not identify slots
+through string matching after a tokenizer has normalized or split them. Other
+candidates expose typed references directly through their registered output
+schema. Slot expansion inherits the reference's proposition binding, and
+segmentation offsets are deterministically recomputed over the substituted byte
+sequence.
 
 Approved surface bytes are inserted without model rewriting. If the
 substituted text violates grammar, type-specific placement policy, or budget,
@@ -1068,8 +1311,8 @@ repair it. The closed source classifications are:
 | candidate and exact authenticated supplied \(K_R\) have different renderer-configuration identities, or equal IDs with different exact canonical configuration bytes | `RendererConfigurationMismatch` |
 | candidate and supplied plan have different valid content identities | `PlanIdentityMismatch` |
 | equal typed identity is associated with different retained canonical plan bytes | `PlanContentIdentityCollision` |
-| emitted token identity is absent from `SlotRegistryV1` | `UnknownSlot` |
-| emitted token identity is present in `SlotRegistryV1` with the unique `Forbidden` tag | `ForbiddenSlot` |
+| emitted slot reference is absent from `SlotRegistryV1` | `UnknownSlot` |
+| emitted slot reference is present in `SlotRegistryV1` with the unique `Forbidden` tag | `ForbiddenSlot` |
 | slot proposition/role does not belong to the permitted binding set | `SlotBindingMismatch` |
 | observed count is outside its finite occurrence interval | `SlotOccurrenceMismatch` |
 | promised authoritative surface is missing | `ExactSurfaceUnavailable` |
@@ -1100,10 +1343,11 @@ each rank.
 
 ### Segmentation and proposition bindings
 
-The renderer returns a complete, nonoverlapping segmentation and untrusted
-bindings from each output unit to planned `PlanItemSemanticKey` values.
-Request-local `PlanItemId` values are never model output, model-visible
-features, or semantic tie-breaks. A trainable
+Every candidate returns untrusted support bindings from each output unit or
+shape node to `AdapterPlanItemHandleV1` values. A text-generating candidate
+also returns a complete nonoverlapping segmentation. `PlanItemSemanticKey`,
+request-local `PlanItemId`, source identities, and provenance are never model
+output, model-visible features, or semantic tie-breaks. A trainable
 attribution head may calculate token-to-proposition support:
 
 \[
@@ -1115,19 +1359,24 @@ g(\mathbf u_t^{\mathrm{dec}})^\top k(h_{R,i})
 \right)
 \]
 
-where \(\mathbf u_t^{\mathrm{dec}}\) is the decoder hidden-state vector for
-visible output token `t`. These scores help form segment bindings and support
-auxiliary training losses. They do not prove that the output semantically
-follows the proposition.
+where, for a decoder-backed candidate, \(\mathbf u_t^{\mathrm{dec}}\) is the
+decoder hidden-state vector for visible output token `t`, and the item index
+names only \(\eta_i\). These scores help form handle bindings and support
+auxiliary training losses. They do not expose or prove a semantic key,
+provenance identity, or source truth, and they do not prove that the output
+semantically follows the proposition.
 
 The independent validator receives the candidate output and the
 least-privilege `ValidationView<'plan>` projected by the compiler from its
 private `ValidationContext<'plan>`. The view exposes the exact-value table,
 resolved language, semantic items, relations, qualifications, controls, and
-sealed plan and renderer-configuration identities required for validation,
-but not the backing context type, raw plan, either private canonical-plan
-byte-comparison capsule, invocation, planning scope, or witness. It does not
-accept a binding merely because the renderer produced a high score.
+sealed plan and renderer-configuration identities required for validation.
+It also carries an opaque equality-only conditioning binding that shared
+render-domain code can compare with the candidate binding before semantic
+interpretation. It exposes neither the backing context type, raw plan,
+private canonical-plan byte-comparison capsule, invocation, planning scope,
+nor witness value or constructor. It does not accept a binding merely because
+the renderer produced a high score.
 
 ### Fail-closed faithfulness validation
 
@@ -1138,8 +1387,11 @@ artifacts in `K_R`.
 
 The deterministic structural layer verifies:
 
-- renderer, plan, tokenizer, slot, formatter, and validator schema identity;
-- complete token-origin information retained before text decoding;
+- renderer, plan, adapter-output, slot, formatter, and validator schema
+  identity, plus tokenizer identity only for token-generating candidates;
+- complete token-origin information retained before text decoding only for
+  token-generating candidates; decoder-free candidates instead satisfy their
+  registered shape-node/unit-origin contract;
 - exact-slot authorization, multiplicity, mandatory presence, and completed
   substitution;
 - one complete, nonoverlapping byte segmentation;
@@ -1147,8 +1399,10 @@ The deterministic structural layer verifies:
 - membership of unbound units in the closed surface-only class;
 - complete mandatory proposition coverage and absence of excluded proposition
   bindings;
-- output-language and framing constraints; and
-- absence of malformed, repeated, truncated, or post-stop content.
+- output-language and framing constraints;
+- absence of malformed, repeated, or truncated content; and
+- for token-generating candidates, absence of post-stop content under the
+  pinned tokenizer/decoder contract.
 
 The checked substitution boundary has already enforced the exact
 post-expansion budget before it can construct `SubstitutedAttention<'plan>`.
@@ -1282,9 +1536,18 @@ is fixed.
 Each training example contains:
 
 - one versioned structured `FocusExpectationPlan`;
-- one target attention text;
-- target segmentation;
-- span-to-proposition support labels;
+- the exact field-level `AdapterConditioningViewV1` that the runtime candidate
+  receives, plus the paired validator-only view retained only by the harness,
+  including numerical query context, selected verified
+  memory vectors, request/situation numerical items, presence masks,
+  relevance-only weights, roles, relations, qualifiers, and bounds;
+- the exact `AdapterConfigurationViewV1` received by the runtime candidate and
+  the paired `ValidationConfigurationViewV1` retained by the harness, both
+  derived from one frozen authenticated full-\(K_R\) commitment;
+- one bounded target focus shape and canonical `FocusSupportTraceV1`;
+- for a text-generating candidate, one target attention text and target
+  segmentation;
+- node- or span-to-proposition support labels;
 - mandatory and optional proposition labels;
 - explicit exclusions;
 - exact-value slots and expected occurrences;
@@ -1297,16 +1560,29 @@ Each training example contains:
 The resolved language and maximum post-substitution budget are read from the
 plan envelope and must not be duplicated as independently editable labels.
 Explicit exclusions belong to the training harness and validator view of the
-plan. They are never included in the generator item sequence or continuous
-prefix.
+plan. They are never included in an adapter or decoder input.
 
-Exact values in target text are replaced with their fixed slot tokens before
-training. Every nonempty generative target is then represented by its visible
-tokens followed by exactly one \(e_R\). The terminator is included in
-language-model and sequence-scoring positions, but it has no proposition
-attribution, exact-slot label, surface segment, or output-budget cost.
-Variants derived from one semantic scenario remain in one dataset split to
-prevent train-test leakage.
+Raw or normalized memory text, original prompt text, nearest-memory text,
+vector inversion output, exact-value payload bytes, and opaque source/user/
+provenance identities are never model features, control prompts, lookup
+targets, teacher-side hidden features, or decoder context. If source prose is
+required for human annotation or an isolated nondeployable evaluation oracle,
+it lives in a separately governed custody plane with no training or runtime
+edge to the candidate.
+
+Exact values in every target use typed `RendererSlotId` references. For a
+token-generating candidate, those references are replaced with its pinned
+atomic slot tokens before training, and every nonempty generative target is
+represented by its visible tokens followed by exactly one \(e_R\). The
+terminator is included in language-model and sequence-scoring positions, but
+it has no proposition attribution, exact-slot label, surface segment, or
+output-budget cost. Decoder-free candidates use no terminator or tokenizer
+representation.
+Splitting occurs by shared semantic and source root before encoding,
+translation, paraphrase, augmentation, corruption, or teacher rendering.
+Every derivation of one memory record, proposition root, query scenario, or
+exact surface remains in exactly one dataset split. Opaque IDs are not
+model-visible split shortcuts.
 
 The training corpus must include empty attention, focus-only plans,
 focus-plus-abstention plans, valid expectation-only plans, combined plans, one
@@ -1320,7 +1596,11 @@ Empty-plan records verify the deterministic bypass and contribute no
 generative loss. Every example entering the language-model objective has at
 least one unmasked target-output token.
 
-### Phase A: bridge-only alignment
+### Candidate `VF-LATENT-PREFIX-01` Phase A
+
+This phase and the following LoRA phase apply only to the latent-prefix
+candidate. Another registered family declares its own complete frozen and
+trainable tensor partition, schedule, and ablations before outcomes are read.
 
 Before Phase A, a deterministic vocabulary-extension step appends the 64
 registered slot strings in ascending slot-identity order to the immutable
@@ -1371,7 +1651,7 @@ existing model space. Its result must be evaluated independently. Training
 LoRA from the beginning would make it unclear whether the bridge learned the
 mapping or the language model memorized renderer examples.
 
-### Phase B: bridge plus LoRA
+### Candidate `VF-LATENT-PREFIX-01` Phase B
 
 Only when the frozen bridge-only condition misses a predeclared development
 gate may the second phase jointly train the retained bridge and low-rank model
@@ -1395,6 +1675,19 @@ evidence from another without an explicit equivalence evaluation.
 
 ### Token likelihood
 
+The loss family in this subsection through [Combined
+objective](#combined-objective) is the registered
+`OBJ-TOKEN-GENERATIVE-01` objective and applies only to a candidate whose
+manifest selects a token-generating decoder. It consumes exactly the runtime
+adapter input \(C_A\) and adapter configuration view \(K_A\), plus
+harness-owned targets and labels; it never consumes \(C_V^{sem}\),
+\(C_V^{bind}\), `ValidationConfigurationViewV1`, or complete \(K_R\).
+Decoder-free families do not inherit token, terminator, token-slot, or
+sequence-likelihood losses. Each such family must register its own bounded
+shape-unit objective, parameter domain, reduction order, and common
+`FocusSupportTraceV1` loss before training, and its evidence cannot be reused
+by another family without the frozen qualification procedure.
+
 For complete target output
 \(\bar y^\*=(y_1^\*,\ldots,y_T^\*,e_R)\), teacher-forced language-model loss
 is:
@@ -1404,12 +1697,12 @@ is:
 =
 -\frac{1}{|Y|}
 \sum_{t\in Y}
-\log p(\bar y_t^\*\mid L,\bar y_{<t}^\*,K_R)
+\log p(\bar y_t^\*\mid C_A,\bar y_{<t}^\*,K_A)
 \]
 
 `Y` is the nonempty set of unmasked complete-target positions and always
 contains the terminal position \(T+1\). Loss is computed only over the
-complete target, not the fixed control prefix or continuous plan prefix. The
+complete target, not any fixed control representation or candidate input. The
 normalization prevents a longer target from receiving greater weight solely
 because it contains more tokens.
 
@@ -1432,7 +1725,7 @@ a_{t,i}^\*
 \]
 
 Attribution labels include one closed surface-only class. It may label only
-whitespace, punctuation, and structural delimiters enumerated by `K_R`.
+whitespace, punctuation, and structural delimiters exposed by \(K_A\).
 Connectives, relations, modifiers, nouns, verbs, exact values, and every other
 assertion-bearing unit require one or more planned-proposition labels. Padding
 and unavailable labels are masked out of
@@ -1497,7 +1790,7 @@ Let `J_slot` be the target positions containing exact-value slot tokens:
 =
 -\frac{1}{|J_{\mathrm{slot}}|}
 \sum_{t\in J_{\mathrm{slot}}}
-\log p(y_t^\*\mid L,y_{<t}^\*,K_R)
+\log p(y_t^\*\mid C_A,y_{<t}^\*,K_A)
 \]
 
 The separate term permits slot errors to receive greater weight than ordinary
@@ -1529,11 +1822,11 @@ unmasked complete-sequence positions, including the terminal position. Define
 the length-normalized teacher-forced log-likelihood:
 
 \[
-s(L,y)
+s(C_A,K_A,y)
 =
 \frac{1}{|Y_{\bar y}|}
 \sum_{t\in Y_{\bar y}}
-\log p(\bar y_t\mid L,\bar y_{<t},K_R)
+\log p(\bar y_t\mid C_A,\bar y_{<t},K_A)
 \]
 
 Higher `s` is better. Training rejects a non-finite sequence score. For finite
@@ -1541,12 +1834,12 @@ margin \(\mu\geq0\), the loss for one registered corruption \(y^-\) of
 positive target \(y^+\) is:
 
 \[
-\ell_{\mathrm{pair}}(L,y^+,y^-)
+\ell_{\mathrm{pair}}(C_A,K_A,y^+,y^-)
 =
 \max
 \left(
 0,
-\mu-s(L,y^+)+s(L,y^-)
+\mu-s(C_A,K_A,y^+)+s(C_A,K_A,y^-)
 \right)
 \]
 
@@ -1563,7 +1856,7 @@ contrastive term is total for both empty and nonempty corruption sets:
 \displaystyle
 \frac{1}{|\mathcal C_x|}
 \sum_{y^-\in\mathcal C_x}
-\ell_{\mathrm{pair}}(L_x,y_x^+,y^-),
+\ell_{\mathrm{pair}}(C_{A,x},K_{A,x},y_x^+,y^-),
 & |\mathcal C_x|>0.
 \end{cases}
 \]
@@ -1576,7 +1869,8 @@ order for the finite reduction rather than an unnormalized sum.
 
 ### Combined objective
 
-The candidate training objective is:
+For a candidate that registers `OBJ-TOKEN-GENERATIVE-01`, the
+candidate-specific training objective is:
 
 \[
 \mathcal L
@@ -1605,20 +1899,22 @@ held-out evaluation.
 
 ### Reference runtime
 
-The first Apple-Silicon research and fine-tuning integration uses MLX-LM with a
-small custom training and generation layer because its Qwen implementations
-accept external input embeddings and its training stack supports local LoRA.
-This is not a selection of the production Rust runtime.
+Candidate `VF-LATENT-PREFIX-01` may use MLX-LM for its first Apple-Silicon
+research and fine-tuning integration because its Qwen implementations accept
+external input embeddings and its training stack supports local LoRA. This is
+neither a requirement for another adapter family nor a selection of the
+production Rust runtime.
 
-Hugging Face Transformers is the cross-platform reference because the Qwen3
-model contract accepts `inputs_embeds`. Every implementation must pass exactly
-one of token IDs or input embeddings to each model invocation, provide the
-attention mask and positions covering the complete prefix, and verify cache
-behavior for continuous first-step inputs.
+Hugging Face Transformers is one cross-platform reference for that candidate
+because the Qwen3 model contract accepts `inputs_embeds`. A candidate using
+external embeddings must pass exactly one of token IDs or input embeddings to
+each model invocation, provide the complete attention mask and positions, and
+verify cache behavior for continuous first-step inputs.
 
-High-level text-generation servers that accept only tokenized text do not
-implement this renderer contract. Serializing vectors as decimal strings is
-not a conforming substitute.
+High-level text-generation servers that accept only request-dependent text do
+not implement a vector-first learned candidate. Serializing vectors as decimal
+strings, recovering nearest memory text, or reconstructing memory prose is not
+a conforming substitute.
 
 A local Rust integration may use a runtime that accepts external token
 embeddings, such as the low-level `llama.cpp` batch interface, only after
@@ -1636,29 +1932,36 @@ conformance tests demonstrate:
 `K_R` binds at least:
 
 - attention-plan schema and facet vocabulary;
-- the complete immutable trained-bridge checkpoint
-  \((\phi_s,r_{\phi_s})\), including every per-facet projector, numerical MLP,
+- the complete `VectorConditionedFocusInputV1` schema, query-projection
+  schema, memory-vector spaces, encoder revisions, normalization, presence,
+  source-binding, weight, role, relation, qualifier, and finite-bound
+  semantics;
+- the registered adapter-family identity and complete immutable adapter
+  checkpoint \((\phi_s,r_{\phi_s})\), containing every learned tensor owned by
+  that family and no undeclared decoder or vocabulary tensor;
+- the adapter checkpoint's canonical tensor-name inventory, shape, dtype,
+  owner, and trainability/freeze disposition for every tensor;
+- for `VF-LATENT-PREFIX-01`, every per-facet projector, numerical MLP,
   categorical embedding, item normalization, latent query, resampler
   attention/feed-forward/normalization tensor, soft-prefix
   projection/normalization tensor, output-language
   embedding/projection/normalization tensor, and proposition-attribution
   tensor;
-- the bridge checkpoint's canonical tensor-name inventory, shape and dtype for
-  every tensor, and Phase-A trainability/freeze mask;
 - scalar normalization and numerical MLP schema;
 - role, rank, relation, authority, and disposition vocabularies;
 - slot identity, value-type, and binding-role vocabularies;
-- query count, adapter width, head count, and resampler depth;
-- base model checkpoint;
-- derived model checkpoint containing the deterministic vocabulary extension,
-  original-row freeze mask, appended slot rows, and its canonical tensor-name,
-  shape, dtype, and trainability/freeze inventory;
-- LoRA checkpoint, when present, with a canonical inventory proving that it
-  contains only the permitted low-rank updates;
-- official tokenizer base revision, derived tokenizer revision, deterministic
-  augmentation receipt, and fixed control template;
-- slot-token vocabulary and deterministic substitution implementation;
-- deterministic decoding, tie, and stop configuration;
+- every architecture-specific dimension and bound; query count, adapter
+  width, head count, and resampler depth are present only for a family that
+  defines them;
+- when the registered family includes a generative decoder, one closed decoder
+  sub-envelope containing its base-model checkpoint; derived-model checkpoint
+  and original-row freeze inventory when vocabulary extension is used;
+  optional LoRA checkpoint and permitted tensor inventory; tokenizer base and
+  derived revisions; deterministic augmentation receipt; control template;
+  slot-token mapping when used; and deterministic decoding, tie, and stop
+  configuration. Decoder-free families bind an explicit absent decoder
+  sub-envelope instead;
+- typed slot-reference registry and deterministic substitution implementation;
 - output language policy;
 - structural-validator, literal-grammar, semantic-verifier, calibration,
   threshold, and validation-corpus identities, plus validator-projection
@@ -1671,9 +1974,10 @@ conformance tests demonstrate:
 - byte-affecting device/accelerator architecture, instruction/feature set, and
   driver/runtime execution identity.
 
-The bridge descriptors above are validation metadata and never substitute for
+The adapter descriptors above are validation metadata and never substitute for
 the complete content-identified artifacts. The qualification tuple's
-\((e_s,r_{e_s})\), \((\phi_s,r_{\phi_s})\), and optional
+\((\phi_s,r_{\phi_s})\) and, when decoder-backed, optional
+\((e_s,r_{e_s})\) and
 \((\Delta_s,r_{\Delta_s})\) are exactly the disjoint trained artifacts bound
 into \(K_R\). Replacing, adding, deleting, renaming, reshaping, retyping,
 moving between owners, or changing any learned tensor produces a different
@@ -1698,11 +2002,12 @@ normalization version are incompatible even when their tensor shapes match.
 
 ### Local resource behavior
 
-Cold-load time, warm latency, prefix-processing latency, generation latency,
-peak memory, persistent resident memory, and energy use are empirical release
-metrics. The model may remain resident under a separately defined local
-lifecycle policy, but no generated KV state or plan prefix may be reused
-across logically distinct calls.
+Cold-load time, conditioning and adapter latency, optional decoder-prefix and
+generation latency, peak memory, persistent resident memory, and energy use
+are empirical release metrics. A selected adapter or model may remain resident
+under a separately defined local lifecycle policy, but no request-local
+adapter state, generated KV state, or plan prefix may be reused across
+logically distinct calls.
 
 Model unloading must release model weights, LoRA state, adapter weights,
 continuous-prefix buffers, KV cache, exact-value sidecars, and request-local
@@ -1710,10 +2015,18 @@ bindings according to the adopted privacy and resource policy.
 
 ## Computational complexity
 
-The selected renderer manifest must instantiate every dimension and ceiling in
-this section before qualification. Let \(N_R^{\mathrm{item}}\) be the
-renderable item count,
-\(N_R^{\mathrm{latent}}\) the latent-query count, \(\ell_R\) the
+The selected renderer manifest must instantiate every dimension, executable
+resource function, and ceiling used by its registered family before
+qualification. Let \(N_R^{\mathrm{item}}\) be the renderable item count and
+let the manifest separately bound memory-vector count, query/request numerical
+count, relation count, total vector elements, and retained input bytes in
+\(C_F\). Every family supplies checked
+\(T_{\mathrm{adapter}}(C_F;K_R)\) and
+\(S_{\mathrm{adapter}}(C_F;K_R)\) functions. No family inherits another
+family's cost model.
+
+For candidate `VF-LATENT-PREFIX-01`, let
+\(N_R^{\mathrm{latent}}\) be the latent-query count, \(\ell_R\) the
 resampler-block count,
 \(d_{\mathrm{ff}}\) its feed-forward width, \(r_\Sigma\) the total relation and
 slot-binding entries, \(p_{\mathrm{in}}\) the complete fixed-token plus
@@ -1729,7 +2042,8 @@ counts. The decoder-step ceiling is
 \(d_f\), \(d_a\), and \(d_{\mathrm{LM}}\) retain their local definitions
 above.
 
-Dense per-facet projection and item assembly have the conservative bound:
+In `VF-LATENT-PREFIX-01`, dense per-facet projection and item assembly have
+the conservative bound:
 
 \[
 T_{\mathrm{project}} =
@@ -1797,9 +2111,11 @@ obligation rather than a completed performance claim.
 
 If \(b_{\mathrm{gen}}\) is the generated byte count and
 \(b_{\mathrm{exact}}\) the total substituted exact-surface byte count,
-token-identity validation and exact substitution are
+token-identity validation for a token-generating candidate and exact
+substitution are
 \(O(b_{\mathrm{gen}}+b_{\mathrm{exact}})\) time and output-buffer space under
-the pinned tokenizer's linear decode contract. Structural attribution
+that candidate's pinned tokenizer linear-decode contract. A decoder-free
+candidate charges its registered shape/unit scan instead. Structural attribution
 validation uses the declared executable bounds
 \[
 T_{\mathrm{struct}}(
@@ -1826,18 +2142,23 @@ assumed constant. The manifest freezes finite ceilings
 \(b_{\mathrm{val}}\leq b_{\mathrm{val}}^{\max}\). Context construction rejects an
 excess before retaining or allocating beyond either ceiling.
 
-The complete candidate-renderer upper bound is the checked sum of projection,
-resampling, soft-prefix projection, model, substitution, structural
-validation, and semantic-verification terms. Every count is constrained by an
-authenticated configuration ceiling before allocation. These expressions
-establish asymptotic accounting and fail-closed limits, not latency,
-fitness-for-use, or qualification evidence.
+The complete candidate-renderer upper bound is the checked sum of its
+registered input construction, adapter, optional decoder, substitution,
+structural-validation, and semantic-verification terms. For
+`VF-LATENT-PREFIX-01`, the adapter term is the projection, resampling, and
+soft-prefix sum above. Every count is constrained by an authenticated
+configuration ceiling before allocation. These expressions establish
+asymptotic accounting and fail-closed limits, not latency, fitness-for-use, or
+qualification evidence.
 
 ## Preconditions
 
 Rendering begins only when:
 
 - `L` passed structural, authority, provenance, and budget planning checks;
+- its canonical `VectorConditionedFocusInputV1` passed source/query/plan
+  binding, finite-value, duplicate, vector-space, encoder/schema/dimension,
+  presence-mask, relevance-weight, and absolute-bound checks;
 - every plan item uses the pinned, supported schema;
 - validator controls are canonical, complete, within their schema limits, and
   absent from the generative item sequence and substitution sidecar;
@@ -1845,17 +2166,20 @@ Rendering begins only when:
   counts satisfy \(q_{\mathrm{val}}^{\max}\) and
   \(b_{\mathrm{val}}^{\max}\) before
   validator allocation;
-- all tensors and scalars are finite and correctly normalized;
+- all numerical values and every declared tensor are finite and correctly
+  normalized;
 - canonical item ordering and unique proposition identities are established;
 - exact-value slots are unique by complete owner/locator pair, authorized,
   type-valid, and within capacity; equal locators under distinct owners remain
   distinct slots;
 - every slot binding references a known slot, value type, and semantic role;
-- every reserved slot is one unique atomic tokenizer token and its textual
-  marker cannot pass validation through an alternate tokenization;
-- \(e_R\) is one pinned atomic tokenizer token, is disjoint from every
-  reserved slot and permitted surface token, and is the only accepted
-  generation terminator;
+- for a token-generating candidate, every reserved slot maps to one unique
+  atomic tokenizer token and its textual marker cannot pass validation through
+  an alternate tokenization;
+- for a token-generating candidate, \(e_R\) is one pinned atomic tokenizer
+  token, is disjoint from every reserved slot and permitted surface token, and
+  is the only accepted generation terminator; decoder-free candidates declare
+  no terminator;
 - `ell_L` is one supported resolved output language;
 - `B_L` belongs to the renderer artifact's finite integer cost domain; zero is
   permitted exactly when the planning contract's renderable projection
@@ -1870,8 +2194,8 @@ Rendering begins only when:
   the authenticated \(K_R\), and stripped of every invocation witness; only
   \(V_{\mathrm{view}}=\pi_{\mathrm{val}}(V_{\mathrm{ctx}})\) is available to
   the validator through its minimized read-only contract;
-- all renderer, tokenizer, adapter, validator, and runtime artifacts are
-  present, compatible, authorized by the authenticated manifest, immutable,
+- all applicable renderer, tokenizer, adapter, validator, and runtime artifacts
+  are present, compatible, authorized by the authenticated manifest, immutable,
   integrity-checked, and qualified for their declared role;
 - the compile dependency boundary exposes no network capability;
 - no prior request state is visible to the renderer.
@@ -1881,6 +2205,27 @@ Rendering begins only when:
 - The authoritative structured plan remains unchanged by rendering.
 - Only the planner selects or excludes propositions.
 - The renderer sees neither the whole memory universe nor the raw user prompt.
+  Its learned semantic input is exactly \(C_A(L)\): numerical query/task
+  context plus selected verified memory/request vectors, relevance-only
+  weights, safe closed structure, language, and finite bounds.
+- An adapter cannot read, construct, replace, or derive \(C_V(L)\), exact
+  payloads, authoritative provenance, exclusions, authority ceilings, or
+  dependency controls.
+- An adapter receives only `AdapterConfigurationViewV1`; verifier artifacts,
+  thresholds, calibration, validation-corpus identities, and validator-only
+  limits are not observable adapter inputs.
+- A candidate shape and retained validator view must carry equal opaque
+  `ConditioningBinding` values derived from the same private
+  `ConditioningInstanceWitness`, and the adapter/validator configuration views
+  must carry the same full-\(K_R\) commitment.
+- Memory prose, normalized or nearest-memory text, embedding inversion output,
+  decimal vector text, original prompt tokens/bytes, exact payloads, arbitrary
+  provenance/user identifiers, and validator policy/exclusion prose cannot
+  enter a learned candidate.
+- Permuting the input set before canonicalization cannot change a
+  deterministic result. Duplicate source bindings cannot amplify relevance.
+- Relevance weights cannot establish or raise truth, probability, confidence,
+  authority, disclosure, safety, utility, or action priority.
 - No output is accepted when it promotes source authority, confidence,
   validity, or normative force.
 - No output is accepted when it promotes an expectation to an observed fact or
@@ -1898,30 +2243,36 @@ Rendering begins only when:
 - Arbitrary raw memory or source text cannot enter the output through an
   exact-value slot.
 - Slot substitution performs no semantic rewriting.
-- Every assertion-bearing output unit has a complete claimed binding; only the
-  closed non-assertive surface class may remain unbound.
+- Every assertion-bearing shape or output unit has one structurally valid
+  `FocusSupportTraceV1` node with complete claimed support and qualifier
+  coverage; only the closed non-assertive surface class may remain unbound.
 - Claimed neural bindings remain untrusted until independent validation.
 - Unsupported, excluded, answer-like, wrong-language, or unsegmentable output
   is a validation error. An over-budget expanded output is instead rejected
   exclusively by substitution before `SubstitutedAttention<'plan>` exists.
-- A model-generated output is accepted only after one complete trace ending in
-  exactly one \(e_R\); the terminator and any incomplete or post-termination
-  trace bytes are never exposed as attention text.
+- A token-generating output is accepted only after one complete token trace
+  ending in exactly one \(e_R\); the terminator and any incomplete or
+  post-termination trace bytes are never exposed as attention text. A
+  decoder-free output must terminate under its registered finite typed-output
+  schema.
 - Validation accepts the exact substituted text unchanged or returns an error;
   it does not silently repair generation.
-- Current-call witness validation occurs only while constructing
+- Invocation- and plan-witness validation occurs only while constructing
   `ValidationContext<'plan>`. The returned context and validator contain no
-  witness or invocation capability. The compiler-owned pre-validator join
-  compares private canonical-plan byte capsules when plan identities are
-  equal; an observed collision quarantines without invoking the validator.
-  Candidate validation checks sealed `PlanContentId` and
-  `RendererConfigurationId` plus the exact canonical \(K_R\) commitment,
+  invocation capability or readable witness value, but the context view and
+  candidate retain opaque equality-only bindings derived from the same
+  `ConditioningInstanceWitness`. Their mismatch rejects before semantic
+  interpretation. The compiler-owned pre-validator join compares private
+  canonical-plan byte capsules when plan identities are equal; an observed
+  collision quarantines without invoking the validator. Candidate validation
+  then checks sealed `PlanContentId`, `RendererConfigurationId`, and the exact
+  full-\(K_R\) commitment carried by `ValidationConfigurationViewV1`,
   returning `PlanIdentityMismatch` only for canonically different plan content
   and `RendererConfigurationMismatch` for any renderer-configuration identity
-  or canonical-content disagreement. Separately constructed
-  canonical-content-identical plans remain interchangeable at this
-  witness-free candidate boundary only under the same exact authenticated
-  renderer configuration content.
+  or canonical-content disagreement. Independent executions over
+  canonical-content-identical inputs must produce identical bytes and
+  verdicts, but a live candidate wrapper from one execution is not
+  interchangeable with another execution's validation view.
 - Any plan with \(G(L)=\varnothing\), including a structurally nonempty
   control-only plan, renders empty attention without invoking the model.
 - No renderer step mutates persistent memory, access history, model weights,
@@ -1945,6 +2296,30 @@ Any plan whose renderable projection \(G(L)\) is empty produces empty attention
 deterministically, whether the structural plan is empty or retains
 validator-only controls. It does not ask the model to invent a generic focus
 statement.
+
+### Query-only and memory-only controls
+
+A valid situation-only or request-only plan may have
+\(\mathcal M_F=\varnothing\) and still condition focus on \(Q_F\) and
+\(\mathcal Q_F\). That product path is distinct from the evaluation-only
+memory-only ablation in which the query contribution is masked under a frozen
+manifest. The ablation cannot become a deployable request mode.
+
+### Incompatible or duplicate vector evidence
+
+A missing presence mask, nonfinite value, wrong dimension, unknown or
+incompatible vector space/encoder/schema, duplicate source binding,
+cross-plan source, or source absent from the selected plan fails before the
+adapter runs. It is never repaired by zero-filling, text lookup, vector
+conversion, or dropping an item.
+
+### Source-text canary variation
+
+Changing only a separately held memory-source text canary while keeping the
+verified vector artifacts, exact slots, \(C_F\), plan, and \(K_R\)
+byte-identical must leave every pre-slot candidate artifact identical. Any
+copied or reconstructed canary is a nonconforming data path and a
+qualification failure.
 
 ### Focus-only plan
 
@@ -1975,19 +2350,21 @@ omit a mandatory alternative.
 
 ### No exact values
 
-The sidecar and slot occurrences are empty. Any emitted slot token is an error.
+The sidecar and slot occurrences are empty. Any emitted slot reference is an
+error.
 
 ### Slot-capacity overflow
 
-A plan requiring more exact values than the pinned slot vocabulary supports is
-rejected before model invocation. Values are not merged into one ambiguous
-slot.
+A plan requiring more exact values than the candidate's registered typed-slot
+capacity supports is rejected before adapter invocation. Values are not merged
+into one ambiguous slot.
 
 ### Unknown or repeated slots
 
 Unknown slots, unauthorized slots, prohibited repetitions, missing mandatory
-slots, slots bound to the wrong proposition, or a reserved marker emitted
-through ordinary non-slot token identities cause rendering failure.
+slots, or slots bound to the wrong proposition cause rendering failure. For a
+token-generating candidate, a reserved marker emitted through ordinary
+non-slot token identities also fails.
 
 ### Long exact values
 
@@ -2037,9 +2414,11 @@ substitution.
 
 ### Degenerate generation
 
-Repetition, empty generation for a nonempty mandatory plan, stop-token failure,
-malformed segmentation, non-finite logits, or a runtime error returns explicit
-renderer failure. The compiler does not expose a partial attention text.
+Repetition, empty output for a nonempty mandatory plan, malformed support
+trace or segmentation, non-finite candidate values, or a runtime error returns
+explicit renderer failure. A token-generating candidate additionally fails on
+stop-token or non-finite-logit errors. The compiler does not expose a partial
+attention text.
 
 ### Quantization drift
 
@@ -2052,12 +2431,17 @@ quantization or platform drift.
 
 ## Failure modes
 
-The candidate must be evaluated explicitly for:
+Every candidate must be evaluated explicitly for:
 
-- information loss through the 32-query bottleneck;
+- information loss through its bounded adapter; for
+  `VF-LATENT-PREFIX-01`, this includes the 32-query comparison point;
+- failure to condition on the current numerical query/task context;
+- ignoring, overreading, or truth-promoting relevance weights;
+- set-order sensitivity or duplicate-source amplification;
 - confusion between focus, expectations, background, constraints, exclusions,
   and uncertainty;
-- continuous prefixes outside the language model's useful embedding region;
+- for a soft-prefix candidate, continuous prefixes outside the language
+  model's useful embedding region;
 - omission of low-activation but mandatory content;
 - unsupported causal or normative connections;
 - hypothesis-to-fact promotion;
@@ -2071,9 +2455,9 @@ The candidate must be evaluated explicitly for:
 - slot omission, duplication, swapping, or grammatical misuse;
 - incorrect proposition bindings;
 - overfitting to plan order, schema version, templates, or teacher style;
-- LoRA memorization hiding a weak bridge;
+- decoder adaptation or LoRA memorization hiding a weak adapter;
 - representation drift after re-encoding memory;
-- quantization-specific prefix sensitivity;
+- quantization-specific adapter or, where applicable, prefix sensitivity;
 - cache contamination between calls;
 - same-configuration nondeterminism or a platform dependency omitted from
   \(K_R\); and
@@ -2085,40 +2469,100 @@ None of these failure modes is ruled out by the architecture alone.
 
 ### Required baselines and ablations
 
-Every renderer evaluation uses the identical frozen structured plan. At
-minimum, compare:
+Every renderer evaluation uses the byte-identical frozen
+`AdapterConditioningViewV1`, paired validator-only view,
+`AdapterConfigurationViewV1`, paired `ValidationConfigurationViewV1`, plan,
+language, budget, decoder where applicable, and validator. Both configuration
+views derive from one frozen full-\(K_R\) commitment. At minimum, compare:
 
-1. deterministic template rendering;
-2. direct deterministic serialization of plan labels;
-3. two-layer MLP projection with the frozen registered resource-floor model;
-4. two-layer MLP projection with the frozen registered capacity reference;
-5. 32-query latent resampler with the frozen resource-floor model;
-6. 32-query latent resampler with the frozen capacity reference;
-7. registered latent resampler plus LoRA on the capacity reference, only after
-   its bridge-only development-gate failure; and
-8. expert reference rendering of the identical plan.
+1. deterministic controlled rendering;
+2. query-only conditioning with memory-origin inputs absent;
+3. memory-only conditioning as an evaluation-only query-removal ablation;
+4. the identical evidence set with uniform weights;
+5. the identical evidence set with permuted order, shuffled weights, zeroed
+   weights, and registered irrelevant distractor vectors;
+6. a registered weighted pooling or linear projection;
+7. a small registered permutation-invariant set adapter;
+8. every stronger query-conditioned architecture proposed for selection,
+   including `VF-LATENT-PREFIX-01` when authorized;
+9. each proposed learned family with and without its permitted decoder
+   adaptation; and
+10. expert reference rendering of the identical admitted semantics.
 
 The local-renderer model-qualification specification owns the checkpoint names,
 seed cohorts, precision pairing, and promotion rule used by these roles.
 
-The latent-resampler study additionally varies:
+The optional `VF-LATENT-PREFIX-01` study additionally varies:
 
 - selectable query count: `8`, `16`, and `32`;
 - diagnostic stress-only query count: `64`, which may diagnose capacity or
   scaling but cannot enter a selectable cohort or set a release threshold;
 - adapter width: `256`, `512`, and `1024`;
 - resampler depth: `1`, `2`, and `4`; and
-- bridge-only versus bridge-plus-LoRA training.
+- adapter-only versus adapter-plus-LoRA training.
 
-Model, adapter, and dimension selection uses development evidence. Final
-thresholds and one candidate configuration are frozen before sealed
-evaluation.
+Raw-memory-text prompting, source-text reconstruction, and
+vector-to-nearest-text-to-decoder are forbidden product candidates rather than
+selectable baselines. A separately governed sealed oracle may quantify an
+information gap but cannot provide training features, inherit evidence, or win
+deployment selection.
+
+Model, adapter family, dimensions, and training schedule use development
+evidence. Final thresholds, multiplicity rules, baseline set, and candidate
+configurations are frozen before sealed evaluation.
 
 ### Contract tests
 
 Executable tests cover:
 
-- canonical item-order stability;
+- canonical item-order and conditioning-set permutation stability;
+- exact `VectorConditionedFocusSemanticsV1` construction inside the canonical
+  plan and live `VectorConditionedFocusInputV1` construction from that
+  semantics plus request-local binding view,
+  including bit-identical query and derived-artifact vector copying,
+  exact relevance-weight preservation, complete source-to-plan binding,
+  zero-versus-absent/unknown distinction, duplicate non-amplification, and
+  rejection of nonfinite values, wrong dimensions, unknown or incompatible
+  spaces/encoders/schemas, missing masks, cross-plan sources, unselected
+  sources, incomplete/nonbijective handle mappings, and all configured
+  cardinality/byte/work overflows;
+- query/weight/source counterfactuals: same vectors with an unrelated query
+  changes or empties supported focus, query-only and memory-only remain
+  distinguishable, uniform/shuffled/zeroed weights change relevance only,
+  admitted irrelevant distractors cannot create a supported node,
+  unauthorized or incompatible records outside the sealed input cannot change
+  its bytes or output, and constructor attempts to include them fail before
+  adapter execution; and
+  an uncertain high-weight source remains uncertain rather than becoming true
+  or authoritative;
+- source-text noninterference and canary cases proving that changing only
+  separately held memory prose at fixed vector artifacts, plan, slots, and
+  \(K_R\) leaves every pre-slot candidate identical, while any raw-text copy,
+  reconstruction, nearest-text lookup, original-prompt exposure, answer/action
+  leakage, or exact-byte invention fails qualification;
+- compile-time dependency and capability tests proving that the adapter accepts
+  only `AdapterConditioningViewV1` and `AdapterConfigurationViewV1`, cannot
+  construct or access `FocusConditioningValidationViewV1`, cannot read
+  authoritative provenance, exclusions, authority ceilings, dependency
+  controls, semantic keys, exact payloads, verifier artifacts, thresholds,
+  calibration, or corpus identities, cannot accept raw plan/source text or a
+  caller-built vector set, and has no store, retrieval, policy, authorization,
+  tool, action, filesystem, network, persistence, or exact-payload capability;
+- conditioning-instance tests proving that adapter and validator views derive
+  from one live composite, the bounded shape and retained validation view carry
+  equal opaque `ConditioningBinding` values, foreign, reconstructed, or missing
+  bindings fail before trace or semantic interpretation, and changing only the
+  private witness or request-local \(C_V^{bind}\) cannot change canonical plan
+  content or successful product bytes;
+- `FocusSupportTraceV1` tests covering contiguous and canonical node IDs,
+  nonempty support for every assertion-bearing unit, complete qualifier
+  coverage, valid typed slots and relations, total handle-to-semantic-key
+  resolution, and independent failures for duplicate or unknown nodes, forged,
+  duplicate, out-of-range, remapped, or noncanonical handles, unknown
+  qualifiers/slots/relations, dangling relations, overlapping or out-of-range
+  units, missing coverage, and every configured bound; fused and
+  shape-producing candidates must return identical verdicts for the same
+  malformed trace;
 - `PlanCanonicalEnvelopeV1` field-completeness and domain-separation fixtures:
   every included semantic, control, structural, cost, language, budget, and
   exact-surface field changes `PlanContentId`; permutation of unordered input
@@ -2139,13 +2583,23 @@ Executable tests cover:
 - shared-configuration API and compile-fail fixtures proving that
   `AuthenticatedRendererConfiguration` canonicalizes byte-for-byte as
   \(\operatorname{CE}_{v1}(K_R)\), is not compiler-private, cannot be
-  caller-constructed, field-mutated, or injected into the product path, and
-  grants renderer and validator no installation-resolution, trust-root, update,
-  filesystem, or network capability;
+  caller-constructed, field-mutated, or injected into the product path; that
+  the compiler alone derives two nonowning configuration views sharing its ID
+  and commitment; and that neither view can be independently authenticated,
+  widened, serialized, reconstructed, or used to access the other's fields;
+- configuration-information-flow fixtures proving the adapter's semantic
+  payload and support trace are invariant when only verifier artifacts,
+  thresholds, calibration, validation-corpus identities, or validator-only
+  limits change compatibly. The opaque full-\(K_R\) commitment carried by the
+  result wrapper changes with those fields and therefore is excluded from that
+  noninterference assertion. Changing an adapter-visible
+  family/schema/checkpoint/runtime/bound field changes the adapter
+  configuration identity or disposition;
 - authenticated configuration-equivalence fixtures proving that distinct
   sealed values with byte-identical canonical \(K_R\) and equal IDs behave
-  identically, while projections, narrower values, unauthenticated
-  reconstructions, different IDs, and equal-ID/different-byte commitments
+  identically, while independently authenticated partial values,
+  unauthenticated reconstructions, different IDs, and
+  equal-ID/different-byte commitments
   return `RendererConfigurationMismatch`; the collision-like latter case
   quarantines and produces no partial candidate, verdict, or product bytes;
 - repeated-execution fixtures requiring bit-identical token traces, segment
@@ -2208,12 +2662,14 @@ Executable tests cover:
   projections or verdicts;
 - validation-context least-privilege compile-fail tests proving that callers
   and the validator cannot construct the context, access its raw plan, obtain
-  an invocation or planning scope, or read/reconstruct a witness; a foreign
+  an invocation or planning scope, or read/reconstruct the private witness or
+  its opaque equality binding; a foreign
   plan supplied to the context builder produces builder-owned
   `PlanCallBindingMismatch`, while a candidate whose `PlanContentId` differs
   from the validation view produces validator-owned `PlanIdentityMismatch` and
-  a candidate, view, or supplied \(K_R\) configuration mismatch produces
-  validator-owned `RendererConfigurationMismatch`;
+  a candidate, view, or supplied `ValidationConfigurationViewV1` identity or
+  full-\(K_R\)-commitment mismatch produces validator-owned
+  `RendererConfigurationMismatch`;
   candidate-envelope compile-fail fixtures prove that neither
   `RenderedAttention<'plan>` nor `SubstitutedAttention<'plan>` can be freely
   constructed, outlive its source-plan borrow, be detached unchecked, mutate
@@ -2223,9 +2679,11 @@ Executable tests cover:
   require rejection, then repeat the swap between separately constructed
   canonical-content-identical plans under authenticated renderer
   configurations with both equal `RendererConfigurationId` and byte-identical
-  canonical \(K_R\) content, and require identical substitution, validation,
-  and product bytes. Additional fixtures pair candidates, contexts, and
-  supplied \(K_R\) values from
+  canonical \(K_R\) content and require rejection because their conditioning
+  bindings differ. Independent adapter, substitution, and validation
+  executions for those same-content inputs must instead produce identical
+  substitution, validation, and product bytes. Additional fixtures pair
+  candidates, contexts, and supplied `ValidationConfigurationViewV1` values from
   different valid configurations and require the owning configuration-mismatch
   variant before content interpretation; builder fixtures also cover
   `OriginBindingMismatch`, `PlanControlMismatch`, and
@@ -2233,12 +2691,13 @@ Executable tests cover:
   variant;
 - facet masks and incompatible schemas;
 - finite-value and dimension validation;
-- parameterized-shape fixtures over every registered
+- `VF-LATENT-PREFIX-01` parameterized-shape fixtures over every registered
   \((N_R^{\mathrm{latent}},d_a,\ell_R)\) combination, proving that item state is
   \(N_R^{\mathrm{item}}\times d_a\), latent state is
   \(N_R^{\mathrm{latent}}\times d_a\), and soft-prefix projection consumes
   exactly \(\mathbf R^{(\ell_R)}\);
-- exact soft-prefix shape, mask, position, and dtype;
+- for `VF-LATENT-PREFIX-01`, exact soft-prefix shape, mask, position, and
+  dtype;
 - empty-plan fast path;
 - every slot-substitution success and all eleven closed
   `RendererSubstitutionError` variants in their fixed precedence order,
@@ -2248,14 +2707,16 @@ Executable tests cover:
   source-to-public-error-to-CLI-exit mapping;
 - preservation of approved Unicode, path, timestamp, and number surface bytes;
 - type-specific exact-value quoting, escaping, and placement;
-- alternate tokenizations of reserved slot-marker text;
+- for token-generating candidates, alternate tokenizations of reserved
+  slot-marker text;
 - ordinary-vocabulary attempts to reproduce exact surfaces or `exact_only`
   lexical classes;
 - exact post-expansion budget checks owned by substitution before construction
   of `SubstitutedAttention<'plan>`, with no validator budget-overflow variant;
 - complete nonoverlapping segmentation;
 - known and unknown proposition bindings and the closed surface-only grammar;
-- language and stop-token enforcement;
+- language enforcement for every candidate and stop-token enforcement for
+  token-generating candidates;
 - semantic-verifier fail-closed behavior, threshold boundaries, unavailable
   artifacts, and independent false-acceptance and false-rejection fixtures;
 - FFN-workspace scaling and validator-projection resource fixtures at and
@@ -2274,6 +2735,11 @@ Executable tests cover:
 
 Held-out evaluation measures:
 
+- typed input-conformance and rejected-input coverage;
+- query-conditioned relevance against query-only and memory-only controls;
+- relevant-memory contribution and irrelevant-memory noninterference;
+- set-permutation invariance and duplicate-source non-amplification;
+- weight sensitivity without truth, certainty, authority, or action promotion;
 - mandatory-proposition coverage;
 - expectation-kind, condition, and horizon preservation;
 - competing-alternative and counterevidence preservation;
@@ -2289,14 +2755,15 @@ Held-out evaluation measures:
 - exact-slot precision and recall;
 - wrong-slot and altered-value rate;
 - output-language match;
-- raw-source copying beyond approved slots;
+- raw-source copying, memory-text canary recovery, and reconstruction-attack
+  success beyond approved slots;
 - repetition and malformed-output rate;
 - budget compliance;
 - cold and warm latency;
-- prefix-prefill and generation latency;
+- adapter conditioning, optional prefix-prefill, and generation latency;
 - peak and resident memory; and
-- downstream utility against prompt-only and deterministic-renderer
-  conditions.
+- downstream utility and harm against prompt-only, query-only, deterministic,
+  and strongest passing simple non-oracle conditions.
 
 Metrics are reported overall, by language, plan size, proposition role,
 expectation kind, horizon class, abstention state, conflict class, exact-value
@@ -2304,12 +2771,12 @@ type, and worst supported category.
 
 ### Training diagnostics
 
-Bridge-only and bridge-plus-LoRA runs report:
+Every learned adapter family reports:
 
 - all component losses separately;
 - exact trainable parameter sets;
 - gradient and activation norms;
-- virtual-prefix norm and distribution drift;
+- every architecture-specific intermediate norm and distribution drift;
 - results by semantic scenario rather than augmented row;
 - performance on unseen plan permutations and schema-compatible
   perturbations;
@@ -2326,7 +2793,8 @@ in the V1 proof program.
 The candidate is replaced or narrowed when:
 
 - deterministic rendering meets the same utility threshold with lower risk;
-- no tested bridge beats direct MLP projection materially;
+- no tested learned family beats the strongest simpler passing adapter
+  materially;
 - mandatory coverage or exclusion remains below the frozen threshold;
 - unsupported claims or answer leakage exceed the frozen ceiling;
 - expectation qualifiers, alternatives, abstention, or non-probability
@@ -2334,10 +2802,10 @@ The candidate is replaced or narrowed when:
 - hypothesis-to-fact, probability-inflation, or unsupported-action rates exceed
   their frozen ceilings;
 - exact slots cannot be used reliably across supported languages;
-- LoRA gains do not generalize to unseen semantic scenarios;
+- any decoder adaptation gains do not generalize to unseen semantic scenarios;
 - the smallest passing model exceeds local resource budgets; or
-- no runtime can execute continuous prefixes locally under the required trust
-  and artifact contract.
+- no runtime can execute the selected vector-conditioning interface locally
+  under the required trust and artifact contract.
 
 ## Open questions
 
@@ -2347,7 +2815,7 @@ The candidate is replaced or narrowed when:
 - The accepted number of exact-value slots and permitted multiplicity rules.
 - The supported exact-value types and locale formatter repertoire used by
   planning and deterministic substitution.
-- The final Qwen checkpoint or alternative local renderer model.
+- The selected adapter family and optional local decoder checkpoint.
 - Whether post-trained or base-model initialization generalizes better.
 - The final LoRA target modules, rank, alpha, and loss weights.
 - Whether greedy decoding satisfies quality requirements or a deterministic
@@ -2412,9 +2880,13 @@ The candidate is replaced or narrowed when:
 - [Local renderer model qualification](local-renderer-model-qualification.md).
 - [Decision 0013: Adopt a vector-prefix local renderer qualification
   path (superseded)](../decisions/0013-adopt-a-vector-prefix-local-renderer-qualification-path.md).
-- [Decision 0015: Render qualified focus-and-expectation
-  plans](../decisions/0015-render-qualified-focus-and-expectation-plans.md).
-- [Decision 0016: Adopt sealed compile-integrity
+- [Decision 0015: Render qualified focus-and-expectation plans
+  (superseded)](../decisions/0015-render-qualified-focus-and-expectation-plans.md).
+- [Superseded Decision 0016: Adopt sealed compile-integrity
   boundaries](../decisions/0016-adopt-sealed-compile-integrity-boundaries.md).
-- [Decision 0023: Bind complete renderer training
-  state](../decisions/0023-bind-complete-renderer-training-state.md).
+- [Decision 0019: Establish the render domain and bounded validation
+  (superseded)](../decisions/0019-establish-render-domain-and-bounded-validation.md).
+- [Decision 0023: Bind complete renderer training state
+  (superseded)](../decisions/0023-bind-complete-renderer-training-state.md).
+- [Decision 0034: Adopt the vector-conditioned focus-adapter
+  boundary](../decisions/0034-adopt-vector-conditioned-focus-adapter-boundary.md).

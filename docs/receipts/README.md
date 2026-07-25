@@ -47,8 +47,11 @@ device for the current platform; it is `/dev/null` on this source-freeze
 environment. No bytes are read from that path.
 
 The repository must have no nonempty `.git/info/attributes` file while
-reconstructing the archive. Repository-tracked attributes remain part of the
-attested source semantics. Reviews and consolidations use
+reconstructing the archive. An attested source commit must contain neither a
+tracked root `.gitattributes` nor a tracked `.gitattributes` anywhere below
+`docs/`; either could transform or omit reviewed archive bytes. Tracked
+attribute files below unrelated non-`docs/` directories remain permitted.
+Reviews and consolidations use
 `Status: Pass` and `Disposition: Pass`; the G0 record uses
 `Status: MergeAuthorized` and `Disposition: Pass`. It does not claim the pull
 request is already merged or promoted.
@@ -105,6 +108,12 @@ path with a new source identity. Its `Replaces` value is exactly
 `<Record ID> at archive digest <64 lowercase hexadecimal SHA-256>` and names
 the different earlier archive digest; the earlier record remains recoverable
 from Git history.
+
+The G0 record uses `Record ID: DOC-CONF-24` for the first passing evidence set
+and every later replacement. A later `DOC-CONF-25` or higher identifier names
+the source-conformance successor only; it does not rename the canonical G0
+record. Therefore every G0 replacement names
+`DOC-CONF-24 at archive digest <prior digest>` in `Replaces`.
 
 The replacement source-freeze commit has at most one parent and preserves
 every canonical attestation tree entry from that parent byte-for-byte,

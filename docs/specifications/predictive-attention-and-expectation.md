@@ -21,6 +21,13 @@ This document is the only current specification that owns the expectation
 notation and derivation. Architecture, proof, renderer, and delivery documents
 refer here instead of restating the formulas.
 
+Decision 0032 binds every transition record identity transitively to the
+content-derived custody domain, complete identity regime, schema, and canonical
+content identity of its authoritative exact sidecar. It also confines
+numerical artifacts to similarity, activation, and canonical work ordering;
+they cannot replace authoritative claim properties or omit consolidation
+pairs.
+
 ### Claim discipline
 
 The design is informed by work on memory-based prediction, episodic future
@@ -152,8 +159,16 @@ CognitiveMemoryUnit
 ```
 
 The exact plane is the source of claim identity, authority, provenance, and
-loss-sensitive values. The numerical plane is the source of similarity and
-activation computation. Neither plane is independently sufficient.
+loss-sensitive values. The numerical plane is the source of similarity,
+activation computation, and conservative retrieval-candidate nomination. It
+never nominates or omits proposition-consolidation comparisons and never
+decides exact equality, identity equivalence, compatibility, grouping, scope,
+authority, validity, or conflict. Within consolidation, numerical values may
+only order the complete bounded comparison work and contribute relevance;
+independently validated authoritative projections alone decide equivalence,
+compatibility, conflict, and final group membership. Neither plane is
+independently sufficient, and every derived numerical artifact remains bound
+to the immutable authoritative record version from which it was produced.
 
 Missing, unknown, inapplicable, explicit none, and numeric zero are distinct.
 Vectors with different registered spaces are incomparable until a versioned
@@ -182,7 +197,18 @@ pub struct TransitionRecord {
     authority: AuthorityLabel,
     authorization: DisclosurePolicyRef,
     allowed_usage: UsagePolicy,
-    exact_sidecar: ExactSidecarRef,
+    exact_sidecar_custody_binding: ExactSidecarCustodyBindingV1,
+}
+
+pub struct ExactSidecarRefV1 {
+    regime_id: ExactSidecarIdentityRegimeId,
+    schema: ExactSidecarSchemaId,
+    content_id: ExactSidecarContentId,
+}
+
+pub struct ExactSidecarCustodyBindingV1 {
+    custody_domain_id: ExactSidecarCustodyDomainId,
+    sidecar_ref: ExactSidecarRefV1,
 }
 
 pub struct TransitionFacetArtifact {
@@ -208,10 +234,10 @@ version in that chain. Its preimage is the canonical
 `TransitionId`, `RecordVersion`, `TransitionSchemaId`, `SubjectId`, the
 complete before and after observations, condition, horizon, validity,
 reliability, uncertainty, provenance root, dependency group, authority,
-authorization, allowed usage, and exact-sidecar reference. It excludes the
-derived `version_id`, every facet or index artifact and artifact identity,
-encoder output, and rebuild metadata. The identifier is the domain-separated
-content identity
+authorization, allowed usage, and complete exact-sidecar custody binding,
+including its sidecar reference. It excludes the derived `version_id`, every
+facet or index artifact and artifact identity, encoder output, and rebuild
+metadata. The identifier is the domain-separated content identity
 
 \[
 \operatorname{TransitionRecordVersionId}
@@ -223,6 +249,154 @@ H\!\left(
 (\operatorname{TransitionRecordVersionEnvelopeV1})
 \right).
 \]
+
+`exact_sidecar_custody_binding` is the validated record-bound custody contract defined
+by the
+[exact-sidecar content-identity contract](cognitive-memory-activation-and-focus.md#exact-sidecar-content-identity-and-verification).
+Its `custody_domain_id` content-identifies the complete retention, access,
+erasure, backup/export, and ledger-schema policy definition. Its nested
+`sidecar_ref.regime_id` content-identifies the complete immutable
+`ExactSidecarIdentityRegimeV1`. The cognitive-memory specification alone
+normatively defines that regime's complete closed field set,
+definition-identity preimage, registry idempotence, and no-rebinding rule; this
+document does not abbreviate them. `sidecar_ref.schema` content-identifies the
+immutable `ExactSidecarSchemaDefinitionV1` governing the
+`ExactSidecarContentEnvelopeV1`, and
+`sidecar_ref.content_id` is the typed, domain-separated digest of that complete
+canonical envelope under the memory-revision-pinned
+`ExactSidecarIdentityRegimeV1`. The transition version
+envelope therefore commits transitively to the complete regime, schema, exact
+content, custody domain, retention domain, and access/erasure/backup-export
+policy revisions. It does not contain a mutable locator, file path, registry
+label, custody pointer, or store key that can be rebound without changing the
+verified transition identity.
+
+The sidecar envelope never contains `TransitionRecordVersionId`,
+`TransitionFacetArtifactId`, a record-derived exact-binding instance identity,
+or rebuild metadata. Record identity points to sidecar content in one
+direction. A sidecar may reference only already verified record versions in
+the authenticated parent memory revision, never its containing record or
+another record introduced by the same publication, so the transitive reference
+graph is well-founded. A checked transition constructor accepts only a
+validated `ExactSidecarCustodyBindingV1` whose nested reference was derived
+together with retained canonical sidecar bytes. It then derives the transition
+version ID from the closed record envelope. Neither ID, reference, custody
+domain, nor custody binding has an unchecked public constructor.
+
+Privileged memory management verifies the content-derived schema definition and
+ID, complete regime definition and ID, canonical bytes, recomputed sidecar
+content ID, complete reference equality, custody binding, per-record logical
+reference ledger entry, and recomputed transition version ID before atomically
+publishing the transition record, ledger entry, and any newly materialized
+physical object as one state transition. A newly introduced sidecar-only,
+record-only, ledger-only, or physical-object-only target state is not
+observable; a previously verified physical sidecar may already exist only when
+the complete custody bindings are field-for-field equal. Every later
+deduplication, controlled-copy, backup, import, export-staging, migration,
+rollback, erasure, or collection operation atomically updates every affected
+record, ledger, authorization, and controlled physical-object state.
+Byte-identical content under a different regime or custody domain is not
+cross-domain deduplication. Distinct canonical envelopes are
+`ExactSidecarContentIdentityCollision` only when each independently validates
+and recomputes to the same `(regime_id, content_id)` trust-domain key. Valid
+canonical content whose recomputed `content_id` differs from its claimed
+reference is `ExactSidecarReferenceMismatch`; a missing, malformed, or
+misidentified regime is exclusively `ExactSidecarIdentityRegimeMismatch`.
+Both fail closed. A collided `(regime_id, content_id)` remains permanently
+unusable. The separate `CollisionRecoveryTransactionV1` must either republish
+every retained meaning under a new regime and new transition records or erase
+every authorized copy in every controlled custody domain, while the old
+collision tombstone remains.
+
+Every revision-pinned transition read repeats those checks. Missing, truncated,
+corrupt, schema-mismatched, rebound, or identity-mismatched sidecar content,
+an invalid nested target, a custody-ledger mismatch, and any cross-record,
+cross-revision, or cross-custody substitution inconsistent with the transition
+reference makes the transition structurally unavailable before eligibility,
+activation, representative selection, or planning. It never becomes an empty
+sidecar, unknown observation, unavailable reliability value, or abstention.
+Physical content may be shared only through independent authorized logical
+references whose complete `ExactSidecarCustodyBindingV1` values are
+field-for-field equal. Erasing one transition
+atomically removes its logical reference and transition-derived artifacts
+without granting it access through another record; physical garbage collection
+occurs only after the last authorized logical or
+`SealedCustodyHoldingReferenceV1` entry. The complete
+`ExactSidecarReferenceLedgerV1` also records every controlled
+retention-bearing rollback, backup, import, export, replica, staging object, or
+other copy as its own `SealedCustodyHoldingReferenceV1`, with the complete
+custody binding and physical-object identity. Its stable content-derived
+`SealedCustodyHoldingId` binds the complete authenticated owner, policy
+revision, trusted authorization and retention times, source
+kind/identity/revision, custody binding, and matching purpose while excluding
+physical location and authorization state. Independent authenticated source
+obligations remain distinct even when all other fields and bytes agree; one
+holding cannot satisfy another, and callers cannot supply any identity,
+policy, time, or source field. Such a holding authorizes storage only and
+cannot authorize compile-time read, export, rollback, or resurrection.
+These erasure and no-resurrection claims apply only within controlled custody
+domains; an ungoverned recipient or copy is outside this contract.
+The read follows the owner contract's `ExactSidecarIntegrityValidationV1` as
+two phases under one closed public precedence. An effect-free prelookup
+recomputes the transition identity and verifies the complete regime, schema
+reference, custody ledger, and authorization before physical lookup,
+collision-witness access, cache fill, nested traversal, backup/export access,
+or quarantine. Only then may the store resolve one immutable revision-,
+ledger-, and integrity-fence-bound `ExactSidecarResolvedSnapshotV1`;
+postlookup evaluates every applicable envelope-schema, physical-custody,
+presence, canonical-byte, reference, collision, and nested-reference
+predicate before selecting the earliest public cause. The expectation branch
+cannot reorder either phase or that precedence.
+
+If postlookup selects collision after excluding every earlier cause, the store
+first authenticates one closed
+`CollisionObservationOriginV1::{Compile, TerminalProbe, Management}` member.
+Each carries its origin-specific admission or probe, resolved snapshot, and
+final product-release, probe-result, or lifecycle-commit guard; `Management`
+also requires independently authenticated management authorization.
+Cross-origin field substitution is invalid. The store then authenticates one
+`CollisionQuarantineBasisV1` binding that origin, the exact trust key,
+permanent tombstone, expected/next root-fence generations, complete witness,
+affected-custody/derived-artifact and active-admission/snapshot closure
+commitments, and either proven `CompleteReverseIndex` scope or conservative
+`WholeStoreGeneration`.
+
+One crash-atomic containment point commits the basis, creates or verifies the
+tombstone, advances the fence, records every logical revoke disposition, and
+closes semantic-read, product-release, probe-pass, lifecycle-mutation-commit,
+and lifecycle admission in scope. It does not wait for physical cleanup.
+Revoked records and live resources remain in the durable bounded
+`CollisionTerminalRemovalStateV1`, whose fixed revoke-set or generation cursor,
+positive item/work/byte limits, and exact committed, aborted, or
+reconciliation outcomes make cleanup idempotent and restartable without
+reopening or changing recovery.
+
+Immediately before externally visible success, `Compile`,
+`TerminalProbe`, and `Management` validate their respective
+`product_release_guard_id`, `terminal_probe_result_guard_id`, or
+`lifecycle_commit_guard_id`, exact trust-key dependency closure, and captured
+generation linearizably against the root fence. Those successes and
+containment therefore have one total order; a snapshot-time check is not
+sufficient. The compiler receives collision only after durable containment
+and receives no management capability. A generation or witness mismatch,
+unavailable commit, unknown outcome, or required reconciliation instead
+preserves the exact `ExactSidecarIntegrityCoordinationError`, maps to
+`MemoryUnavailable`, exit `4`, and produces no transition input. Startup
+reconstructs a proved commit, its origin-specific terminal collision
+disposition, and pending terminal-removal work, reruns both phases for a proved
+abort, and keeps an unknown outcome fenced as
+`IntegrityQuarantineReconciliationRequired` without a terminal origin result
+until commit or abort is proven; incomplete reachability proof fences the
+whole store generation.
+
+Recovery is the separate `CollisionRecoveryTransactionV1`, never ordinary
+exact-old-pair rollback. It revalidates the exact basis, trust key, permanent
+tombstone, current fence, complete witness set, and complete affected-custody
+closure and permits only `NewRegimeRepublication` for every retained meaning
+under new record identities or `CompleteAuthorizedErasure` for every
+controlled authorized copy. Both preserve the old tombstone and permanent
+non-use rule across purge, restore, reprovisioning, reinstallation, and store
+replacement.
 
 `RecordVersion` is the serialization-schema version of that preimage; it is
 neither identity. A correction, migration, or other authorized publication
@@ -354,6 +528,14 @@ pub enum ReliabilityMigrationSource {
 
 These are logical wireframes, not committed public Rust APIs. The two
 observations own their respective tagged value and observation uncertainty.
+Each `ExactBindingRef` is a schema-owned locator into the containing
+`TransitionRecord`'s single verified
+`ExactSidecarCustodyBindingV1.sidecar_ref`; it cannot name, embed, or override
+another sidecar content identity. The checked record
+constructor verifies that every locator exists exactly once in that sidecar
+and that its exact-value schema, type, presence variant, semantic role, and
+observation field agree. A cross-observation or cross-record binding is an
+exact-sidecar reference mismatch, not a second source of exact truth.
 `TransitionRecord` has no duplicate record-level observation status.
 `TransitionUncertainty` describes only uncertainty in associating the two
 observations with the declared condition, horizon, and temporal alignment; it
@@ -416,6 +598,22 @@ numeric payloads under different schemas or calibration domains do not
 establish compatibility. Rollback restores the exact prior immutable record
 revision or artifact, including its original state variant, rather than
 translating a value in place or applying an inverse migration.
+
+Any transition migration also validates the complete source
+record-custody-sidecar-ledger tuple. Byte-identical canonical sidecar content
+preserves the same `ExactSidecarCustodyBindingV1` only when source and target
+use the identical content-derived custody domain and complete
+`ExactSidecarRefV1`. Rotating any custody-domain or regime field, or changing
+the sidecar schema, locator, type, presence, or value, creates a new binding
+and therefore a new `TransitionRecordVersionId`. The target record, binding,
+ledger entry, and any new physical content are published atomically. Rollback
+is permitted only under the exact authenticated-record, authorized-ledger,
+custody-policy, verified-transitive-content, non-quarantine, and publication-
+authorization conditions owned by the exact-sidecar contract. An erased
+record, `SealedCustodyHoldingReferenceV1`, other record's reference, backup, or
+export cannot supply rollback. An eligible rollback republishes the retained
+prior pair as a new immutable transition revision rather than reconstructing
+sidecar content from numerical facets.
 
 The payload and support contract is total:
 
@@ -607,11 +805,27 @@ EligibleActivatedMemorySet<'call>
 │   ├── retrieval_result_id
 │   ├── activation_set_id
 │   └── configuration_id
-├── activated records
-│   ├── record and proposition identities
+├── activated_records: CanonicalSet<EligibleActivatedMemorySourceV1>
+│   ├── expected_source_binding
+│   │   ├── tagged_memory_source_identity
+│   │   ├── immutable_record_version_id
+│   │   ├── source_derived_artifact_id
+│   │   ├── memory_revision_id
+│   │   ├── exact_sidecar_custody_binding
+│   │   │   ├── custody_domain_id
+│   │   │   └── verified ExactSidecarRefV1
 │   ├── activation score and explanation reference
-│   ├── typed facets and presence masks
-│   ├── exact-sidecar references
+│   ├── proposition_plane_pairs: CanonicalSet<ActivatedPropositionPlanePairV1>
+│   │   ├── derived: SourceDerivedPropositionFacetsV1
+│   │   │   ├── complete source binding
+│   │   │   ├── typed facets and presence masks
+│   │   │   └── derivation/configuration identities
+│   │   └── authoritative: AuthoritativePropositionProjectionV1
+│   │       ├── Memory(complete independent source binding)
+│   │       ├── proposition/schema identity and exact values
+│   │       ├── temporal, social, and modal scope
+│   │       ├── disclosure/authority/allowed-use ceilings
+│   │       └── validity, supersession, contradiction, and conflict
 │   ├── provenance and dependency group
 │   └── authority and allowed-use ceiling
 └── retrieval diagnostics
@@ -637,6 +851,157 @@ functions. Byte-identical, lineage-identical, or otherwise equivalent
 reconstructed objects, including a second construction inside the same
 authenticated invocation, carry a different set witness and do not satisfy
 this boundary.
+
+The owning constructor independently validates the record envelope and ledger,
+the derived facet artifact, and the authoritative proposition projection
+before sealing one `ActivatedPropositionPlanePairV1`. The complete
+`(tagged source identity, record version, artifact, memory revision, custody
+binding including ExactSidecarRefV1)` tuple in the expected binding, derived
+member, and authoritative member must be field-for-field equal and must
+recompute against the same authenticated revision. The authoritative member is
+not derived from the numerical member and the numerical member cannot supply a
+missing authoritative field. Every source-derived proposition facet made
+visible to the focus branch has exactly one paired authoritative projection;
+an unpaired, multiply paired, duplicate, cross-record, cross-artifact,
+cross-revision, cross-custody, or cross-sidecar member is structural
+`AuthoritativePropositionProjectionError`; the focus boundary preserves it as
+`FocusCandidateError::AuthoritativeProjection(source)`.
+
+Records whose authenticated schema declares no focus-proposition projection
+may have an empty `proposition_plane_pairs` set and remain usable only by a
+compatible non-focus branch. No record with an unpaired focus-visible
+numerical projection is treated as such a record. Pair order is canonical by
+proposition/schema identity and then complete tagged source binding. The focus
+branch borrows these sealed pairs; it neither reconstructs authoritative
+projections nor joins ambient artifacts after the split.
+
+For every activated record \(i\), let \(\mathcal S_i^M\) be its canonical
+`proposition_plane_pairs` source set. Focus consolidation flattens
+\[
+\mathcal S_M=
+\operatorname{CanonicalSort}
+\left(\mathop{\biguplus}_{i\in\mathcal A}\mathcal S_i^M\right),
+\qquad
+n_{\mathrm{src}}^M=|\mathcal S_M|
+=\sum_{i\in\mathcal A}|\mathcal S_i^M|,
+\qquad
+n=n_Q+n_{\mathrm{src}}^M.
+\]
+A record may therefore contribute zero, one, or several consolidation sources;
+record count is not a source-count proxy. Source-set identity,
+\(n(n-1)/2\) pair count, work ceiling, optimized pair witness, and the
+\(O(n^2d_{\mathrm{eq}})\) comparison term all use this flattened \(n\).
+
+The focus branch owns the closed outer `FocusCandidateError` order
+`EligibleActivatedSet`, `RequestProposition`, `AuthoritativeProjection`,
+`Consolidation`, `Capacity`, `CandidateInvariant`. It validates all source
+projections before pair work and completes consolidation before candidate
+capacity. Within one completed stage, inner declaration order and then the
+smallest canonical affected source, pair, cluster, or candidate key wins. The
+five non-request inner families are the following exact finite ordered sets
+from the cognitive-memory owner contract:
+
+```text
+FocusAggregateValidationError =
+  UnknownEligibleSetSchema
+| EligibleSetSchemaMismatch
+| InvocationWitnessUnavailable
+| EligibleSetWitnessUnavailable
+| MissingSourceReceiptField
+| DuplicateSourceReceiptField
+| SourceReceiptIdentityMismatch
+| SourceReceiptConfigurationMismatch
+| ExactSidecarIntegrity(ExactSidecarIntegrityErrorV1)
+| ActivatedRecordBindingMismatch
+| InvalidActivationValue
+| ActivationExplanationReferenceMismatch
+| ProvenanceBindingMismatch
+| AuthorityCeilingMismatch
+| AllowedUseCeilingMismatch
+| DuplicateActivatedRecord
+| NonCanonicalActivatedRecordOrder
+| ActivatedRecordLimitExceeded
+| RetrievalCandidateLimitMismatch
+| RetrievalCompletenessClassMismatch
+| RetrievalIndexIdentityMismatch
+| RetrievalRepresentationIdentityMismatch
+
+AuthoritativePropositionProjectionError =
+  ProjectionArtifactUnavailable
+| ProjectionArtifactIdentityMismatch
+| MissingProjection
+| DuplicateProjection
+| UnknownProjectionSchema
+| ProjectionSchemaMismatch
+| ForbiddenSourceVariant
+| MissingSourceBindingField
+| UnexpectedSourceBindingField
+| SourceBindingMismatch
+| ExactProjectionMismatch
+| ExactSidecarIntegrity(ExactSidecarIntegrityErrorV1)
+| CustodyBindingMismatch
+| ProjectionLimitExceeded
+
+PropositionConsolidationError =
+  EquivalenceContractUnavailable
+| InvalidEquivalenceContract
+| CompleteLinkContractUnavailable
+| InvalidExhaustivePairSetWitness
+| ExhaustiveSourceSetMismatch
+| ExhaustivePairSetMismatch
+| ExhaustiveEquivalenceContractMismatch
+| ExhaustivePairWorkCeilingMismatch
+| PairWorkCapacityExceeded
+| ComparisonWorkCapacityExceeded
+| ConsolidationWorkspaceCapacityExceeded
+| ExactSlotValueConflict
+| ClusterCompatibilityViolation
+| NonCanonicalPartition
+| OptimizedPartitionMismatch
+
+FocusCandidateCapacityError =
+  CandidateLimitExceeded
+| SupportBindingLimitExceeded
+| ControlExclusionLimitExceeded
+
+FocusCandidateConstructionError =
+  UnknownFocusRole
+| DuplicateFocusRole
+| NonTotalFocusRoleOrder
+| FocusCandidateOrderKeyMismatch
+| DuplicateFocusCandidateOrderKey
+| MissingRequiredQualification
+| ExactBindingMismatch
+| UnresolvedContradiction
+| DuplicatePropositionSemanticKey
+| EmptyCandidateSupport
+| CandidateSupportPartitionMismatch
+| CandidatePropositionIdentityMismatch
+| InvalidCandidateActivation
+| CandidateSourceReceiptMismatch
+| CandidateInvocationWitnessMismatch
+| CandidateEligibleSetWitnessMismatch
+| CandidateAuthorityCeilingExceeded
+| CandidateAllowedUseCeilingExceeded
+| CandidateSurfaceAuthorityCeilingExceeded
+| InvalidMandatoryClassification
+| NonCanonicalCandidateSetOrder
+```
+
+These families contain \(22,14,15,3,21\) discriminants respectively and admit
+no catch-all or unknown member. The separate request stage retains the closed
+twelve-member `RequestPropositionError`. The
+[reference architecture](v1-reference-architecture.md#failure-taxonomy)
+exhaustively maps every listed discriminant and every request discriminant to
+one public `CompileError`, CLI exit, retry posture, and disposition. The
+expectation branch cannot reinterpret that mapping, replace a typed source
+with prose, or consume a partial focus result. In particular, retained
+memory-integrity causes map to `MemoryUnavailable`; missing or incompatible
+projection/equivalence/complete-link artifacts to `ArtifactUnavailable`;
+projection, pair/comparison/workspace, and post-consolidation candidate limits
+to `ResourceFailure`; `ExactSlotValueConflict` to public `PlanningFailure`
+without a planning call; and the exact remaining invalid joins, witnesses,
+partitions, or candidate invariants to `InternalInvariantViolation`.
 
 The sealed `AuthenticatedInvocation` owns one fresh opaque runtime-instance
 brand. `InvocationInstanceWitness<'call>` is its sole compiler-private,
@@ -1897,8 +2262,33 @@ Representative error classes include:
 - missing or forged provenance/dependency identity;
 - invalid outcome equivalence or contradiction relation;
 - corrupt or revision-mismatched evidence;
+- exact-sidecar construction failures `UnknownIdentityRegime`,
+  `IdentityRegimeMismatch`, `UnknownSchema`, `SchemaIdentityMismatch`,
+  `UnknownCustodyDomain`, `CustodyDomainIdentityMismatch`, `InvalidBinding`,
+  `DuplicateLocator`, `InvalidPresence`, `LimitExceeded`, or
+  `NonCanonicalEncoding`;
+- exact-sidecar integrity failures `RecordVersionIdentityMismatch`,
+  `ExactSidecarIdentityRegimeMismatch`, `ExactSidecarSchemaMismatch`,
+  `ExactSidecarCustodyMismatch`, `ExactSidecarMissing`,
+  `ExactSidecarContentMismatch`, `ExactSidecarReferenceMismatch`,
+  `ExactSidecarContentIdentityCollision`, or
+  `ExactSidecarNestedReferenceInvalid`;
 - unknown condition semantics; and
 - failed retrieval or activation dependency.
+
+Exact-sidecar integrity failures occur before expectation disposition and
+cannot be converted into `NoEligibleTransitions`, `MissingRequiredFacet`, or
+any other abstention. Store, retrieval, and compile adapters retain the typed
+source cause and return no partial `ExpectationSet` or product state.
+For a transition, `RecordVersionIdentityMismatch` carries the containing
+`TransitionRecordVersionId` and results from recomputing that exact transition
+envelope and embedded custody binding before any external sidecar lookup.
+`ExactSidecarNestedReferenceInvalid` preserves the outer reference, canonical
+nested path, target record identity when present, and typed inner source.
+`ExactSidecarCustodyMismatch` preserves the transition identity and mismatched
+record/ledger/physical custody components. Their canonical precedence is the
+one owned by the exact-sidecar contract; this branch does not reorder or
+flatten them.
 
 The closed `AbstentionReasonCode` values, in canonical declaration order, are:
 
@@ -2517,6 +2907,12 @@ tests include immediately below, at, and above each boundary.
 - Every transition has validated observation status, reliability schema and
   state, provenance root, dependency group, and exact/numerical revision
   bindings.
+- Every transition's `ExactSidecarCustodyBindingV1` has been revision-pinned
+  and verified against its content-derived custody domain, logical ledger
+  entry, nested complete `ExactSidecarRefV1`, authenticated schema definition,
+  complete identity regime, retained canonical bytes, prior-revision reference
+  targets, collision quarantine state, and recomputed transition
+  record-version identity.
 - Activation inputs satisfy the separate activation specification.
 - Reliability compatibility and migration registries and all facet, condition,
   horizon, equivalence, contradiction, and distance functions are versioned
@@ -2539,6 +2935,11 @@ tests include immediately below, at, and above each boundary.
   Neither branch receives a precomputed projection, filtered copy, or
   reconstruction; branch-private views are created only inside the respective
   aggregate-taking call.
+- Every focus-visible derived proposition facet in that shared set is paired
+  with one independently validated `AuthoritativePropositionProjectionV1`;
+  expected, derived, and authoritative members carry the same complete
+  record/artifact/revision/custody/ref binding, and no branch may synthesize a
+  missing member.
 - Focus, expectation, and any query-binding validation consume
   `&BoundQuery`; no valid interface or serialized form can accept, replace, or
   pair \(Q_{\mathrm{num}}\) and \(B_Q\) separately.
@@ -2551,6 +2952,13 @@ tests include immediately below, at, and above each boundary.
   boundary owns both rejections. The witnesses are outside semantic and product
   state and cannot affect any derived value or order.
 - Hard policy exclusion is never represented by a low soft score.
+- A numerical artifact may nominate a transition for retrieval. It cannot
+  nominate, omit, equivalence-bucket, or otherwise determine a
+  proposition-consolidation comparison; that boundary admits the complete
+  bounded unordered pair set. It also cannot establish authoritative record
+  equality, exact-value equality, temporal, social, or modal scope, provenance,
+  disclosure, authority, allowed use, validity, supersession, or contradiction
+  state.
 - Unknown, absent, inapplicable, explicit none, and zero remain distinct.
 - Only a compatible typed `Derived` reliability value can enter
   \(\alpha_i\); exclusion, missingness, and migration never synthesize a
@@ -2595,6 +3003,9 @@ tests include immediately below, at, and above each boundary.
 - An unknown or malformed reliability schema, derivation, calibration domain,
   missingness code, or migration lineage is a structural error. Equal numeric
   values under incompatible contracts are not interchangeable.
+- A missing, corrupt, rebound, cross-revision, or colliding exact sidecar is a
+  structural memory-integrity error. Equal numerical facets cannot make that
+  transition eligible or turn the failure into absence or abstention.
 - A valid cross-state migration preserves variant-specific source and target
   metadata without manufacturing a calibration domain for an unavailable
   state. Rollback restores the exact source revision and variant.
@@ -2652,6 +3063,69 @@ The first executable implementation requires:
 
 - constructor tests for every identifier, presence state, status, typed
   reliability state, horizon, relation, sidecar reference, and finite number;
+- exact-sidecar constructor tests for canonical permutation invariance, stable
+  explicitly permitted empty content, content-derived immutable schema and
+  regime IDs, and mutation of every regime, schema, locator, exact type,
+  presence variant, and value; every regime mutation changes the complete
+  reference and transition identity even under forced equal digest bytes;
+  callers cannot override or rebind a derived schema ID, regime ID, content ID,
+  reference, custody domain, or binding, and duplicate locators, malformed
+  presence, unknown or identity-mismatched regimes, schemas, and custody
+  domains, noncanonical encodings, and finite-limit overflow fail with their
+  exact typed causes;
+- record-sidecar publication and read tests for atomic visibility across every
+  publication fault point, same-ID/same-byte idempotence,
+  same-ID/different-byte cases in which neither, one, or both canonical
+  envelopes independently recompute to the claimed typed identity; missing,
+  truncated, corrupt, identity-regime-mismatched, schema-mismatched, rebound,
+  cross-record, cross-revision, and cross-custody substitution;
+  field-identical complete-binding deduplication and every unequal-binding
+  isolation; atomic record-ledger-physical-object visibility across every
+  publication and lifecycle fault point; ledger coverage of every controlled
+  rollback, backup, import, export, replica, staging object, and other copy;
+  per-record logical-reference erasure, another record remaining authorized,
+  last-ref physical collection, `SealedCustodyHoldingReferenceV1` non-access,
+  controlled-custody erasure scope, and no resurrection through
+  cache/backup/import/export/rollback; record-ID recomputation; prior-revision
+  target existence, typed nested-target failure propagation, incoming-edge
+  deletion protection, and transitive-reference well-foundedness; complete
+  trust-domain collision quarantine across records, artifacts, backups, and
+  exports; permanent non-reuse of the old collided identity after repair,
+  rotation, or witness deletion; every
+  `CollisionObservationOriginV1::{Compile, TerminalProbe, Management}` member
+  and cross-origin rejection; authenticated `CollisionQuarantineBasisV1`
+  reverse-index and whole-generation scopes; atomic tombstone/fence/logical
+  revocation without resource destruction; bounded idempotent
+  `CollisionTerminalRemovalStateV1` cursors, limits, outcomes, exact closure
+  receipts, retry, and restart; final linearizable product-release,
+  probe-result, and lifecycle-commit guard races; origin-specific closure and
+  reconciliation; `CollisionRecoveryTransactionV1` field equality with the
+  basis and rejection of old-pair rollback, witness selection, or later-
+  equality repair; complete new-regime republication of every retained meaning
+  or complete authorized erasure of every controlled copy while the old
+  tombstone survives purge, restore, reprovisioning, reinstallation, and store
+  replacement; immutable same-regime and rotated-regime migration; every exact
+  rollback eligibility condition; policy-forbidden retention; and later
+  erasure;
+- multi-fault precedence and effect-spy fixtures prove that record identity,
+  regime, schema, and custody are checked in that order before missing/content/
+  collision/nested errors, and that no external sidecar lookup, quarantine,
+  cache, backup, or export effect occurs on any of those first four failures;
+- shared-set plane-pair tests validate the expected, derived, and
+  authoritative record/artifact/revision/custody/ref bindings independently;
+  reject unpaired, multiply paired, duplicate, cross-source, cross-custody, and
+  cross-sidecar projections; validate even focus-visible singletons; and prove
+  canonical pair ordering and permutation invariance;
+- focus-boundary fixtures enumerate all 75 exact non-request and 12 request
+  inner discriminants, reject unknown authenticated discriminants before
+  evaluation, preserve stage/inner/canonical-key precedence, and verify the
+  reference architecture's exhaustive disjoint per-variant
+  `CompileError`/CLI/retry mapping without invoking expectation or planning;
+- two-plane metamorphic fixtures vary numerical order, similarity, activation,
+  and relevance without changing authoritative projections and prove invariant
+  equivalence classes, compatibility decisions, conflicts, and groups; paired
+  authoritative mutations change only the corresponding authoritative
+  relation and cannot be fabricated from numerical equality;
 - sealed `BoundQuery` API/compile-fail tests prove `bindQuery` is the only
   constructor and no downstream signature can accept or pair
   \(Q_{\mathrm{num}}\) with \(B_Q\); private corruption fixtures swap each
@@ -2819,9 +3293,11 @@ defines no production coefficient, threshold, model, or probability claim.
 - [V1 reference architecture](v1-reference-architecture.md)
 - [V1 proof program](v1-proof-program.md)
 - [V1 delivery program](v1-delivery-program.md)
-- [Decision 0016: Adopt sealed compile-integrity boundaries](../decisions/0016-adopt-sealed-compile-integrity-boundaries.md)
+- [Superseded Decision 0016: Adopt sealed compile-integrity boundaries](../decisions/0016-adopt-sealed-compile-integrity-boundaries.md)
 - [Decision 0018: Canonicalize predictive and planning identities](../decisions/0018-canonicalize-predictive-and-planning-identities.md)
 - [Decision 0024: Separate transition records from derived artifacts](../decisions/0024-separate-transition-records-from-derived-artifacts.md)
+- [Decision 0032: Bind authoritative exact sidecars and two-plane
+  consolidation](../decisions/0032-bind-authoritative-exact-sidecars-and-two-plane-consolidation.md)
 
 ### Research evidence
 

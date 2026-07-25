@@ -4,15 +4,19 @@ Status: Proposed
 
 ## Purpose
 
-This specification defines how Nemosyne will qualify a small multilingual
-language model for the local vector-to-attention renderer. It fixes the
-candidate slate, comparison boundary, evidence categories, promotion rule, and
-reproducibility requirements before model-specific results are observed.
+This specification defines how Nemosyne will qualify a vector-conditioned
+focus adapter and, when used, a small multilingual local decoder. It fixes the
+architecture-neutral input, mandatory simple baselines, candidate and decoder
+slates, comparison boundary, evidence categories, promotion rule, and
+reproducibility requirements before candidate-specific results are observed.
 
-Qualification applies only to rendering an already selected structured
-`FocusExpectationPlan`. It does not evaluate memory storage, retrieval,
-activation, expectation generation, planning, authorization, or the downstream
-AI system as a whole.
+Qualification applies only to conditioning and rendering an already selected
+structured `FocusExpectationPlan`. Its learned input is the plan's checked
+numerical query/task context plus the weighted set of actual verified semantic
+memory vectors and separately tagged request/situation vectors. It does not
+evaluate memory storage, retrieval, activation, expectation generation,
+planning, truth, authorization, action selection, or the downstream AI system
+as a whole.
 
 No current model is designated the V1 winner. Published parameter counts,
 language coverage, context lengths, and general benchmarks establish candidate
@@ -20,11 +24,12 @@ eligibility, not Nemosyne-specific fidelity, usefulness, latency, or memory
 behavior. A later decision may select one complete renderer configuration only
 after the frozen evaluation defined here has run.
 
-Qwen3 is the first integration family because its official checkpoints are
+Qwen3 remains one initial decoder-integration family because its official checkpoints are
 Apache-2.0, multilingual, text-only causal language models, its model interface
 accepts direct input embeddings, and MLX-LM supports both local Apple-Silicon
 execution and direct embedding input. This ordering reduces integration risk;
-it is not evidence that Qwen3 will win qualification.
+it is not evidence that Qwen3, a soft prefix, or any learned adapter family
+will win qualification.
 
 ## Definitions
 
@@ -38,10 +43,13 @@ linked owner states otherwise.
 | \(c_{s,q}\) | immutable artifact tuples | One complete candidate configuration for training seed \(s\) and precision contract \(q\) |
 | \(C_{\mathrm{qual}}\) | finite configuration cohorts | All paired reference- and deployment-precision configurations for one candidate under the frozen seed set |
 | \(\mathcal S_{\mathrm{qual}}\) | finite nonempty seed sets | Frozen unique training-seed identities used by every qualification cohort |
-| \(m_{\mathrm{qual}},r_{m_{\mathrm{qual}}},h_{m_{\mathrm{qual}}}\) | model identity, revision identity, and positive hidden dimension | One renderer-qualification candidate model and its fixed properties |
-| \(N_{\mathrm{qual}}^{\mathrm{virtual}}\) | positive bounded integer | Registered virtual-embedding count used by one qualification condition |
-| \(\Pi_{m_{\mathrm{qual}}}(L)\) | \(\mathbb R^{N_{\mathrm{qual}}^{\mathrm{virtual}}\times h_{m_{\mathrm{qual}}}}\) | Candidate bridge projection of plan \(L\) for model \(m_{\mathrm{qual}}\) |
-| \(d_{\mathrm{qual}},\nu_{\mathrm{qual}}\) | immutable configuration identities | Complete decoding-and-stop configuration and plan/slot/structural-validation configuration |
+| \(m_{\mathrm{qual}},r_{m_{\mathrm{qual}}},h_{m_{\mathrm{qual}}}\) | optional model identity, revision, and positive hidden dimension, or registered absence | One candidate model and its fixed properties only when its family uses one |
+| \(N_{\mathrm{qual}}^{\mathrm{virtual}}\) | optional positive bounded integer | Registered virtual-embedding count used only by a family that declares virtual embeddings |
+| \(C_F(L)\) | checked bounded composite | Plan-sealed conditioning value with disjoint adapter and validator views |
+| \(C_A(L),C_V(L)\) | checked least-privilege views | Runtime-identical adapter-visible numerical input and paired validator-only authority/provenance/control input |
+| \(A_{\alpha,C_R^A}(C_A)\) | bounded adapter output | Candidate-family-specific untrusted focus envelope produced from the adapter conditioning and configuration views and carrying the common `FocusSupportTraceV1` |
+| \(\Pi_{m_{\mathrm{qual}}}(L)\) | \(\mathbb R^{N_{\mathrm{qual}}^{\mathrm{virtual}}\times h_{m_{\mathrm{qual}}}}\) | Optional soft-prefix projection used only by a registered family that declares virtual embeddings |
+| \(d_{\mathrm{qual}},\nu_{\mathrm{qual}}\) | immutable configuration identities or registered absence | Applicable decoding-and-stop configuration, and always-present plan/slot/structural-validation configuration |
 | \(G_{\mathrm{qual}}\) | cohort predicates | Every frozen technical and empirical gate passes |
 | \(D_{\mathrm{qual}}\) | cohort predicates | The selected deployment artifact is compatible with the declared installation and redistribution profile |
 | \(\mathcal C_{\mathrm{qual,pass}}\) | finite cohort sets | Cohorts satisfying both qualification and deployment-compatibility predicates |
@@ -60,6 +68,7 @@ content-identified tuple:
 \[
 c_{s,q} =
 (
+\alpha,C_F^{\mathrm{schema}},
 m_{\mathrm{qual}},r_{m_{\mathrm{qual}}},t,r_t,e_s,r_{e_s},\phi_s,r_{\phi_s},
 \Delta_s,r_{\Delta_s},s,q,\rho,d_{\mathrm{qual}},\nu_{\mathrm{qual}},
 v,r_v,\tau_v
@@ -68,43 +77,55 @@ v,r_v,\tau_v
 
 where:
 
-- \(m_{\mathrm{qual}}\) and \(r_{m_{\mathrm{qual}}}\) identify the base model
-  and immutable model revision;
-- `t` and `r_t` identify a derived tokenizer or processor artifact created
-  from an immutable official revision by the deterministic, content-identified
-  exact-slot augmentation;
-- `e_s` and `r_e_s` identify the derived model artifact containing the
-  deterministic vocabulary extension and the trained appended slot rows for
-  seed `s`, while original model rows remain byte-identical to the base
-  revision;
-- `phi_s` and `r_phi_s` identify the trained numerical bridge and revision for
-  seed `s`. They identify the complete immutable bridge checkpoint enumerated
-  by the vector-to-attention renderer contract, including every learned bridge
-  projector, categorical embedding, normalization, latent-query, resampler,
-  language-conditioning, and attribution tensor plus its canonical tensor
-  inventory and trainability/freeze mask. The bridge contains no model
-  vocabulary row;
-- `Delta_s` and `r_Delta_s` identify an optional LoRA adapter and revision for
-  seed `s`;
+- \(\alpha\) identifies the registered adapter family and
+  \(C_F^{\mathrm{schema}}\) binds the complete runtime query/vector/weight/
+  role/relation/qualifier input contract;
+- when the family uses a model, \(m_{\mathrm{qual}}\) and
+  \(r_{m_{\mathrm{qual}}}\) identify that model and immutable revision;
+  otherwise both fields carry the registered absent disposition;
+- when the family uses tokenization or a processor, `t` and `r_t` identify its
+  immutable derived artifact, including any deterministic,
+  content-identified exact-slot augmentation; otherwise both are explicitly
+  absent;
+- when the family extends model vocabulary, `e_s` and `r_e_s` identify the
+  derived model artifact containing that deterministic extension and the
+  trained appended slot rows for seed `s`, while original model rows remain
+  byte-identical to the base revision; otherwise both are explicitly absent;
+- for a learned family, `phi_s` and `r_phi_s` identify the complete trained
+  adapter checkpoint and revision for seed `s`. They bind every learned tensor
+  owned by family \(\alpha\), its canonical tensor inventory, shape, dtype,
+  ownership, and trainability/freeze disposition, and contain no undeclared
+  model vocabulary or decoder tensor. A latent-prefix family additionally
+  enumerates every projector, categorical embedding, normalization,
+  latent-query, resampler, language-conditioning, and attribution tensor. A
+  parameter-free family records both adapter-checkpoint fields as absent;
+- `Delta_s` and `r_Delta_s` identify a LoRA adapter and revision only for a
+  registered LoRA condition; otherwise both are explicitly absent;
 - `s` identifies one seed from the frozen training-seed set;
 - `q` identifies numerical precision and quantization;
 - `rho` identifies the runtime, kernels, and backend;
 - \(d_{\mathrm{qual}}\) identifies the complete decoding and stop
-  configuration;
+  configuration only for a token-generating family; otherwise it is
+  explicitly absent;
 - \(\nu_{\mathrm{qual}}\) identifies the attention-plan schema, exact-slot
-  vocabulary, deterministic formatter, substitution logic, and structural
-  validator;
+  registry, deterministic formatter, substitution logic, and structural
+  validator; any token vocabulary remains a separate optional member;
 - `v` and `r_v` identify the independently trained semantic-verifier artifact
   and immutable revision; and
 - `tau_v` identifies its calibrated threshold vector and calibration receipt.
 
-The selected \((e_s,r_{e_s})\), \((\phi_s,r_{\phi_s})\), and optional
-\((\Delta_s,r_{\Delta_s})\) are the exact disjoint trained-artifact composite
+The selected applicable \((e_s,r_{e_s})\), \((\phi_s,r_{\phi_s})\), and
+optional \((\Delta_s,r_{\Delta_s})\) are the exact disjoint trained-artifact composite
 bound into authenticated \(K_R\) and therefore into
 `RendererConfigurationId`. A missing, partial, overlapping, reconstructed,
 differently partitioned, or replaced composite is a different or invalid
 renderer configuration and cannot reuse this candidate's qualification
 evidence.
+
+A deterministic or decoder-free family omits inapplicable model, derived
+vocabulary, tokenizer, or LoRA members through explicit absent tags rather
+than dummy artifacts. Changing the adapter family, input schema, tensor
+ownership, or an absence/presence disposition creates a different candidate.
 
 The same qualified verifier tuple \((v,r_v,\tau_v)\) is frozen for every
 renderer cohort in one protocol revision. It is not retuned per renderer,
@@ -133,26 +154,46 @@ evidence.
 
 ### Common numerical input
 
-Every candidate receives the same immutable structured `FocusExpectationPlan`
-`L` defined by the focus-and-expectation-planning specification and projected
-according to the vector-to-attention renderer specification. Plan-item facets,
-scalars, focus and expectation roles, ranks, masks, proposition identities,
-conditions, horizons, support semantics, alternatives, counterevidence,
-coverage, abstention state, exact-slot identities, binding roles, output
-language, and budget are byte-identical before candidate-specific projection.
-The complete validator-control collection is also byte-identical across
-candidates, including exclusions, dependency groups, authority ceilings,
-required qualifiers, omitted support, abstention, and no-answer/no-action
-controls. It remains verifier input and is not projected into any candidate's
-generative prefix.
+The orchestrator derives one sealed `VectorConditionedFocusInputV1` composite
+from canonical `VectorConditionedFocusSemanticsV1` in the same immutable
+`FocusExpectationPlan` \(L\) plus compiler-held request-local validation
+bindings for every candidate. Each candidate adapter receives only the
+byte-identical checked `AdapterConditioningViewV1` \(C_A(L)\), while the shared
+validator receives only the paired `FocusConditioningValidationViewV1`
+\((C_V^{sem}(L),C_V^{bind}(L))\). Both are branded by one private
+`ConditioningInstanceWitness`. Neither boundary receives the complete builder
+inputs or can project the other view. The adapter view
+contains the numerical query/task/situation projection, actual selected
+verified semantic memory vectors,
+separately tagged request/situation vectors, presence masks, activation
+weights, vector-space/encoder/schema bindings, dense adapter handles, roles,
+relations, qualifiers, safe slot metadata, language, and bounds. The disjoint validator
+view is also byte-identical across candidates,
+including the total handle-to-semantic-key map, authoritative source
+projections, exclusions, dependency groups, authority ceilings, required
+qualifiers, omitted support, abstention, and no-answer/no-action controls.
+Request-local custody/provenance remains in \(C_V^{bind}\). Those controls and
+bindings remain verifier-only.
 
-The benchmark never serializes the numerical plan as decimal text. For model
+The harness derives disjoint `AdapterConfigurationViewV1` and
+`ValidationConfigurationViewV1` borrows from one frozen authenticated
+full-\(K_R\) commitment for each candidate. Each respective view is
+byte-identical across paired repetitions of that candidate, and both carry
+the same renderer-configuration identity and exact full-\(K_R\) commitment;
+the two views are not byte-identical to each other. Adapter code cannot inspect
+validator models, thresholds, calibration, corpus identities, or
+validator-only limits. Neither view is an independently authenticated partial
+configuration.
+
+The benchmark never serializes vectors as decimal text, supplies memory prose
+or original prompt text, reconstructs source text, or performs a nearest-text
+lookup. For a registered soft-prefix family and model
 \(m_{\mathrm{qual}}\) with hidden dimension \(h_{m_{\mathrm{qual}}}\), the
-candidate bridge maps the same plan to
+candidate maps the same \(C_A(L)\) to
 \(N_{\mathrm{qual}}^{\mathrm{virtual}}\) virtual input embeddings:
 
 \[
-\Pi_{m_{\mathrm{qual}}}(L)
+\Pi_{m_{\mathrm{qual}}}(C_A(L))
 \in
 \mathbb{R}^{
 N_{\mathrm{qual}}^{\mathrm{virtual}}
@@ -161,23 +202,47 @@ h_{m_{\mathrm{qual}}}
 }
 \]
 
-The frozen benchmark uses the same registered set of prefix lengths, bridge
-architecture classes, training examples, semantic scenarios, target texts,
-exact-slot tables, loss definitions, optimizer budget, random seeds, and
-stopping policy for every candidate. Candidate-specific output projections
-may differ only where the model hidden dimension requires it.
+The frozen benchmark uses the same input bytes, semantic scenarios, target
+bounded focus shapes and canonical support traces, source and qualifier
+labels, exact-slot tables, optimizer budget, random seeds, bounds, validator,
+and applicable stopping policy. Only a registered text-generating candidate
+also receives target focus text. Candidate-specific architecture, losses,
+tensor shapes, and optional decoder projections are fixed in each candidate
+manifest before sealed outcomes. They cannot change the semantic input,
+labels, budget, or acceptance gates.
 
-Each candidate tokenizes the same canonical UTF-8 control text and generation
-marker with its pinned derived tokenizer. The derived artifact records its
-immutable official base revision and the deterministic slot-vocabulary
-augmentation required by the renderer contract. The control text contains no
-user prompt, memory prose, or candidate-specific hints. Approved exact-value
+Each token-generating decoder-backed candidate tokenizes the same canonical
+UTF-8 invariant control text and generation marker with its pinned derived
+tokenizer. The derived artifact records its immutable official base revision
+and the deterministic slot-vocabulary augmentation required by the renderer
+contract. The control text contains no user prompt, memory prose, vector
+decimal text, or candidate-specific semantic hints. Approved exact-value
 surface bytes remain in the deterministic sidecar and are substituted after
-generation as specified by the renderer contract.
+generation as specified by the renderer contract. A non-token-generating or
+decoder-free candidate declares tokenizer, vocabulary-extension, decoder,
+generation-marker, decoding, and stop controls absent; dummy artifacts or
+unused token controls are nonconforming.
 
 ### Candidate slate
 
-The mandatory initial slate is:
+The mandatory architecture comparison slate is:
+
+| Adapter role | Required contract |
+| --- | --- |
+| Deterministic controlled renderer | Source-bound, model-free focus lexicalization and exact-slot behavior |
+| Query-only and memory-only controls | Same frozen input with one branch explicitly masked for causal diagnosis; memory-only is never deployable |
+| Uniform-, shuffled-, and zero-weight controls | Same set and query with only the registered weight intervention changed |
+| Weighted pooling or linear projection | Smallest learned numerical bridge baseline |
+| Small permutation-invariant set adapter | Bounded set-aware baseline with query conditioning |
+| Stronger registered learned family | At least one manifest-bound candidate such as direct cross-attention or `VF-LATENT-PREFIX-01` |
+| Expert reference | Same admitted semantics, language, budget, slots, and support labels |
+
+Raw-memory-text prompting, embedding inversion, and
+vector-to-nearest-text-to-decoder are nonconforming negative controls, never
+candidate families or fallbacks.
+
+When a generative decoder cohort is authorized, its mandatory initial decoder
+control slate is:
 
 | Candidate | Officially published facts relevant to eligibility | Qualification role |
 | --- | --- | --- |
@@ -186,7 +251,7 @@ The mandatory initial slate is:
 | `Qwen/Qwen3.5-0.8B` | 0.8B language model, hidden size 1024, 24-layer hybrid linear/full-attention layout, 262,144-token advertised context, vision encoder in the published artifact, Apache-2.0, stated coverage of 201 languages and dialects | Newer multilingual and hybrid-architecture challenger |
 | `google/gemma-3-1b-it` | 1B text-only instruction-tuned model, 32K input context, a family-level claim of multilingual tokenization and support for more than 140 languages, and Gemma terms rather than Apache-2.0 | Independently licensed and independently designed control; no language is qualified by the family-level claim alone |
 
-`Qwen/Qwen3.5-2B` is the first optional capacity fallback. Its official model
+`Qwen/Qwen3.5-2B` is the first optional decoder-capacity fallback. Its official model
 card describes a 2B language model with hidden size 2048, the same 24-layer
 hybrid layout and 262,144-token context class as the 0.8B model, Apache-2.0,
 and coverage of 201 languages and dialects. It enters sealed qualification
@@ -202,7 +267,7 @@ These facts are publisher claims and configuration facts linked in
 `References`. Language counts do not establish usable quality for every listed
 language. Advertised context beyond the frozen benchmark input length confers
 no qualification advantage. General instruction-following scores are not used
-because they do not measure numerical-prefix fidelity, exclusions, answer
+because they do not measure vector-conditioned focus fidelity, exclusions, answer
 leakage, exact-slot use, downstream utility, or Apple-Silicon resource behavior
 under this contract.
 
@@ -217,11 +282,22 @@ the configuration can enter a release cohort.
 
 Integration proceeds in this order:
 
-1. wire and test direct embedding input with Qwen3-0.6B;
-2. repeat the identical interface checks with Qwen3-1.7B;
-3. add Qwen3.5-0.8B and verify its hybrid cache and embedding behavior;
-4. add Gemma 3 1B IT under its separate access and license conditions; and
-5. add Qwen3.5-2B only under the fallback rule.
+1. freeze and test the canonical semantics and sealed live
+   `VectorConditionedFocusInputV1` composite, prove
+   that candidates receive only its `AdapterConditioningViewV1` while the
+   validator receives only its disjoint validation view, prove that both
+   configuration views share one full-\(K_R\) commitment without cross-field
+   access, and test the deterministic renderer, query-only/memory-only, weight,
+   permutation, handle mapping, conditioning witness, support-trace, and
+   leakage controls;
+2. implement the weighted pooling/linear and small set-adapter baselines;
+3. register at least one stronger query-conditioned family and test its exact
+   interface and resource functions;
+4. only for an authorized decoder-backed cohort, wire its adapter to
+   Qwen3-0.6B and then repeat the identical checks with Qwen3-1.7B;
+5. add Qwen3.5-0.8B and Gemma 3 1B IT under their distinct runtime, access, and
+   license conditions; and
+6. add Qwen3.5-2B only under the fallback rule.
 
 The order may expose implementation defects earlier. It cannot exclude a
 mandatory candidate, change that candidate's data or budget, or influence the
@@ -241,15 +317,20 @@ evaluation:
 - expectation-kind, condition, horizon, alternative, counterevidence,
   coverage, abstention, and `EvidenceShareNotProbability` labels;
 - supported language and script strata;
-- prefix lengths and bridge architecture variants;
-- bridge-only and optional bridge-plus-LoRA training contracts;
+- the adapter-family slate, each family's complete structural-capacity
+  variants, and every candidate-specific latent or prefix length;
+- adapter-only and, where a decoder is present, optional adapter-plus-LoRA
+  training contracts;
 - trainable parameter sets and equal hyperparameter-search budgets;
 - the finite nonempty training-seed set
   \(\mathcal S_{\mathrm{qual}}\), optimizer, schedules, early stopping, and
   maximum work;
 - BF16 reference and local deployment quantization contracts;
-- control text, slot vocabulary, generation marker, and output budget;
-- decoding, stop, repetition, and malformed-output policy;
+- output-shape, support-trace, and output-budget contracts, plus control text,
+  slot vocabulary, and generation marker only for a candidate that declares
+  those token-generation members present;
+- decoding, stop, repetition, and malformed-output policy only for a
+  token-generating candidate, with explicit absence dispositions otherwise;
 - runtime, dependency, kernel, and operating-system versions;
 - the intended local installation and redistribution profile and each
   candidate's compatibility with it;
@@ -259,10 +340,12 @@ evaluation:
   procedures; renderer inference itself accepts no request-time randomness;
 - every metric definition and hard threshold;
 - one family-wise and sequential multiplicity contract over every mandatory
-  and fallback model family, selectable latent count (`8`, `16`, `32`),
-  diagnostic-only latent count (`64`), bridge/LoRA variant, training seed,
-  reference/deployment precision pair, language/script stratum, semantic and
-  resource gate, deployment-selection comparison, and fallback decision;
+  and fallback adapter or decoder family, registered structural-capacity
+  variant, adapter/LoRA condition, training seed, reference/deployment
+  precision pair, language/script stratum, semantic and resource gate,
+  deployment-selection comparison, and fallback decision. For
+  `VF-LATENT-PREFIX-01`, the registered variants include selectable latent
+  counts `8`, `16`, and `32` and diagnostic-only count `64`;
 - downstream target-model configurations and evaluation rubric; and
 - the deterministic final selection ordering.
 
@@ -314,21 +397,30 @@ family.
 
 ### Required training conditions
 
-Each mandatory candidate is evaluated first with the base model frozen and
-only the registered bridge components trainable. This is the **bridge-only**
-condition.
+Each mandatory learned candidate is evaluated first with any declared base
+decoder frozen and only the registered adapter-owned tensors trainable. This
+is the **adapter-only** condition. Deterministic and other parameter-free
+controls record an explicit no-training disposition instead.
 
-If bridge-only misses a frozen development gate, the candidate may enter the
-registered **bridge-plus-LoRA** condition. Sealed held-out results cannot
-trigger or shape further training. The base checkpoint remains frozen; only
-the bridge and the predeclared low-rank updates are trainable. LoRA searches
-receive the same rank set, target-module policy, training examples, optimizer
-budget, and selection rule across candidates, subject only to published
-module-name differences recorded in the manifest.
+Every learned candidate is trained against the common bounded
+`UntrustedBoundedFocusShapeV1` target and its complete canonical
+`FocusSupportTraceV1`. Only a candidate whose registered output contract
+generates text also receives the corresponding bounded focus-text target.
+Text loss cannot replace, weaken, or hide shape, support, qualifier,
+exclusion, or leakage supervision.
 
-A candidate that passes bridge-only is not required to add LoRA. A LoRA
+If an adapter-only decoder-backed candidate misses a frozen development gate,
+it may enter the registered **adapter-plus-LoRA** condition. Sealed held-out
+results cannot trigger or shape further training. The base checkpoint remains
+frozen; only the adapter and the predeclared low-rank updates are trainable.
+LoRA searches receive the same rank set, target-module policy, training
+examples, optimizer budget, and selection rule across decoder candidates,
+subject only to published module-name differences recorded in the manifest.
+
+A candidate that passes adapter-only is not required to add LoRA. A LoRA
 configuration cannot replace, erase, or retrospectively reinterpret its
-bridge-only result.
+adapter-only result. A decoder-free family cannot gain a decoder merely to
+enter this escalation path; doing so creates a different candidate family.
 
 ### Reference and deployment precision
 
@@ -359,31 +451,38 @@ conversions. Quantized artifact size alone is not a quality result.
 - The authenticated manifest defines a finite nonempty
   \(\mathcal S_{\mathrm{qual}}\), and every candidate cohort contains exactly
   one reference/deployment pair for every seed in that set.
-- Candidate-specific tokenization uses the same canonical control bytes and
-  conveys no additional semantic information.
-- The prefix-length set and all model-independent bridge parameters are the
-  same across candidates.
-- Candidate-specific bridge parameters exist only where hidden dimensions or
-  published module names require them and are recorded explicitly.
-- All inputs fit within the smallest advertised context and the frozen local
-  runtime limit. Larger context windows receive no extra examples.
-- The runtime exposes direct input embeddings with correct masks, positions,
-  and cache behavior. A text-only wrapper that accepts only token IDs is not a
-  conforming substitute.
-- Thinking or reasoning output is disabled explicitly where the model
-  supports it. Qwen3 uses its hard `enable_thinking=False` switch. Qwen3.5 is
-  pinned to non-thinking behavior even though the 0.8B checkpoint defaults to
-  non-thinking.
+- A token-generating candidate's tokenization uses the same canonical control
+  bytes and conveys no additional semantic information. Every other candidate
+  declares tokenizer and token-generation controls absent.
+- Every candidate receives the same input schema and the same frozen
+  architecture-independent search budget. Family-specific capacity parameters
+  are compared only within the registered family and are recorded explicitly;
+  no prefix or latent count is imposed on a family that does not use one.
+- For every decoder-backed candidate, all decoder inputs fit within the
+  smallest advertised context in its comparison slate and the frozen local
+  runtime limit. Larger context windows receive no extra examples. A
+  decoder-free candidate has no artificial token-context requirement and
+  remains subject to its registered numerical-input and work bounds.
+- The runtime exposes the candidate's declared numerical adapter interface
+  without vector-to-text serialization. A soft-prefix family additionally
+  exposes direct input embeddings with correct masks, positions, and cache
+  behavior; a text-only wrapper that accepts only token IDs is not a
+  conforming substitute for that family.
+- For token-generating decoder-backed candidates, thinking or reasoning output
+  is disabled explicitly where the model supports it. Qwen3 uses its hard
+  `enable_thinking=False` switch. Qwen3.5 is pinned to non-thinking behavior
+  even though the 0.8B checkpoint defaults to non-thinking.
 - The renderer has no network capability during training evaluation, local
   resource measurement, or V1-style inference.
 - The qualification manifest's authenticity and intended policy scope have
   been verified against the pinned trust root before any contained digest is
   trusted.
-- Model, tokenizer, runtime, and redistribution terms have been reviewed
-  before an artifact is downloaded, trained, packaged, or distributed. A
+- Terms for every present model, tokenizer, runtime, and redistributed
+  artifact have been reviewed before that artifact is downloaded, trained,
+  packaged, or distributed. Absent members create no dummy review target. A
   selectable candidate has an explicit recorded determination that the
-  intended installation and distribution profile is compatible with those
-  terms.
+  intended installation and distribution profile is compatible with all
+  applicable terms.
 - Resource measurements run on an otherwise declared and controlled host
   state with thermal, power, and competing-workload conditions recorded.
 
@@ -408,40 +507,49 @@ decision changes the slate before sealed results are inspected.
 
 ### Identical semantic work
 
-Every candidate receives the same numerical inclusion-item view, exact-slot
-identities, language, budget, target meaning, and downstream cases. The shared
-verifier receives the same control-only exclusions for every candidate; the
-generator receives none of them. The projector may adapt tensor width; it may
-not add candidate-specific facts, prompts, examples, or retrieval.
+Every candidate adapter receives the byte-identical checked
+`AdapterConditioningViewV1` and `AdapterConfigurationViewV1`; the independent
+validator alone receives the paired validator-only conditioning and
+configuration views. Candidates share exact-slot identities, language, budget,
+target meaning, and downstream cases. A candidate adapter may
+transform tensor shape according to its frozen manifest; it may not receive
+the source plan or compiler-held validation bindings, read the validator-only
+view, or add candidate-specific facts, prompts, examples, retrieval, or source
+prose.
 
 The original user prompt is never supplied to the renderer. The evaluation
 harness retains that prompt and the separately held labels outside the renderer
 so it can detect whether generated text nevertheless begins answering the
 request.
 
-### Non-thinking surface realization
+### Bounded shape and optional non-thinking surface realization
 
-The model produces only the candidate attention surface text and internal
-bindings required by the renderer contract. A `<think>` block, separate
-reasoning field, hidden-reasoning transcript, simulated human chain of thought,
-tool call, or answer to the original request is a qualification failure.
+Every candidate produces only its bounded untrusted focus shape and common
+support trace. A registered text-generating candidate may additionally produce
+the candidate attention surface text and required internal bindings. A
+`<think>` block, separate reasoning field, hidden-reasoning transcript,
+simulated human chain of thought, tool call, or answer to the original request
+is a qualification failure for any candidate output.
 
-The intended target is concise source-bound focus-and-expectation text. Fluent
+The common target is a bounded source-bound focus-and-expectation shape with a
+complete canonical support trace. Concise source-bound focus-and-expectation
+text is an additional target only for a text-generating candidate. Fluent
 prose does not compensate for unsupported meaning, lost qualifications,
 hypothesis-to-fact promotion, probability inflation, or action selection.
 
 ### Artifact isolation
 
-No model, tokenizer, bridge, LoRA, slot table, runtime, or decoding setting may
-change between measured cases in one candidate configuration. No generated
-prefix, KV cache, exact sidecar, or request-local state is reused across
-independent cases.
+No adapter, runtime, slot table, or applicable model, tokenizer, LoRA, or
+decoding setting may change between measured cases in one candidate
+configuration. Inapplicable members remain explicitly absent. No generated
+adapter state, optional prefix, optional KV cache, exact sidecar, or
+request-local state is reused across independent cases.
 
 Cold measurements begin without resident candidate weights or generated cache;
 the process-start and file-system page-cache policy is pinned in the manifest.
 Warm measurements begin from the exact resident state defined there. Unload
-measurements include weights, bridge, LoRA, prefix buffers, KV cache, and
-request-local bindings.
+measurements include weights, adapter state, optional LoRA, optional prefix
+buffers, optional KV cache, and request-local bindings.
 
 ### Frozen gates
 
@@ -474,6 +582,15 @@ it does not create a parallel metric definition.
 
 The report measures at least:
 
+- query conditionality under frozen memory evidence;
+- relevant-memory contribution beyond the paired query-only control;
+- set-order invariance and duplicate non-amplification;
+- response to registered activation-weight interventions without treating
+  weight as truth, confidence, authority, utility, safety, or action priority;
+- rejection before adapter execution of unauthorized, unselected, or
+  incompatible members;
+- external-state noninterference from unauthorized or incompatible records and
+  in-input noninterference from admitted irrelevant or zero-weight members;
 - mandatory-proposition precision and recall;
 - preservation of negation, uncertainty, temporal qualification, conflict,
   source authority, and dominant-versus-secondary relationships;
@@ -535,6 +652,7 @@ The report measures:
 - answer leakage;
 - excluded-proposition leakage;
 - raw-memory or raw-source reconstruction;
+- registered raw-source canary copying and nearest-text recovery;
 - injection-like content changing the control behavior;
 - output that strengthens data into an instruction, goal, preference, or
   certainty without plan support;
@@ -565,15 +683,17 @@ substitute for downstream evidence.
 On each declared Mac profile, measure:
 
 - candidate-exclusive installed artifact bytes;
-- cold model-and-bridge load time;
+- cold adapter and optional decoder load time;
 - cold end-to-end rendering latency;
-- warm prefix-processing latency;
-- warm generation latency and total latency;
+- warm conditioning and adapter latency;
+- optional warm decoder-prefix processing and generation latency;
+- warm total latency;
 - p50, p95, and worst observed latency under the manifest procedure;
 - peak unified-memory delta;
 - resident memory while warm;
 - residual memory after the declared unload boundary;
-- generated token count and decode throughput; and
+- generated token count and decode throughput for a token-generating
+  candidate, recorded as inapplicable otherwise; and
 - quantized-versus-reference regressions.
 
 The minimum-supported hardware profile is the selection host. Reference
@@ -583,9 +703,10 @@ profile.
 **Candidate-exclusive installed artifact bytes** are the sum of the
 uncompressed logical byte lengths of unique, content-identified regular files
 added to a frozen clean runtime baseline and reachable from the deployed
-candidate manifest. They include installed model or converted language-model
-tensors, the derived tokenizer and slot vocabulary, bridge, optional LoRA,
-formatter and validator assets, and candidate-only runtime dependencies.
+candidate manifest. They include the adapter, formatter and validator assets,
+candidate-only runtime dependencies, and, only when declared present,
+installed model or converted language-model tensors, derived tokenizer and
+slot vocabulary, and optional LoRA.
 Byte-identical files in the common baseline are excluded; caches, logs,
 temporary conversion output, and training checkpoints not used at inference
 are excluded. A content digest is counted once even if referenced through
@@ -606,8 +727,9 @@ measurement.
 
 ### Repeatability
 
-Every stochastic training condition uses all frozen seeds. Renderer generation
-uses the frozen deterministic decoding policy and no request-time random tape.
+Every stochastic training condition uses all frozen seeds. Any text or token
+generation uses the frozen deterministic decoding policy and no request-time
+random tape; a non-generating candidate declares that policy inapplicable.
 Downstream target-model experiments may use frozen random tapes that belong to
 the evaluation manifest, not the renderer contract. Every seed has one paired
 reference and deployment artifact, and the development-only
@@ -696,9 +818,10 @@ baseline but does not contribute invented-text quality credit.
 ### Minimal and saturated plans
 
 The suite includes one-item plans, maximum-item plans, plans at every registered
-prefix length, plans with no exact values, and plans at exact-slot and output
-budget limits. Exceeding a structural limit is an explicit pre-render failure,
-not a model-quality sample.
+adapter-capacity boundary, plans with no exact values, and plans at exact-slot
+and output-budget limits. A latent-prefix candidate additionally covers every
+registered prefix length. Exceeding a structural limit is an explicit
+pre-render failure, not a model-quality sample.
 
 ### Focus and expectation dispositions
 
@@ -709,7 +832,7 @@ expectation role; validator-only abstention controls may remain.
 Deliberately corrupted targets promote hypotheses to facts, remove conditions
 or horizons, hide counterevidence, collapse alternatives, claim probability,
 and prescribe unsupported actions. A model cannot pass by learning one fixed
-attention-text shape.
+output shape or, when applicable, one fixed attention-text form.
 
 ### Non-Latin and mixed-language evidence
 
@@ -723,10 +846,13 @@ A deployment quantization that passes absolute quality but exceeds its frozen
 regression ceiling fails. A different quantization is a new configuration and
 must rerun the protocol.
 
-### Runtime lacks direct embedding input
+### Runtime lacks the declared numerical interface
 
-The candidate fails integration qualification. Numerical vectors are not
-serialized as text to bypass the missing interface.
+The candidate fails integration qualification when its runtime lacks the
+numerical interface declared by its registered family. Direct embedding input
+is mandatory only for a family, such as a soft-prefix candidate, that declares
+that interface. Numerical vectors are never serialized as text to bypass a
+missing interface.
 
 ### Reasoning or answer output
 
@@ -758,14 +884,46 @@ new slate.
 
 Before training, executable tests prove for each candidate runtime:
 
-- direct continuous embedding input without decimal serialization;
-- exact prefix shape, dtype, mask, positions, and ordering;
-- fixed control-token and generation-marker placement;
-- non-thinking configuration and absence of reasoning segments;
-- exact-slot token atomicity and substitution behavior;
-- output-token and stop enforcement;
+- byte-identical orchestrator derivation of the paired views, candidate
+  acceptance of only the registered `AdapterConditioningViewV1` plus
+  `AdapterConfigurationViewV1`, and validator acceptance of only its validator
+  views, without decimal or text serialization;
+- compile-fail or equivalent visibility checks proving that adapter code cannot
+  read, construct, or replace the validator-only view, authoritative
+  provenance, exclusions, authority ceilings, dependency controls, or exact
+  payloads and cannot inspect verifier models, thresholds, calibration,
+  validation-corpus identities, or validator-only limits;
+- full-\(K_R\) binding tests proving both configuration views carry one exact
+  identity/commitment, cannot be widened or independently authenticated, and
+  changing only validator-only configuration fields cannot affect adapter
+  execution;
+- canonical set ordering, duplicate rejection, exact vector-space and artifact
+  binding, finite-value checks, dense handle assignment, total
+  handle-to-semantic-key mapping, and registered weight semantics;
+- query-only, memory-only, zero-weight, shuffled-weight, and permutation
+  interventions with no hidden retrieval or source-text lookup;
+- exact candidate-family input and output shape, dtype, mask, and ordering;
+- canonical `FocusSupportTraceV1` structure, complete qualifier coverage, and
+  equivalent error outcomes for fused and non-fused candidates, including
+  forged, out-of-range, duplicate, noncanonical, or remapped handle rejection;
+- same-instance tests proving every candidate result and retained validator
+  view carry equal opaque `ConditioningBinding` values derived from one private
+  `ConditioningInstanceWitness`, foreign or reconstructed bindings reject, and
+  the witness cannot affect output bytes;
+- for a soft-prefix candidate, exact prefix shape, mask, positions, and direct
+  embedding input;
+- for a token-generating decoder-backed candidate, fixed control-token and
+  generation-marker placement plus non-thinking configuration and absence of
+  reasoning segments, with those controls absent otherwise;
+- typed exact-slot reference and substitution behavior, plus token atomicity
+  only for a token-generating candidate and an explicit absent disposition
+  otherwise;
+- bounded output enforcement for every candidate and stop enforcement for a
+  token-generating candidate only;
 - cache isolation across calls;
-- BF16 and deployment-quantization loading;
+- reference and deployment-precision loading for every candidate tensor that
+  declares those precisions, with an explicit inapplicable disposition for a
+  parameter-free candidate;
 - complete artifact-manifest verification; and
 - network-denied local operation.
 
@@ -774,26 +932,32 @@ Before training, executable tests prove for each candidate runtime:
 The development evaluation compares on identical plans:
 
 1. deterministic template rendering;
-2. the registered simple MLP bridge;
-3. the registered latent-resampler bridge with frozen base model; and
-4. latent resampler plus LoRA only where bridge-only missed a gate.
+2. query-only and memory-only conditioning;
+3. uniform-, shuffled-, and zero-weight interventions;
+4. the registered weighted-pooling or linear adapter;
+5. the registered small permutation-invariant set adapter;
+6. every stronger registered family, including
+   `VF-LATENT-PREFIX-01` when present; and
+7. adapter-plus-LoRA only for a decoder-backed candidate whose adapter-only
+   condition missed its frozen development gate.
 
 Every condition is evaluated on the same focus-only,
 focus-plus-renderable-abstention, valid expectation-only, combined, and
 deliberately corrupted semantic scenario roots.
 
-The registered selectable prefix-length set is `8`, `16`, and `32` virtual
-tokens. A `64`-query run is permitted only as the predeclared diagnostic
-stress condition above. It is measured under the same frozen inputs and
-multiplicity family but is not selectable, cannot change a threshold, and
-cannot rescue a failing cohort.
+For `VF-LATENT-PREFIX-01`, the registered selectable prefix-length set is `8`,
+`16`, and `32` virtual tokens. A `64`-query run is permitted only as the
+predeclared diagnostic stress condition above. It is measured under the same
+frozen inputs and multiplicity family but is not selectable, cannot change a
+threshold, and cannot rescue a failing cohort. These counts do not constrain
+another adapter family.
 
-Development data selects bridge dimensions, one training condition per model
-family, and \(deploy(C_{\mathrm{qual}})\) under the frozen rule. Every seed artifact in the
-resulting cohort remains in sealed evaluation. The sealed held-out suite is
-evaluated once after all mandatory and fallback choices, cohorts, artifacts,
-and thresholds are frozen. Test results never feed further training or
-candidate-specific prompt changes.
+Development data selects registered family-specific dimensions, one training
+condition per learned family, and \(deploy(C_{\mathrm{qual}})\) under the
+frozen rule. Every seed artifact in the resulting cohort remains in sealed
+evaluation. The sealed held-out suite is evaluated once after all mandatory
+and fallback choices, cohorts, artifacts, and thresholds are frozen. Test
+results never feed further training or candidate-specific prompt changes.
 
 Manifest and cohort-construction tests reject an empty seed set, duplicate
 seed identities, a seed outside \(\mathcal S_{\mathrm{qual}}\), a missing or
@@ -810,7 +974,7 @@ The qualification report contains:
 - precondition, integration, training, and evaluation failures;
 - aggregate and per-case metrics;
 - results by every mandatory stratum and worst group;
-- all bridge-only, LoRA, reference-precision, and quantized results;
+- all adapter-only, optional LoRA, reference-precision, and quantized results;
 - hardware and resource traces;
 - final gate outcomes without hidden exclusions;
 - the mechanical selection-order inputs; and
@@ -821,8 +985,8 @@ Reproduction from the manifest must yield the same semantic inputs and the
 same mechanical selection decision from measurements that satisfy the frozen
 repeatability tolerances. If an independent run changes a comparison key or
 winner outside those tolerances, qualification is not reproducible.
-Bit-identical generated text across different Apple kernels is not assumed
-unless separately demonstrated.
+For a text-generating candidate, bit-identical generated text across different
+Apple kernels is not assumed unless separately demonstrated.
 
 ## Open questions
 
@@ -850,8 +1014,10 @@ unless separately demonstrated.
 - [Focus and expectation planning](focus-and-expectation-planning.md).
 - [Vector-to-attention renderer](vector-to-attention-renderer.md).
 - [Decision 0013 (superseded)](../decisions/0013-adopt-a-vector-prefix-local-renderer-qualification-path.md).
-- [Decision 0015](../decisions/0015-render-qualified-focus-and-expectation-plans.md).
-- [Decision 0023](../decisions/0023-bind-complete-renderer-training-state.md).
+- [Decision 0015 (superseded)](../decisions/0015-render-qualified-focus-and-expectation-plans.md).
+- [Decision 0019 (superseded)](../decisions/0019-establish-render-domain-and-bounded-validation.md).
+- [Decision 0023 (superseded)](../decisions/0023-bind-complete-renderer-training-state.md).
+- [Decision 0034](../decisions/0034-adopt-vector-conditioned-focus-adapter-boundary.md).
 - Qwen Team, [Qwen3 Technical
   Report](https://arxiv.org/abs/2505.09388), 2025.
 - Qwen, [`Qwen3-0.6B` model

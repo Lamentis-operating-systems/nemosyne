@@ -1,7 +1,8 @@
 # 0019: Establish the render domain and bounded validation
 
-Status: Accepted
+Status: Superseded
 Date: 2026-07-24
+Superseded by: 0034-adopt-vector-conditioned-focus-adapter-boundary.md
 
 ## Context
 
