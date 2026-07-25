@@ -179,12 +179,12 @@ EXPECTED_V1_GRAPH_DEPENDENCY_COUNT = 123
 EXPECTED_INTERFACE_COUNT = 49
 EXPECTED_REVIEW_COUNT = 18
 EXPECTED_WAVE_COUNT = 34
-EXPECTED_FINDING_COUNT = 383
-EXPECTED_CONFORMANCE_COUNT = 29
+EXPECTED_FINDING_COUNT = 384
+EXPECTED_CONFORMANCE_COUNT = 30
 EXPECTED_SPECIFICATION_COUNT = 12
-EXPECTED_DECISION_COUNT = 40
+EXPECTED_DECISION_COUNT = 41
 EXPECTED_ACCEPTED_DECISION_COUNT = 31
-EXPECTED_SUPERSEDED_DECISION_COUNT = 9
+EXPECTED_SUPERSEDED_DECISION_COUNT = 10
 CANONICAL_G0_RECORD_ID = "DOC-CONF-24"
 EXPECTED_CURRENT_FINDING_RANGE = f"FND-152..{EXPECTED_FINDING_COUNT:03d}"
 EXPECTED_PROTECTED_CONFORMANCE_SHA256 = (
@@ -307,7 +307,7 @@ EXPECTED_FINDING_PRIORITY_DIGITS = (
     "11211212"
     "22222122"
     "12"
-    "111"
+    "1111"
 )
 
 WORK_BREAKDOWN_HEADER = (
@@ -1188,10 +1188,10 @@ def validate_decisions(repository_root: Path) -> None:
         for decision_id, status in statuses.items()
         if status == "Superseded"
     )
-    if superseded_ids != [11, 12, 13, 15, 16, 19, 22, 23, 28]:
+    if superseded_ids != [11, 12, 13, 15, 16, 19, 22, 23, 28, 40]:
         raise ContractError(
             "Superseded decisions must be exactly 0011, 0012, 0013, 0015, "
-            "0016, 0019, 0022, 0023, and 0028"
+            "0016, 0019, 0022, 0023, 0028, and 0040"
         )
 
 
@@ -3551,6 +3551,7 @@ def validate(
         "0038-enforce-adapter-least-privilege-and-query-conditioning.md",
         "0039-validate-documentation-history-per-commit.md",
         "0040-integrate-doc-00-through-content-equivalent-rebase.md",
+        "0041-route-doc-00-validation-by-attestation-delta.md",
         f"DOC-CONF-{EXPECTED_CONFORMANCE_COUNT - 1:02d}",
         f"DOC-CONF-{EXPECTED_CONFORMANCE_COUNT:02d}",
     ]

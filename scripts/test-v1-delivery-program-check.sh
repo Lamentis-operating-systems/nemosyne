@@ -519,11 +519,11 @@ PY
 }
 
 new_structural_case finding
-sed 's#`FND-383` / P1#`FND-999` / P1#' \
+sed 's#`FND-384` / P1#`FND-999` / P1#' \
   "$current_document" >"$current_document.tmp"
 mv "$current_document.tmp" "$current_document"
 expect_failure "$current_document" \
-  'finding IDs must be exactly 1..383 in source order'
+  'finding IDs must be exactly 1..384 in source order'
 
 new_structural_case wave-label
 sed 's#^| `W33` |#| `W32` |#' \
@@ -773,7 +773,7 @@ expect_failure "$current_document" \
 new_structural_case decision-count
 rm "$current_case/docs/decisions/0039-validate-documentation-history-per-commit.md"
 expect_failure "$current_document" \
-  'decision IDs must be exactly 1..40 in source order'
+  'decision IDs must be exactly 1..41 in source order'
 
 new_structural_case specification-count
 rm "$current_case/docs/specifications/curated-activation-evidence.md"
@@ -798,7 +798,7 @@ sed 's#^Status: Accepted$#Status: Superseded#' \
   "$new_decision" >"$new_decision.tmp"
 mv "$new_decision.tmp" "$new_decision"
 expect_failure "$current_document" \
-  'Superseded decisions must be exactly 0011, 0012, 0013, 0015, 0016, 0019, 0022, 0023, and 0028'
+  'Superseded decisions must be exactly 0011, 0012, 0013, 0015, 0016, 0019, 0022, 0023, 0028, and 0040'
 
 new_structural_case proof-definition
 proof_file="$current_case/docs/specifications/v1-proof-program.md"
@@ -978,18 +978,18 @@ path = Path(sys.argv[1])
 text = path.read_text()
 line_start = text.index("| `CONSOL-03` / Content-bound attestation |")
 line_end = text.index("\n", line_start)
-line = text[line_start:line_end].replace("`FND-152..383`", "`FND-152..382`", 1)
+line = text[line_start:line_end].replace("`FND-152..384`", "`FND-152..383`", 1)
 path.write_text(text[:line_start] + line + text[line_end:])
 PY
 expect_failure "$current_document" \
-  'consolidation registry must bind the canonical current finding range FND-152..383 exactly once'
+  'consolidation registry must bind the canonical current finding range FND-152..384 exactly once'
 
 new_structural_case stale-current-conformance-range
 mutate_current_conformance \
-  '`FND-152..383`. `FND-001..382`' \
-  '`FND-152..382`. `FND-001..382`'
+  '`FND-152..384`. `FND-001..383`' \
+  '`FND-152..383`. `FND-001..383`'
 expect_failure "$current_document" \
-  "active $active_conformance_id must contain canonical current-state fragment exactly once: \`FND-152..383\`"
+  "active $active_conformance_id must contain canonical current-state fragment exactly once: \`FND-152..384\`"
 
 new_structural_case protected-history-crlf-checkout
 python3 - "$current_document" <<'PY'
@@ -1055,8 +1055,8 @@ expect_failure "$current_document" \
 
 new_structural_case stale-current-finding-count
 mutate_current_conformance \
-  'There are 383 unique sequential findings' \
-  'There are 382 unique sequential findings'
+  'There are 384 unique sequential findings' \
+  'There are 383 unique sequential findings'
 expect_failure "$current_document" \
   "active $active_conformance_id complete structural inventory differs from the canonical inventory"
 
@@ -1090,15 +1090,15 @@ expect_failure "$current_document" \
 
 new_structural_case stale-current-evidence-counts
 mutate_current_conformance \
-  '29 append-only conformance receipts, 18 external review paths, 12 non-template specifications' \
-  '28 append-only conformance receipts, 17 external review paths, 11 non-template specifications'
+  '30 append-only conformance receipts, 18 external review paths, 12 non-template specifications' \
+  '29 append-only conformance receipts, 17 external review paths, 11 non-template specifications'
 expect_failure "$current_document" \
   "active $active_conformance_id complete structural inventory differs from the canonical inventory"
 
 new_structural_case stale-current-decision-counts
 mutate_current_conformance \
-  '40 numbered decisions: 31 `Accepted` and 9 `Superseded`' \
-  '39 numbered decisions: 30 `Accepted` and 10 `Superseded`'
+  '41 numbered decisions: 31 `Accepted` and 10 `Superseded`' \
+  '40 numbered decisions: 30 `Accepted` and 11 `Superseded`'
 expect_failure "$current_document" \
   "active $active_conformance_id complete structural inventory differs from the canonical inventory"
 
@@ -1123,7 +1123,7 @@ sed 's#`FND-378` / P2#`FND-378` / P1#' \
   "$current_document" >"$current_document.tmp"
 mv "$current_document.tmp" "$current_document"
 expect_failure "$current_document" \
-  'finding severities must match the canonical FND-001..FND-383 ledger'
+  'finding severities must match the canonical FND-001..FND-384 ledger'
 
 new_structural_case completion-target
 sed \
@@ -1300,7 +1300,7 @@ write_receipt_set() {
       "consolidator-0${index}" \
       'Integration owner for the named consolidation pass.' \
       'Independent consolidation pass.' \
-      'FND-152..383 reconciliation.' \
+      'FND-152..384 reconciliation.' \
       "$replaces"
   done
 
@@ -1707,11 +1707,11 @@ expect_strict_failure "$strict_case" \
 new_strict_case stale-consolidation-evidence-range
 receipt="$strict_case/docs/receipts/consolidations/consol-03.md"
 sed \
-  's#FND-152..383 reconciliation.#FND-152..382 reconciliation.#' \
+  's#FND-152..384 reconciliation.#FND-152..383 reconciliation.#' \
   "$receipt" >"$receipt.tmp"
 mv "$receipt.tmp" "$receipt"
 expect_strict_failure "$strict_case" \
-  'attestation CONSOL-03 Evidence references must be FND-152..383 reconciliation.'
+  'attestation CONSOL-03 Evidence references must be FND-152..384 reconciliation.'
 
 new_strict_case duplicate-review-actor
 receipt="$strict_case/docs/receipts/reviews/rev-18.md"
@@ -2018,6 +2018,8 @@ python3 "$linear_unbound_repository/scripts/check-v1-delivery-program.py" \
   --require-receipts \
   --linear-integration \
   "$linear_unbound_repository/docs/specifications/v1-delivery-program.md"
+expect_strict_failure "$linear_unbound_repository" \
+  'the canonical attestation evidence commit must have exactly the recorded Source commit as its parent'
 
 linear_drift_repository="$fixture_root/linear-bound-path-drift"
 cp -R "$linear_repository" "$linear_drift_repository"

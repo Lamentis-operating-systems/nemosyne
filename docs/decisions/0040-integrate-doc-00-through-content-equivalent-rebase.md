@@ -1,7 +1,8 @@
 # 0040: Integrate DOC-00 through content-equivalent rebase
 
-Status: Accepted
+Status: Superseded
 Date: 2026-07-26
+Superseded by: 0041-route-doc-00-validation-by-attestation-delta.md
 
 ## Context
 
