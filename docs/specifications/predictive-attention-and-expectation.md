@@ -1646,9 +1646,15 @@ An exact tie uses the smallest `TransitionRecordVersionId`. The medoid is
 therefore one
 stored eligible outcome, not a synthetic vector mean. Its exact sidecars are
 only its own exact values. A medoid does not prove truth or semantic centrality
-outside the declared dissimilarity. No triangle inequality is assumed. If the
-group already has one canonical authored proposition surface, that surface is
-preferred and no quadratic medoid calculation is required.
+outside the declared dissimilarity. No triangle inequality is assumed.
+
+Representative selection is total and independent of surface authoring. Every
+nonempty positive-support outcome group selects exactly one stored
+`TransitionRecordVersionId` through the applicable `EXP-REP-001` medoid or
+`EXP-REP-002` fallback. A canonical authored proposition surface may be
+preferred later for lexical realization, but it does not supply or change the
+representative identity, exact-sidecar ownership, tie-break, or canonical
+ordering and cannot bypass representative selection.
 
 If the configured distance is legitimately unavailable for this group, define
 the total fallback key:
@@ -3203,7 +3209,9 @@ The first executable implementation requires:
   ordering, rounding, positive-underflow, overflow, non-finite, negative-zero,
   exact-tie, and cross-platform receipt cases;
 - medoid and distance-free fallback fixtures for each component of the total
-  representative key, including malformed-distance rejection;
+  representative key, including malformed-distance rejection, plus paired
+  authored-surface-present/absent fixtures proving identical representative
+  identity, sidecar ownership, tie-break, and order;
 - forged dependency-group and provenance failures;
 - nontransitive similarity counterexamples;
 - unknown, censored, unresolved, and omitted-support cases;
@@ -3298,6 +3306,8 @@ defines no production coefficient, threshold, model, or probability claim.
 - [Decision 0024: Separate transition records from derived artifacts](../decisions/0024-separate-transition-records-from-derived-artifacts.md)
 - [Decision 0032: Bind authoritative exact sidecars and two-plane
   consolidation](../decisions/0032-bind-authoritative-exact-sidecars-and-two-plane-consolidation.md)
+- [Decision 0035: Keep representative selection independent of authored
+  surfaces](../decisions/0035-keep-representative-selection-independent-of-authored-surfaces.md)
 
 ### Research evidence
 

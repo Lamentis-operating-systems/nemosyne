@@ -562,6 +562,11 @@ This is a logical wireframe, not a committed public Rust API. A future Rust
 type uses private fields, validated constructors, reading getters, canonical
 IDs, deterministic order, and no unsafe code.
 
+`representative` is always the stored transition selected by the predictive
+stage's medoid or total fallback. An authored proposition surface may affect
+only later lexical realization; it cannot replace this identity, contribute
+different exact sidecars, or alter the expectation order.
+
 The renderer may see `relative_support` only with the schema identity and an
 explicit `EvidenceShareNotProbability` semantic label. The plan never exposes
 an unlabeled scalar that a renderer could verbalize as confidence.
@@ -2714,3 +2719,5 @@ No answer is selected without frozen evaluation evidence.
   consolidation](../decisions/0032-bind-authoritative-exact-sidecars-and-two-plane-consolidation.md)
 - [Decision 0034: Adopt the vector-conditioned focus-adapter
   boundary](../decisions/0034-adopt-vector-conditioned-focus-adapter-boundary.md)
+- [Decision 0035: Keep representative selection independent of authored
+  surfaces](../decisions/0035-keep-representative-selection-independent-of-authored-surfaces.md)

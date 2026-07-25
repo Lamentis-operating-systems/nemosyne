@@ -28,8 +28,9 @@ resampling, soft prompting, fused decoding, and other bounded registered
 architectures remain empirical candidates. The concrete projector/resampler/
 soft-prefix formulas below define one candidate family only.
 
-Decision 0016 fixes the sealed plan-content, renderer-configuration, exact-byte
-collision, substitution, and independent validation joins used below. The
+Decision 0034 re-adopts from superseded Decision 0016 the sealed plan-content,
+renderer-configuration, exact-byte collision, substitution, and independent
+validation joins used below. The
 specification remains `Proposed` because no implementation or qualifying
 evidence exists. No adapter family, dimensions, model, checkpoint,
 quantization, runtime, or decoder configuration is selected, and none of these

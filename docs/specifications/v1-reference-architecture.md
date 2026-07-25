@@ -15,7 +15,7 @@ query facets, a shared eligible activated-memory set, parallel focus and
 expectation formation, a canonical focus-and-expectation plan, and an
 architecture-neutral vector-conditioned focus-adapter boundary. Adapter
 family, optional decoder, model, and checkpoint remain evidence-gated.
-Decision 0016 fixes the sealed
+Decision 0034 re-adopts from superseded Decision 0016 the sealed
 compile-integrity boundaries that keep complete queries, the one shared
 activated-memory object, invocation membership, canonical plan content, exact
 plan bytes, and renderer configuration distinct and fail closed at their
@@ -171,7 +171,7 @@ the table below states otherwise.
 | Numerical memory, transition records, shared activated set, parallel focus and expectation, and combined plan | Accepted implementation direction from Decision 0014 |
 | Content-addressed authoritative exact sidecars and validated two-plane proposition consolidation | Accepted integrity boundary from Decision 0032 |
 | Vector-conditioned focus input, deterministic baseline, architecture-neutral adapter qualification, exact slots, and bounded untrusted focus output | Accepted boundary from Decision 0034 |
-| Aggregate query and shared-set boundaries, invocation witnesses, canonical plan identity, exact-byte collision detection, renderer-configuration identity, and closed renderer joins | Accepted integrity boundaries from Decision 0016 |
+| Aggregate query and shared-set boundaries, invocation witnesses, canonical plan identity, exact-byte collision detection, renderer-configuration identity, and closed renderer joins | Accepted integrity boundaries from Decision 0034, re-adopting the relevant rules of superseded Decision 0016 |
 | Ingress, preflight, snapshot, authorization, encoding, retrieval, derivation, expectation, planning, rendering, and validation decomposition | Proposed boundaries governed by the focused specifications |
 | Existing activation kernel, evaluator, and corpus | Experimental implementations and evidence |
 | Physical database and schema, exact encoders and indexes, calibrated parameters, release model and quantization, production runtime, processes, and resource thresholds | Open choices |
