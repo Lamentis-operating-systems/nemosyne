@@ -1183,9 +1183,12 @@ probe-pass, lifecycle-mutation-commit, and lifecycle admission in scope. It
 does not destroy resources. The separate durable
 `CollisionTerminalRemovalStateV1` later closes revoked resources through
 bounded idempotent steps over one fixed revoke set or generation cursor, with
-positive item/work/byte limits and exact `Committed`, `Aborted`, or
-`ReconciliationRequired` outcomes. Retry and restart preserve the monotonic
-cursor and cannot reopen admission or change the tombstone, fence, or recovery
+positive item/work/byte limits. Containment creates it as `NotStarted` at the
+scope's exact canonical start cursor. The first attempted step atomically
+changes that state to `Committed`, `Aborted`, or
+`ReconciliationRequired`; no later state can regress to `NotStarted`. Retry
+and restart preserve the initial cursor or exact persisted outcome and cannot
+fabricate a step, reopen admission, or change the tombstone, fence, or recovery
 eligibility.
 
 Immediately before observable success, each origin validates its typed final
@@ -1257,7 +1260,8 @@ rendering, learning, or the product result.
 barrier, epoch, runtime-registration, bounded active-admission registry
 selected by Decision 0031, and the typed collision tombstone, integrity fence,
 `CollisionQuarantineBasisV1`, revoke dispositions, and
-`CollisionTerminalRemovalStateV1` commitments selected by Decision 0032. These
+`CollisionTerminalRemovalStateV1` commitments selected by Decision 0032 and
+totalized by Decision 0036. These
 integrity values bind only store/trust-domain identities, generations,
 resource identities, cursors, limits, and witness/closure commitments, never
 memory meaning or sidecar bytes. Ordinary noncollision terminalization removes
@@ -1315,7 +1319,8 @@ transition relation containing only:
 2. construction and authentication of one `CollisionQuarantineBasisV1`;
 3. one crash-atomic containment commit or its fail-closed reconciliation,
    atomically advancing the fence and recording every logical revoke
-   disposition without destroying resources;
+   disposition and creating the canonical
+   `CollisionTerminalRemovalStateV1::NotStarted` without destroying resources;
 4. monotonic bounded, idempotent, resource-safe
    `CollisionTerminalRemovalStateV1` steps or their reconciliation.
 
@@ -1706,7 +1711,7 @@ the contract to test rather than proving a model can satisfy it.
 | `V1-R05` | Authorization before unified cross-context relevance | Policy gate and candidate generation | F2, canary exclusions, cross-context recall, and revocation policy tests |
 | `V1-R06` | Source support, qualification, immutable branch-owned planning projections, lowering-only authority/allowed-use/surface ceilings, and no authority promotion | Plan and validation | F5, F6, F12, adversarial provenance, projection/ceiling/slot/content-identity/inventory-minimization failures, ambient-authority noninterference, and semantic-fidelity cases |
 | `V1-R07` | Evidence-bound focus and/or qualified expectation context, or faithful empty attention | Planner, renderer, and validation | Plan-shape, proposition-label, leakage, support, and raw-copy metrics |
-| `V1-R08` | Declared language, finite budget, faithful empty attention, and budget error | Planner, renderer, and validation | Per-language evaluation and exact budget-boundary tests |
+| `V1-R08` | Single resolved output language, finite budget, faithful empty attention, and budget error | Pre-planning compatibility, planner, renderer, and validation | Exact language-precedence table, single-resolver, prompt-byte-preservation, per-language evaluation, no-downstream-reresolution, and exact budget-boundary tests |
 | `V1-R09` | Local memory and no compile network access or compiler-initiated disclosure beyond the authorized local result channel | Runtime and packaging | F11, network-denied integration, capability audit, result-channel authorization, artifact-authenticity, and storage-location tests |
 | `V1-R10` | No caller-supplied trust or internal identity, no focus/planning authorization capability, no discovery, downstream AI invocation, or automatic learning | Compile dependency boundary | Private trusted-type and ingress construction, all-field forgery, cancellation authority-noninterference, static no-authority-edge, capability, and prohibited-call tests |
 | `V1-R11` | Numerical relevance after ingress with content-addressed exact evidence and partition-safe validated two-plane consolidation | Encoding through planning | Normative complete regime-owner definition; custody-binding-only memory wire shape; effect-free four-check prelookup; sealed `ExactSidecarResolvedSnapshotV1` postlookup; stable sealed-holding obligations; closed `CollisionObservationOriginV1`; authenticated `CollisionQuarantineBasisV1`; atomic logical revoke/fence/tombstone containment; separately bounded idempotent `CollisionTerminalRemovalStateV1`; final linearizable product/probe/management guards; restart reconciliation; exact coordination mapping; disjoint `CollisionRecoveryTransactionV1` with permanent old tombstone and only new-regime republication or complete erasure; well-founded nested references; one independently validated projection pair per proposition-plane source; numerical-order/relevance-only authority; closed variant-specific cross-plane joins; flattened \(n_{\mathrm{src}}^M\) source/pair/complexity accounting; bounded exhaustive unordered-pair enumeration or exact `ExhaustiveConsolidationPairSetWitnessV1` equality over source set, pair set, equivalence identity, and ceiling; true authoritative identity equivalence; complete-link canonical partition; pair-work versus post-consolidation capacity classification; exact five-family discriminant closure and total per-variant focus-error mapping/precedence; reconstruction-limit, exact-slot-conflict, scope, provenance, disclosure, authority, and cross-plane perturbation tests |
@@ -1813,7 +1818,9 @@ Implementation evidence must include:
   resource destruction. Product release, passing probe receipt, and management
   lifecycle commit race containment through their final typed guards and have
   one total order. `CollisionTerminalRemovalStateV1` fixtures cover canonical
-  revoke-set and generation cursors, every positive per-step bound,
+  revoke-set and generation start cursors, a crash after containment and before
+  the first step, repeated `NotStarted` restart, every legal first transition,
+  malformed or regressive initial states, every positive per-step bound,
   committed/aborted/reconciliation outcomes, idempotent retry and restart,
   exact closure receipts, and the impossibility of reopening or resetting
   work. `CollisionRecoveryTransactionV1` rejects old-pair rollback, witness
@@ -1923,7 +1930,17 @@ Implementation evidence must include:
 - approximate-index misses and degraded search;
 - empty memory with justified empty and nonempty attention;
 - no situation statements and three situation statements;
-- mixed, ambiguous, unsupported, and explicitly selected languages;
+- every output-language resolution row: no explicit tag with one supported
+  prompt identity, an identical canonical explicit identity, a different
+  supported explicit identity, a syntactically valid unsupported explicit
+  identity with a supported prompt, and absent, supported, or unsupported
+  explicit identities for unsupported, undetermined, neutral, and mixed
+  prompts; fixtures also prove intrinsic tag-syntax validation stays separate
+  from installed canonicalization and support, one resolver invocation, exact
+  post-schema identity comparison, unsupported-explicit-tag source precedence
+  over simultaneous prompt-support failures, prompt-byte preservation,
+  `RequestIncompatible` versus `UnsupportedLanguage` classification, and no
+  downstream re-resolution;
 - answer leakage, action selection, probability inflation, fact promotion,
   raw copying, unsupported clauses, lost conditions or horizons, collapsed
   alternatives, and lost qualifications;
@@ -3383,9 +3400,11 @@ The development suite must include:
   `CollisionQuarantineBasisV1` closure, or reverse-index scope accepted without
   completeness proof instead of whole-generation fallback;
 - physical resource destruction inside the atomic containment section,
-  ordinary terminalization required before collision return, an unbounded or
-  resettable terminal-removal queue, duplicate/skip cursor behavior, or retry
-  after a `ReconciliationRequired` cleanup step without first proving the last
+  ordinary terminalization required before collision return, a containment
+  commit without a durable canonical `NotStarted` cleanup state, a fabricated
+  first-step outcome, regression to `NotStarted`, an unbounded or resettable
+  terminal-removal queue, duplicate/skip cursor behavior, or retry after a
+  `ReconciliationRequired` cleanup step without first proving the last
   committed cursor;
 - product release, passing probe receipt, or management lifecycle mutation
   without its final typed guard/fence validation, or any outcome claimed to
@@ -3441,7 +3460,7 @@ The proof program proceeds in risk order:
 | G2: Evidence harness | Formal obligations are reviewed; one versioned manifest, receipt, split, lineage, baseline, and analysis harness can represent every required condition and preserve failed or inconclusive results | Do not select implementation technologies |
 | G3: Predictive semantics | The deterministic expectation baseline passes transition-schema, dependency-budget, alternative, abstention, observation-assessment, and non-probability contracts on curated and adversarial evidence | Correct or simplify predictive semantics before renderer or persistence integration |
 | G4: Focus/planning and renderer feasibility | The bounded focus reference flattens zero-or-more proposition-plane sources per activated record, uses \(n=n_Q+n_{\mathrm{src}}^M\) for source identity, pair count, ceiling, complexity, and tests, then checks the exact pair-work ceiling and enumerates every unordered source pair; every optimized implementation supplies `ExhaustiveConsolidationPairSetWitnessV1` over that exact source set, pair set, equivalence-contract identity, and ceiling and agrees on variant-safe joins, true identity buckets, complete-link canonical partitions, total focus-error mapping, and cross-/within-stage precedence. Under the frozen family-wise or sequential qualification procedure, the byte-identical checked adapter view and paired validator view then compare deterministic, query-only, memory-only, weight-intervention, weighted-pooling or linear, set-adapter, and every stronger registered family. The smallest passing complete adapter and optional-decoder configuration must preserve the common support trace, qualifiers, authority, exact slots, no-text boundary, and local budgets across every mandatory cohort and seed; every fallback decision is resolved by the same procedure | Correct the exhaustive focus partition/error contract or replace or constrain the adapter, optional decoder, or rendering contract; do not weaken a failed gate |
-| G5: Memory read and snapshots | Supplied revisions, authorization views, pinned indexes, normatively complete content-derived exact-sidecar regime/schema/custody-domain identities, custody-binding-only record and source shapes, effect-free record/regime/schema/custody prelookup, one sealed postlookup snapshot, stable source-bound sealed holdings, field-identical complete-binding deduplication, well-founded prior-revision nested references and deletion safety, one independently validated derived/authoritative pair per source with variant-specific joins, closed `CollisionObservationOriginV1`, authenticated `CollisionQuarantineBasisV1` with reverse-index or whole-generation scope, crash-atomic tombstone/fence/logical-revoke containment separated from bounded idempotent `CollisionTerminalRemovalStateV1`, final linearizable product/probe/management guards, committed/aborted/unknown restart reconciliation, exact coordination-error mapping, disjoint `CollisionRecoveryTransactionV1` new-regime-or-erasure recovery with permanent old tombstone, logical erasure versus last-reference collection, noncollision no-resurrection rollback, atomic publication/recovery, declared integrity-error precedence, concurrent publication, and compiler/management capability separation satisfy their contracts | Do not build persistent-memory retrieval |
+| G5: Memory read and snapshots | Supplied revisions, authorization views, pinned indexes, normatively complete content-derived exact-sidecar regime/schema/custody-domain identities, custody-binding-only record and source shapes, effect-free record/regime/schema/custody prelookup, one sealed postlookup snapshot, stable source-bound sealed holdings, field-identical complete-binding deduplication, well-founded prior-revision nested references and deletion safety, one independently validated derived/authoritative pair per source with variant-specific joins, closed `CollisionObservationOriginV1`, authenticated `CollisionQuarantineBasisV1` with reverse-index or whole-generation scope, crash-atomic tombstone/fence/logical-revoke containment plus a durable canonical `NotStarted` cleanup state separated from bounded idempotent `CollisionTerminalRemovalStateV1` steps, final linearizable product/probe/management guards, committed/aborted/unknown restart reconciliation, exact coordination-error mapping, disjoint `CollisionRecoveryTransactionV1` new-regime-or-erasure recovery with permanent old tombstone, logical erasure versus last-reference collection, noncollision no-resurrection rollback, atomic publication/recovery, declared integrity-error precedence, concurrent publication, and compiler/management capability separation satisfy their contracts | Do not build persistent-memory retrieval |
 | G6: Retrieval | Required-proposition and eligible-transition recall plus cross-context behavior beat frozen simple baselines | Replace or simplify retrieval |
 | G7: Activation and planning | Fixed-intermediate comparisons show value for signal derivation, activation, focus construction, expectation derivation, and combined closure selection over their strongest simpler baselines | Do not calibrate or integrate a mechanism without added value |
 | G8: Vertical slice | All critical invariants, offline boundaries, and resource budgets hold in one local end-to-end integration | Do not build release packaging |
@@ -3946,3 +3965,5 @@ after the sealed outcomes are known.
 - [Decision 0032: Bind authoritative exact sidecars and two-plane consolidation](../decisions/0032-bind-authoritative-exact-sidecars-and-two-plane-consolidation.md)
 - [Decision 0034: Adopt the vector-conditioned focus-adapter boundary](../decisions/0034-adopt-vector-conditioned-focus-adapter-boundary.md)
 - [Decision 0035: Keep representative selection independent of authored surfaces](../decisions/0035-keep-representative-selection-independent-of-authored-surfaces.md)
+- [Decision 0036: Represent the initial collision-removal state](../decisions/0036-represent-the-initial-collision-removal-state.md)
+- [Decision 0037: Resolve output language without overriding a supported prompt](../decisions/0037-resolve-output-language-without-overriding-a-supported-prompt.md)

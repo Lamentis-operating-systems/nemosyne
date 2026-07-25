@@ -170,11 +170,11 @@ EXPECTED_V1_GRAPH_DEPENDENCY_COUNT = 123
 EXPECTED_INTERFACE_COUNT = 49
 EXPECTED_REVIEW_COUNT = 18
 EXPECTED_WAVE_COUNT = 34
-EXPECTED_FINDING_COUNT = 368
-EXPECTED_CONFORMANCE_COUNT = 25
+EXPECTED_FINDING_COUNT = 378
+EXPECTED_CONFORMANCE_COUNT = 26
 EXPECTED_SPECIFICATION_COUNT = 12
-EXPECTED_DECISION_COUNT = 35
-EXPECTED_ACCEPTED_DECISION_COUNT = 27
+EXPECTED_DECISION_COUNT = 37
+EXPECTED_ACCEPTED_DECISION_COUNT = 29
 EXPECTED_SUPERSEDED_DECISION_COUNT = 8
 CANONICAL_G0_RECORD_ID = "DOC-CONF-24"
 EXPECTED_CURRENT_FINDING_RANGE = f"FND-152..{EXPECTED_FINDING_COUNT:03d}"
@@ -295,7 +295,8 @@ EXPECTED_FINDING_PRIORITY_DIGITS = (
     "11111221121211122222112111121111111"
     "112111121"
     "11111121"
-    "112112"
+    "11211212"
+    "22222122"
 )
 
 WORK_BREAKDOWN_HEADER = (
@@ -1129,7 +1130,7 @@ def validate_specifications(repository_root: Path) -> None:
 
 
 def validate_decisions(repository_root: Path) -> None:
-    """Require the frozen 33-record decision inventory and statuses."""
+    """Require the frozen 37-record decision inventory and statuses."""
 
     decision_directory = repository_root / DECISION_DIRECTORY
     if decision_directory.is_symlink() or not decision_directory.is_dir():
@@ -3434,6 +3435,8 @@ def validate(path: Path, require_receipts: bool = False) -> None:
         "0033-separate-source-conformance-from-stable-g0-identity.md",
         "0034-adopt-vector-conditioned-focus-adapter-boundary.md",
         "0035-keep-representative-selection-independent-of-authored-surfaces.md",
+        "0036-represent-the-initial-collision-removal-state.md",
+        "0037-resolve-output-language-without-overriding-a-supported-prompt.md",
         f"DOC-CONF-{EXPECTED_CONFORMANCE_COUNT - 1:02d}",
         f"DOC-CONF-{EXPECTED_CONFORMANCE_COUNT:02d}",
     ]

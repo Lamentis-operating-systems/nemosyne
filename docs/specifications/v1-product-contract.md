@@ -45,8 +45,9 @@ A **compile request** contains:
 - one original user prompt;
 - zero to three concise natural-language situation statements; and
 - request metadata that identifies the declared contextual time and may
-  identify the location, host application, workspace, project, output
-  language, or other explicit context.
+  identify the location, host application, workspace, project, or other
+  explicit context; and
+- an optional output-language tag separate from request metadata.
 
 V1 uses one versioned, byte-preserving definition of **whitespace-only** for
 every public request field. `WhitespaceSetV1` contains exactly U+0009 through
@@ -345,16 +346,31 @@ The attention text:
   uncertainty, and abstention; and
 - stays within the configured size budget.
 
-The attention text uses the language of the original prompt. An implementation
-declares the languages for which it can verify this behavior. Language
-detection and explicit-language resolution occur exactly once after intrinsic
-request construction and before semantic planning. An unsupported or
-undetermined prompt language produces an explicit request-compatibility error
-rather than a silent language switch, unless explicit request metadata selects
-a declared supported language. The resolved supported language is then a
-pinned input to planning, rendering, validation, and serialization; none of
-those stages owns a second unsupported-language decision. Evidence and support
-claims remain limited to the declared language set.
+The attention text uses the language of the original prompt whenever the
+pinned resolver identifies exactly one declared supported language. An
+explicit output-language field may confirm that same canonical identity but
+cannot override it: a different supported identity is
+`RequestIncompatible`, and a syntactically valid unsupported identity is
+`UnsupportedLanguage`. For an unsupported, undetermined, neutral, or mixed
+prompt, one explicit declared supported identity selects the attention
+language; without one, resolution is `UnsupportedLanguage`.
+
+The public request constructor validates only the versioned intrinsic BCP 47
+syntax of an explicit tag. It does not consult installed support. After
+authenticated language-schema preflight, a present syntactically valid but
+unsupported tag has precedence as `RequestedLanguageUnsupported`; otherwise a
+supported-tag conflict, unsupported prompt, or nonunique prompt result uses
+the distinct source fixed by Decision 0037.
+
+An implementation declares the languages for which it can verify this
+behavior. Prompt-language detection and explicit-tag resolution occur exactly
+once after intrinsic request construction and before semantic planning. The
+resolved supported language is then a pinned input to planning, rendering,
+validation, and serialization; none of those stages owns a second detection,
+support lookup, override, fallback, or unsupported-language decision. Explicit
+selection affects attention only and never translates or rewrites the
+byte-identical prompt. Evidence and support claims remain limited to the
+declared language set.
 
 ### Local boundary
 
@@ -396,8 +412,10 @@ datasets, domain, languages, downstream models, and reference hardware.
   situation statements and metadata may still support useful focus.
 - A request with no situation statement may still use the original prompt,
   required time, optional metadata, and authorized memory.
-- A language-neutral or mixed-language prompt may use explicit output-language
-  metadata. Without it, undetermined language is an error.
+- A language-neutral or mixed-language prompt may use an explicit declared
+  supported output language. For a prompt already resolved to one supported
+  language, the field is confirmation rather than an override; conflict is an
+  error.
 - Missing optional location, project, workspace, or application metadata does
   not fail the call and is not replaced with inferred metadata.
 - A highly relevant memory associated with another project or application may
@@ -578,4 +596,5 @@ still resolve:
 - [Decision 0032: Bind authoritative exact sidecars and two-plane consolidation](../decisions/0032-bind-authoritative-exact-sidecars-and-two-plane-consolidation.md)
 - [Decision 0034: Adopt the vector-conditioned focus-adapter boundary](../decisions/0034-adopt-vector-conditioned-focus-adapter-boundary.md)
 - [Decision 0035: Keep representative selection independent of authored surfaces](../decisions/0035-keep-representative-selection-independent-of-authored-surfaces.md)
+- [Decision 0037: Resolve output language without overriding a supported prompt](../decisions/0037-resolve-output-language-without-overriding-a-supported-prompt.md)
 - [Nemosyne README](../../README.md)

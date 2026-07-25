@@ -363,13 +363,17 @@ commitments, and either proven `CompleteReverseIndex` scope or conservative
 
 One crash-atomic containment point commits the basis, creates or verifies the
 tombstone, advances the fence, records every logical revoke disposition, and
-closes semantic-read, product-release, probe-pass, lifecycle-mutation-commit,
-and lifecycle admission in scope. It does not wait for physical cleanup.
+creates `CollisionTerminalRemovalStateV1::NotStarted` at the fixed scope's
+exact canonical start cursor while closing semantic-read, product-release,
+probe-pass, lifecycle-mutation-commit, and lifecycle admission in scope. It
+does not wait for physical cleanup.
 Revoked records and live resources remain in the durable bounded
 `CollisionTerminalRemovalStateV1`, whose fixed revoke-set or generation cursor,
-positive item/work/byte limits, and exact committed, aborted, or
-reconciliation outcomes make cleanup idempotent and restartable without
-reopening or changing recovery.
+positive item/work/byte limits, and exact first transition from `NotStarted`
+to committed, aborted, or reconciliation state before any first-step effect
+make cleanup idempotent and restartable without reopening or changing
+recovery. Decision 0036 totalizes this initial state while Decision 0032
+retains collision authority and semantic exclusion.
 
 Immediately before externally visible success, `Compile`,
 `TerminalProbe`, and `Management` validate their respective
@@ -3308,6 +3312,8 @@ defines no production coefficient, threshold, model, or probability claim.
   consolidation](../decisions/0032-bind-authoritative-exact-sidecars-and-two-plane-consolidation.md)
 - [Decision 0035: Keep representative selection independent of authored
   surfaces](../decisions/0035-keep-representative-selection-independent-of-authored-surfaces.md)
+- [Decision 0036: Represent the initial collision-removal
+  state](../decisions/0036-represent-the-initial-collision-removal-state.md)
 
 ### Research evidence
 

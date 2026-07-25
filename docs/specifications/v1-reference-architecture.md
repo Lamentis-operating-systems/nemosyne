@@ -662,13 +662,25 @@ snapshots to be destroyed.
 Physical closure is the separate durable
 `CollisionTerminalRemovalStateV1`. It binds the quarantine basis, either the
 canonical revoke set or fenced-generation cursor, a monotonic next cursor,
-positive per-step item/work/byte limits, and exactly one last-step outcome:
-`Committed` with exact closure receipts, `Aborted` with verified no effect, or
-`ReconciliationRequired` with the durable recovery fence. Each bounded step is
-idempotent and resource-safe. Retry and restart resume the same cursor without
-duplicating work, skipping an item, resetting a limit, changing the tombstone
-or fence, reopening admission, publishing a product, or altering recovery
-eligibility.
+positive per-step item/work/byte limits, and one closed step state.
+Containment creates `NotStarted` with `next_cursor` equal to ordinal zero for
+the canonical revoke set or the scope's canonical initial generation cursor.
+The first attempted step atomically replaces it with `Committed` and exact
+closure receipts, `Aborted` and verified no effect, or
+`ReconciliationRequired` and the durable recovery fence. Once a step is
+attempted, the state cannot regress to `NotStarted`. Each bounded step is
+idempotent and resource-safe. Retry and restart resume the same initial cursor
+or exact persisted outcome without fabricating a step, duplicating work,
+skipping an item, resetting a limit, changing the tombstone or fence, reopening
+admission, publishing a product, or altering recovery eligibility.
+
+The top-level `next_cursor` always equals the active variant cursor. A
+`Committed` transition binds its `prior_cursor` to the pre-state
+`next_cursor` and writes its variant and top-level post cursors identically.
+An `Aborted` transition leaves the pre-state, variant, and post-state cursors
+identical. A `ReconciliationRequired` transition stores the last proven
+committed cursor in both locations while the recovery fence covers any
+unproved effect. Every mismatch is invalid state, not a restart heuristic.
 
 Immediately before externally observable success, every origin performs one
 final linearizable validation of its typed guard, exact trust-key dependency
@@ -1890,10 +1902,12 @@ pinned authenticated configuration. Unsupported request schema versions,
 configured byte or item ceilings, incompatible time, location, metadata,
 encoder, or renderer schemas, and request ceilings outside the installed
 capability envelope are `RequestIncompatible` or `ArtifactUnavailable`
-according to the failure taxonomy. An absent, undetermined, or unsupported
-resolved output language is exclusively `UnsupportedLanguage`. Each preserves
-its distinct typed source and must never be relabeled as malformed request
-construction or planning failure.
+according to the failure taxonomy. A supported explicit language that conflicts
+with the prompt's single supported resolved identity is
+`RequestIncompatible`. A missing supported result or a syntactically valid
+explicit identity outside declared support is `UnsupportedLanguage`. Each
+preserves its distinct typed source and must never be relabeled as malformed
+request construction or planning failure.
 `String` denotes the exact valid UTF-8 bytes received by the API; no
 normalization is permitted. Reading getters borrow values. No public mutable
 field, unchecked public constructor, global singleton, unsafe Rust, or ambient
@@ -1926,16 +1940,55 @@ metadata has a versioned allowlist; the first proposed keys are `project`,
 its configured byte limit plus a source label. Unknown extension keys require
 a newer schema instead of being silently ignored.
 
-`LanguageTag` is a validated BCP 47 language tag under the pinned language
-schema. When supplied, it selects that declared supported output language.
-When absent, the pinned language resolver must resolve exactly one supported
-language from the original prompt or return `UnsupportedLanguage`; it never
-silently falls back. Explicit selection affects generated attention only and
-never translates or rewrites the retained prompt. This compatibility boundary
-is the sole owner of unsupported-language classification. It seals one
-`ResolvedOutputLanguage` before planning; planning, rendering, validation, and
-serialization consume that value and cannot perform a second support lookup or
-return a planning-layer unsupported-language variant.
+`LanguageTag` construction validates only the intrinsic BCP 47 syntax fixed by
+the versioned public request schema. It does not consult an installation,
+language schema, schema registry, or supported-language set. After
+authenticated language-schema preflight, the compatibility boundary
+canonicalizes the syntactically valid tag to one declared language identity or
+classifies it as unsupported, and runs the pinned resolver exactly once over
+the original prompt even when the tag is present. Comparison is exact after
+schema canonicalization.
+
+Resolution is total:
+
+| Prompt resolver result | Explicit tag | Result |
+| --- | --- | --- |
+| exactly one supported identity `p` | absent | `p` |
+| exactly one supported identity `p` | supported identity `p` | `p` |
+| exactly one supported identity `p` | different supported identity | `RequestIncompatible` |
+| exactly one supported identity `p` | syntactically valid but unsupported identity | `UnsupportedLanguage` |
+| unsupported, undetermined, neutral, or mixed | one supported identity `e` | `e` |
+| unsupported | absent | `UnsupportedLanguage` |
+| undetermined, neutral, or mixed | absent | `UnsupportedLanguage` |
+| unsupported, undetermined, neutral, or mixed | syntactically valid but unsupported identity | `UnsupportedLanguage` |
+
+No platform locale, primary-subtag equivalence, or silent fallback
+participates.
+
+The field is therefore a confirmation for a clearly supported prompt and a
+fallback only when the prompt cannot select one supported identity. It affects
+generated attention only and never translates or rewrites the retained
+prompt. This compatibility boundary seals one `ResolvedOutputLanguage` before
+planning; planning, rendering, validation, serialization, and adapters consume
+that value and cannot perform a second detection, support lookup, override,
+fallback, or planning-layer unsupported-language return.
+
+The resolver reads only the original prompt under the pinned language schema;
+situation statements, metadata, memory, process locale, and ambient platform
+state are noninputs. Its closed sources are
+`ExplicitLanguageConflictsWithPrompt` to `RequestIncompatible`, and
+`RequestedLanguageUnsupported`, `PromptLanguageUnsupported`, or
+`PromptLanguageNotUniquelyResolved` to `UnsupportedLanguage`. Missing,
+unauthenticated, or corrupt language-schema state is `ArtifactUnavailable`.
+
+After successful schema preflight, a present syntactically valid but
+unsupported tag has source precedence as `RequestedLanguageUnsupported`,
+regardless of the prompt result. Otherwise a different supported tag against
+one supported prompt identity is `ExplicitLanguageConflictsWithPrompt`. With
+no tag, an unsupported prompt is `PromptLanguageUnsupported`, while an
+undetermined, neutral, or mixed prompt is
+`PromptLanguageNotUniquelyResolved`. A supported explicit fallback makes
+either prompt-result class successful.
 
 `AuthenticatedInvocation` is a sealed crate-private aggregate constructed
 only by the compiler-owned `LocalPlatformAuthenticator` in `nemosyne-compiler` and
@@ -2062,7 +2115,11 @@ identity reaches the `API-01` platform invocation adapter. The CLI neither
 authenticates nor resolves that identity and never accepts an arbitrary
 configuration path. `--attention-budget` can only lower the selected
 configuration and invocation-context ceiling. `--output-language` follows the
-same resolution rule as the library field and is not general request metadata.
+same resolution rule as the library field: it confirms a clearly resolved
+supported prompt language or supplies a supported fallback for an unsupported,
+undetermined, neutral, or mixed prompt. It is not an unconditional override
+and is not general request metadata. CLI help and Rustdoc must state this
+conditional role.
 
 Successful standard output is exactly the complete compiled prompt with no
 diagnostic prefix, ANSI styling, progress message, or suffix. Standard error is
@@ -2098,7 +2155,7 @@ during delivery.
 | Exit | Stable class |
 | ---: | --- |
 | `0` | Complete compiled prompt delivered |
-| `2` | CLI usage, intrinsic public-input construction error, or unsupported requested language |
+| `2` | CLI usage, intrinsic public-input construction error, or `UnsupportedLanguage` from an unsupported explicit tag, unsupported prompt, or nonunique prompt-language result |
 | `3` | Prompt-origin, principal, authorization, or disclosure failure |
 | `4` | Compile admission, memory, snapshot, or persistence failure |
 | `5` | Request/configuration incompatibility, schema, or artifact failure |
@@ -4604,11 +4661,11 @@ class and an inspectable underlying stage or cause.
 
 | Variant | Representative causes | CLI exit |
 | --- | --- | ---: |
-| `RequestIncompatible` | A valid request uses a schema, shape, size, or budget unsupported by the pinned installed configuration | `5` |
+| `RequestIncompatible` | A valid request uses a schema, shape, size, or budget unsupported by the pinned installed configuration, or names a supported explicit output language different from the prompt's single supported resolved identity | `5` |
 | `PromptOrigin` | Caller cannot satisfy the authenticated prompt-origin precondition | `3` |
 | `AdmissionUnavailable` | The lifecycle gate is closed, the authenticated runtime binding does not match the active pair, installation, registry, or runtime generation, the invocation is replayed, or coordination state is unavailable before admission | `4` |
 | `AdmissionFinalizationFailure` | An ordinary noncollision admitted call cannot prove crash-atomic removal of its exact active record after every bound resource closes; a durably collision-revoked record pending `CollisionTerminalRemovalStateV1` is not this failure; no provisional result or compile-core error is returned | `4` |
-| `UnsupportedLanguage` | Language is absent, undetermined, or outside declared support | `2` |
+| `UnsupportedLanguage` | No supported output identity can be resolved, or a syntactically valid explicit identity is outside declared support | `2` |
 | `AuthorizationUnavailable` | Caller trust or disclosure view cannot be established | `3` |
 | `MemoryUnavailable` | Uninitialized, locked, unreadable, incompatible, corrupt, quarantined, custody-mismatched, or invalidly nested memory | `4` |
 | `SnapshotUnavailable` | No coherent revision or a representation/index revision mismatch | `4` |
@@ -5407,7 +5464,9 @@ Architecture conformance requires:
   `CollisionQuarantineBasisV1` reverse-index and whole-generation scopes,
   containment fault injection around the atomic tombstone/fence/logical-revoke
   linearization without resource destruction, bounded idempotent
-  `CollisionTerminalRemovalStateV1` cursor/limit/outcome retry and restart,
+  `CollisionTerminalRemovalStateV1` initial-state/cursor/limit/outcome retry
+  and restart, including the crash before the first step and rejection of
+  malformed or regressive `NotStarted` states,
   final linearizable product/probe/management guard races,
   committed/aborted/unknown restart reconciliation, conservative whole-store
   fencing when reachability is unproved, exact
@@ -5568,6 +5627,8 @@ omnibus acceptance of those choices.
 - [Decision 0031: Complete compile and update admission handoffs](../decisions/0031-complete-compile-and-update-admission-handoffs.md)
 - [Decision 0032: Bind authoritative exact sidecars and two-plane consolidation](../decisions/0032-bind-authoritative-exact-sidecars-and-two-plane-consolidation.md)
 - [Decision 0034: Adopt the vector-conditioned focus-adapter boundary](../decisions/0034-adopt-vector-conditioned-focus-adapter-boundary.md)
+- [Decision 0036: Represent the initial collision-removal state](../decisions/0036-represent-the-initial-collision-removal-state.md)
+- [Decision 0037: Resolve output language without overriding a supported prompt](../decisions/0037-resolve-output-language-without-overriding-a-supported-prompt.md)
 - [SQLite transactions](https://www.sqlite.org/lang_transaction.html)
 - [SQLite write-ahead logging](https://www.sqlite.org/wal.html)
 - [SQLite backup API](https://www.sqlite.org/backup.html)
