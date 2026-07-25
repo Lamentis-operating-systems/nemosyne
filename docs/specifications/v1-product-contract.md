@@ -22,13 +22,15 @@ until separately evaluated.
 
 This document specifies the wanted result and its observable requirements. It
 does not make internal technology choices part of the stable product surface.
-Decisions 0014 through 0016 select the current V1 implementation hypothesis
-and its compile-integrity boundaries:
-numerical cognitive-memory activation, parallel focus and expectation
-formation, a qualified combined plan, and evidence-based selection between a
-deterministic lexicalizer and a local vector-prefix candidate. The linked
-architecture specifications define that path without changing the single-call
-result. No current implementation is claimed to satisfy this contract.
+Decision 0014 and Decisions 0031, 0032, 0034, and 0035 select the current V1
+implementation hypothesis and its integrity boundaries: numerical
+cognitive-memory activation, paired numerical and authoritative source planes,
+parallel focus and expectation formation, a qualified combined plan, total
+stored-transition representative selection, and evidence-based selection among
+registered vector-conditioned focus adapters. No adapter family is selected
+before frozen comparative evidence. The linked architecture specifications
+define that path without changing the single-call result. No current
+implementation is claimed to satisfy this contract.
 
 ## Definitions
 
@@ -526,8 +528,10 @@ contract.
 ## Open questions
 
 The linked architecture specifications now fix the intended numerical-memory,
-predictive focus-and-expectation, renderer-baseline, vector-prefix candidate,
-and model-qualification path.
+predictive focus-and-expectation, renderer-baseline, architecture-neutral
+vector-conditioned adapter, and model-qualification path. Projection, pooling,
+set encoding, cross-attention, soft prompting, fused decoding, and other
+registered candidate families remain evidence-gated.
 Before implementation or a supported product claim, focused contracts must
 still resolve:
 
@@ -568,7 +572,10 @@ still resolve:
 - [Activation parameter evaluation](activation-parameter-evaluation.md)
 - [Curated activation evidence](curated-activation-evidence.md)
 - [Decision 0014: Adopt memory-grounded predictive attention](../decisions/0014-adopt-memory-grounded-predictive-attention.md)
-- [Decision 0015: Render qualified focus-and-expectation plans](../decisions/0015-render-qualified-focus-and-expectation-plans.md)
+- [Superseded Decision 0015: Render qualified focus-and-expectation plans](../decisions/0015-render-qualified-focus-and-expectation-plans.md)
 - [Superseded Decision 0016: Adopt sealed compile-integrity boundaries](../decisions/0016-adopt-sealed-compile-integrity-boundaries.md)
 - [Decision 0031: Complete compile and update admission handoffs](../decisions/0031-complete-compile-and-update-admission-handoffs.md)
+- [Decision 0032: Bind authoritative exact sidecars and two-plane consolidation](../decisions/0032-bind-authoritative-exact-sidecars-and-two-plane-consolidation.md)
+- [Decision 0034: Adopt the vector-conditioned focus-adapter boundary](../decisions/0034-adopt-vector-conditioned-focus-adapter-boundary.md)
+- [Decision 0035: Keep representative selection independent of authored surfaces](../decisions/0035-keep-representative-selection-independent-of-authored-surfaces.md)
 - [Nemosyne README](../../README.md)
