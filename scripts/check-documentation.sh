@@ -523,16 +523,27 @@ validate_delivery_append_only_history() {
     return
   fi
 
+  if ! git cat-file -e "$head_sha:$governing_decision" 2>/dev/null; then
+    if ! git --no-replace-objects grep -Fq \
+      'Decision 0030' \
+      "$head_sha" \
+      -- \
+      "$delivery_program"; then
+      return
+    fi
+  fi
+
+  trusted_checker="$(
+    mktemp "${TMPDIR:-/tmp}/nemosyne-doc00-append-checker.XXXXXX"
+  )"
   if git cat-file -e "$base_sha:$governing_decision" 2>/dev/null; then
-    trusted_checker="$(
-      mktemp "${TMPDIR:-/tmp}/nemosyne-doc00-append-checker.XXXXXX"
-    )"
     if ! extract_trusted_delivery_checker "$base_sha" "$trusted_checker"; then
       rm -f "$trusted_checker"
       return
     fi
-  else
-    trusted_checker='scripts/check-v1-delivery-program.py'
+  elif ! extract_trusted_delivery_checker "$head_sha" "$trusted_checker"; then
+    rm -f "$trusted_checker"
+    return
   fi
 
   if ! output="$(
@@ -541,16 +552,12 @@ validate_delivery_append_only_history() {
       "$base_sha" \
       "$head_sha" 2>&1
   )"; then
-    if [[ "$trusted_checker" != 'scripts/check-v1-delivery-program.py' ]]; then
-      rm -f "$trusted_checker"
-    fi
+    rm -f "$trusted_checker"
     output="${output#V1 delivery-program check failed: }"
     fail "$output"
     return
   fi
-  if [[ "$trusted_checker" != 'scripts/check-v1-delivery-program.py' ]]; then
-    rm -f "$trusted_checker"
-  fi
+  rm -f "$trusted_checker"
 }
 
 validate_specification_history() {
@@ -630,6 +637,27 @@ validate_specification_history() {
         ;;
     esac
   done < <(git diff --name-status "$base_sha" "$head_sha" -- docs/specifications)
+}
+
+validate_documentation_history() {
+  local base_sha
+  local head_sha
+  base_sha="$(git rev-parse "$1")"
+  head_sha="$(git rev-parse "$2")"
+  local previous_sha="$base_sha"
+  local commit_sha
+
+  while IFS= read -r commit_sha; do
+    [[ -z "$commit_sha" ]] && continue
+    validate_decision_history "$previous_sha" "$commit_sha"
+    validate_specification_history "$previous_sha" "$commit_sha"
+    validate_delivery_append_only_history "$previous_sha" "$commit_sha"
+    previous_sha="$commit_sha"
+  done < <(git rev-list --reverse --first-parent "$base_sha..$head_sha")
+
+  if [[ "$previous_sha" != "$head_sha" ]]; then
+    fail "pull request history is not connected to its merge base through first parents"
+  fi
 }
 
 validate_agent_instruction_files() {
@@ -823,10 +851,8 @@ if [[ "$#" -ne 0 ]]; then
     fi
 
     if [[ -n "$comparison_base" ]]; then
-      validate_decision_history "$comparison_base" "$head_sha"
+      validate_documentation_history "$comparison_base" "$head_sha"
       validate_protected_digest_rebaseline "$comparison_base" "$head_sha"
-      validate_specification_history "$comparison_base" "$head_sha"
-      validate_delivery_append_only_history "$comparison_base" "$head_sha"
     fi
 
     case "$impact" in

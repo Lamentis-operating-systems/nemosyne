@@ -934,6 +934,54 @@ printf '%s\n' \
     "$temporary_directory/supersede-body.md"
 ) >/dev/null
 
+multi_commit_supersede_fixture="$temporary_directory/multi-commit-supersede-fixture"
+create_fixture "$multi_commit_supersede_fixture"
+git -C "$multi_commit_supersede_fixture" add .
+git -C "$multi_commit_supersede_fixture" commit -qm baseline
+multi_commit_supersede_base="$(
+  git -C "$multi_commit_supersede_fixture" rev-parse HEAD
+)"
+write_decision \
+  "$multi_commit_supersede_fixture" \
+  '0001' \
+  'original-decision' \
+  'Original decision' \
+  'Accepted' \
+  'Original rationale.'
+git -C "$multi_commit_supersede_fixture" add .
+git -C "$multi_commit_supersede_fixture" commit -qm adopt
+write_decision \
+  "$multi_commit_supersede_fixture" \
+  '0001' \
+  'original-decision' \
+  'Original decision' \
+  'Superseded' \
+  'Original rationale.' \
+  '0002-replacement-decision.md'
+write_decision \
+  "$multi_commit_supersede_fixture" \
+  '0002' \
+  'replacement-decision' \
+  'Replacement decision' \
+  'Accepted' \
+  'Replacement rationale.'
+git -C "$multi_commit_supersede_fixture" add .
+git -C "$multi_commit_supersede_fixture" commit -qm supersede
+multi_commit_supersede_head="$(
+  git -C "$multi_commit_supersede_fixture" rev-parse HEAD
+)"
+write_body \
+  "$temporary_directory/multi-commit-supersede-body.md" \
+  'specification-and-decision' \
+  'This fixture preserves the accepted state before superseding the decision.'
+(
+  cd "$multi_commit_supersede_fixture"
+  ./scripts/check-documentation.sh \
+    "$multi_commit_supersede_base" \
+    "$multi_commit_supersede_head" \
+    "$temporary_directory/multi-commit-supersede-body.md"
+) >/dev/null
+
 metadata_title_decision_fixture="$temporary_directory/metadata-title-decision-fixture"
 create_fixture "$metadata_title_decision_fixture"
 write_decision \
