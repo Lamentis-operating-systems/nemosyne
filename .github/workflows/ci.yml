@@ -38,7 +38,13 @@ jobs:
         run: |
           ./scripts/check-documentation.sh
           ./scripts/test-v1-delivery-program-check.sh
-          ./scripts/check-v1-delivery-program.py --require-receipts
+          if [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
+            ./scripts/check-v1-delivery-program.py \
+              --require-receipts \
+              --linear-integration
+          else
+            ./scripts/check-v1-delivery-program.py --require-receipts
+          fi
 
       - name: Classify documentation change
         id: documentation-change

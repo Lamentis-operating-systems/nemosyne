@@ -69,9 +69,10 @@ head must also pass:
 ./scripts/check-v1-delivery-program.py --require-receipts
 ```
 
-The DOC-00 pull request must be merged with GitHub's **Create a merge commit**
-method. Squash merge and rebase merge do not preserve the exact attested source
-commit and are therefore invalid for this one pull request.
+The DOC-00 pull request must be merged with GitHub's **Rebase and merge**
+method. Pull-request validation binds the exact source and evidence commits;
+main-push validation then proves their direct, ordered, content-equivalent
+rebased counterparts. Squash merge is invalid.
 
 After committing, run the change-aware documentation check against the pull request body from a clean worktree:
 

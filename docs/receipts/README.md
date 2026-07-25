@@ -78,18 +78,25 @@ passes:
 ./scripts/check-v1-delivery-program.py --require-receipts
 ```
 
-The DOC-00 pull request is merged with **Create a merge commit** so the exact
-source and evidence commits remain ancestors of `main`. Squash and rebase
-merge are not valid for this attested pull request. G0 closes only after the
-strict main-push CI run passes on that merge commit.
+The DOC-00 pull request is merged with **Rebase and merge**. Pull-request
+validation requires the recorded source commit to be the exact direct parent
+of the evidence commit. GitHub rewrites both commit identities during
+integration, so main-push validation instead requires their direct, ordered,
+content-equivalent counterparts: the source tree, canonical receipt entries,
+their original reviewed-archive binding, and the evidence-only 22-path delta
+remain exact. The archive digest is reconstructed against the exact source
+commit before integration; it is not reconstructed against a rewritten commit
+because Git archive metadata is commit-sensitive. Squash merge is invalid. G0
+closes only after the strict main-push CI run passes in explicit
+linear-integration mode.
 
-Before integration, strict validation accepts the evidence commit itself. Any
-later validated head must descend from a two-parent merge commit whose second
-parent is that exact evidence commit. Later descendants of the preserving
-merge remain valid when the reviewed paths, governance programs, this schema,
-and all canonical attestations stay tree-entry-identical to their bound
-commits. A change to any bound surface requires a replacement
-source-and-evidence pair.
+Before integration, strict validation accepts only the exact evidence commit.
+After integration, strict linear validation resolves the common last-modified
+evidence counterpart and its direct source parent, then reconstructs every
+content and replacement binding from those integrated commits. Later linear
+descendants remain valid only when the reviewed paths, governance programs,
+this schema, and all canonical attestations stay tree-entry-identical. A
+change to any bound surface requires a replacement source-and-evidence pair.
 
 The recorded merge authorization becomes effective only after the committed
 evidence head passes the strict checker, the change-aware documentation check,
@@ -119,9 +126,14 @@ The replacement source-freeze commit has at most one parent and preserves
 every canonical attestation tree entry from that parent byte-for-byte,
 including its file mode. At every earlier history head, the canonical set is
 either wholly absent or contains all 22 records. A present set must resolve to
-one common last-modified evidence commit whose direct parent is its attested
-source commit, whose only changes are those 22 records, and whose source,
-archive, schema, and replacement bindings are valid. Historical G0 check
+one common last-modified evidence commit whose direct parent is its source
+counterpart, whose only changes are those 22 records, and whose source tree,
+schema, and replacement bindings are valid. Exact pull-request mode requires
+that parent to equal the recorded `Source commit` and reconstructs its archive
+digest. Explicit linear-integration mode instead requires its
+content-equivalent rebased counterpart, the exact recorded source tree, and
+byte-identical receipt archive bindings; it does not reconstruct a
+commit-metadata-sensitive archive from the rewritten commit. Historical G0 check
 requirements are read as exactly one module-level literal binding per contract
 name from that set's own source checker; every additional AST binding is
 invalid, current policy is not substituted, and no historical checker code is
@@ -146,8 +158,11 @@ Documentation CI checks out full history before strict validation. Validation
 traverses every commit reachable from HEAD and every merge parent with memoized
 canonical receipt-tree states;
 it rejects partial states, deletion after introduction, and any nonidentical
-parent states unless a two-parent preserving merge selects the exact evidence
-commit as its second parent and that set replaces the first-parent set.
+merge-parent states unless a two-parent preserving merge selects the exact
+evidence commit as its second parent and that set replaces the first-parent
+set. Linear integration additionally requires single-parent source/evidence
+counterparts, unchanged source-tree and receipt bindings, and no later
+bound-path change.
 Validation follows source/evidence pairs recursively to that genuine
 first-attestation state. Each historical source also carries this schema as a
 non-executable regular file and both governance programs as executable regular
