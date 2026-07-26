@@ -49,8 +49,62 @@ if not matches:
 print(int(matches[-1]))
 PY
 )"
+active_decision_number="$(
+  python3 - "$repository_root/docs/decisions" <<'PY'
+from pathlib import Path
+import re
+import sys
+
+identifiers = sorted(
+    int(match.group(1))
+    for path in Path(sys.argv[1]).glob("[0-9][0-9][0-9][0-9]-*.md")
+    if (match := re.match(r"^([0-9]{4})-", path.name)) is not None
+)
+if identifiers != list(range(1, len(identifiers) + 1)):
+    raise SystemExit("decision identifiers are not contiguous")
+print(identifiers[-1])
+PY
+)"
+active_specification_count="$(
+  python3 - "$repository_root/docs/specifications" <<'PY'
+from pathlib import Path
+import sys
+
+print(
+    sum(
+        path.name not in {"README.md", "TEMPLATE.md"}
+        for path in Path(sys.argv[1]).glob("*.md")
+    )
+)
+PY
+)"
+active_accepted_decision_count="$(
+  grep -l '^Status: Accepted$' \
+    "$repository_root"/docs/decisions/[0-9][0-9][0-9][0-9]-*.md |
+    wc -l |
+    tr -d ' '
+)"
+active_superseded_decision_count="$(
+  grep -l '^Status: Superseded$' \
+    "$repository_root"/docs/decisions/[0-9][0-9][0-9][0-9]-*.md |
+    wc -l |
+    tr -d ' '
+)"
+next_decision_id="$(
+  printf '%04d' "$((active_decision_number + 1))"
+)"
 next_finding_id="$(
   printf 'FND-%03d' "$((active_finding_number + 1))"
+)"
+noncontiguous_finding_id="$(
+  printf 'FND-%03d' "$((active_finding_number + 2))"
+)"
+extended_finding_number="$(
+  if ((active_finding_number < 1000)); then
+    printf '1000'
+  else
+    printf '%d' "$((active_finding_number + 1))"
+  fi
 )"
 active_conformance_id="$(
   printf 'DOC-CONF-%02d' "$active_conformance_number"
@@ -548,11 +602,12 @@ PY
 }
 
 new_structural_case finding
-sed 's#`FND-384` / P1#`FND-999` / P1#' \
+sed \
+  "s#\`FND-$active_finding_number\` / \\(P[0-3]\\)#\`$noncontiguous_finding_id\` / \\1#" \
   "$current_document" >"$current_document.tmp"
 mv "$current_document.tmp" "$current_document"
 expect_failure "$current_document" \
-  'finding IDs must be exactly 1..384 in source order'
+  "finding IDs must be exactly 1..$active_finding_number in source order"
 
 new_structural_case wave-label
 sed 's#^| `W33` |#| `W32` |#' \
@@ -802,10 +857,25 @@ expect_failure "$current_document" \
 new_structural_case decision-count
 rm "$current_case/docs/decisions/0039-validate-documentation-history-per-commit.md"
 expect_failure "$current_document" \
-  'decision IDs must be exactly 1..41 in source order'
+  "decision IDs must be exactly 1..$((active_decision_number - 1)) in source order"
 
 new_structural_case specification-count
-rm "$current_case/docs/specifications/curated-activation-evidence.md"
+python3 - "$current_case/docs/specifications" <<'PY'
+from pathlib import Path
+import sys
+
+directory = Path(sys.argv[1])
+specifications = sorted(
+    path
+    for path in directory.glob("*.md")
+    if path.name not in {"README.md", "TEMPLATE.md", "v1-delivery-program.md"}
+)
+remove_count = len(specifications) + 1 - 11
+if remove_count < 1 or remove_count > len(specifications):
+    raise SystemExit("cannot construct the below-minimum specification fixture")
+for path in specifications[:remove_count]:
+    path.unlink()
+PY
 expect_failure "$current_document" \
   'expected at least 12 non-template specifications, found 11'
 
@@ -1015,8 +1085,8 @@ expect_failure "$current_document" \
 
 new_structural_case stale-current-conformance-range
 mutate_current_conformance \
-  'Finding range | `FND-152..384`' \
-  'Finding range | `FND-152..383`'
+  "Finding range | \`FND-152..$active_finding_number\`" \
+  "Finding range | \`FND-152..$((active_finding_number - 1))\`"
 expect_failure "$current_document" \
   "active $active_conformance_id must match the closed post-DOC conformance schema"
 
@@ -1077,22 +1147,22 @@ expect_failure "$current_document" \
 
 new_structural_case stale-current-finding-count
 mutate_current_conformance \
-  'findings=384' \
-  'findings=383'
+  "findings=$active_finding_number" \
+  "findings=$((active_finding_number - 1))"
 expect_failure "$current_document" \
   "active $active_conformance_id must match the closed post-DOC conformance schema"
 
 new_structural_case stale-current-evidence-counts
 mutate_current_conformance \
-  'conformances=31; specifications=12' \
-  'conformances=30; specifications=11'
+  "conformances=$active_conformance_number; specifications=$active_specification_count" \
+  "conformances=$((active_conformance_number - 1)); specifications=$((active_specification_count - 1))"
 expect_failure "$current_document" \
   "active $active_conformance_id must match the closed post-DOC conformance schema"
 
 new_structural_case stale-current-decision-counts
 mutate_current_conformance \
-  'decisions=42; accepted=32; superseded=10' \
-  'decisions=41; accepted=31; superseded=11'
+  "decisions=$active_decision_number; accepted=$active_accepted_decision_count; superseded=$active_superseded_decision_count" \
+  "decisions=$((active_decision_number - 1)); accepted=$((active_accepted_decision_count - 1)); superseded=$((active_superseded_decision_count + 1))"
 expect_failure "$current_document" \
   "active $active_conformance_id must match the closed post-DOC conformance schema"
 
@@ -1436,11 +1506,15 @@ python3 "$checker" \
 finding_1000_repository="$fixture_root/finding-1000-boundary"
 cp -R "$structural_base" "$finding_1000_repository"
 python3 - \
-  "$finding_1000_repository/docs/specifications/v1-delivery-program.md" <<'PY'
+  "$finding_1000_repository/docs/specifications/v1-delivery-program.md" \
+  "$active_finding_number" \
+  "$extended_finding_number" <<'PY'
 from pathlib import Path
 import sys
 
 path = Path(sys.argv[1])
+active_finding = int(sys.argv[2])
+extended_finding = int(sys.argv[3])
 text = path.read_text()
 marker = "\n\n### CI and release flow"
 rows = "\n".join(
@@ -1448,17 +1522,21 @@ rows = "\n".join(
         f"| `FND-{identifier:03d}` / P3 | Finding sequence boundary fixture | "
         "Accepted; append-only fixture | Fixture evidence |"
     )
-    for identifier in range(385, 1001)
+    for identifier in range(active_finding + 1, extended_finding + 1)
 )
 if text.count(marker) != 1:
     raise SystemExit("expected one finding append boundary")
 text = text.replace(marker, f"\n{rows}{marker}", 1)
-text = text.replace(
-    "| Finding range | `FND-152..384` |",
-    "| Finding range | `FND-152..1000` |",
-    1,
-)
-text = text.replace("findings=384;", "findings=1000;", 1)
+old_range = f"| Finding range | `FND-152..{active_finding}` |"
+if text.count(old_range) < 1:
+    raise SystemExit("expected one active finding range")
+head, separator, tail = text.rpartition(old_range)
+text = f"{head}| Finding range | `FND-152..{extended_finding}` |{tail}"
+old_inventory = f"findings={active_finding};"
+if text.count(old_inventory) < 1:
+    raise SystemExit("expected one active finding inventory")
+head, separator, tail = text.rpartition(old_inventory)
+text = f"{head}findings={extended_finding};{tail}"
 path.write_text(text)
 PY
 python3 "$checker" \
@@ -2180,11 +2258,9 @@ cat >"$linear_conformance_repository/docs/specifications/future-extension.md" <<
 
 Status: Experimental
 EOF
-cat >"$linear_conformance_repository/docs/decisions/0043-test-extension.md" <<'EOF'
-# 0043: Test extension
-
-Status: Accepted
-EOF
+printf '# %s: Test extension\n\nStatus: Accepted\n' \
+  "$next_decision_id" \
+  >"$linear_conformance_repository/docs/decisions/$next_decision_id-test-extension.md"
 append_conformance_successor "$linear_conformance_repository"
 git -C "$linear_conformance_repository" add \
   docs/specifications \
