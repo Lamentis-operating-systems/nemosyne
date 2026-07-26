@@ -3293,6 +3293,22 @@ An unchanged reviewed source appends none. Canonical DOC-00 attestations and gov
 Any later reviewed-source change appends exactly one `DOC-CONF-34` successor.
 An unchanged reviewed source appends none. Canonical DOC-00 attestations and governance programs remain unchanged.
 
+#### Manual conformance receipt `DOC-CONF-34`
+
+| Field | Value |
+| --- | --- |
+| Schema | `post-doc-history-conformance-v1` |
+| Record ID | `DOC-CONF-34` |
+| Status | `HistoryPass` |
+| Parent | `DOC-CONF-33` |
+| Scope | `append-only findings, conformance history, and documentation file/status inventory` |
+| Finding range | `FND-152..384` |
+| Inventory | `findings=384; conformances=34; specifications=13; decisions=45; accepted=35; superseded=10` |
+| Claim boundary | `History and inventory continuity only; no complete source-structure, product, implementation, empirical, security, or cognitive validation.` |
+
+Any later reviewed-source change appends exactly one `DOC-CONF-35` successor.
+An unchanged reviewed source appends none. Canonical DOC-00 attestations and governance programs remain unchanged.
+
 ### Required repository checks
 
 Every documentation or implementation package runs the commands required by
@@ -3379,6 +3395,7 @@ continues.
 - [Situation-conditioned activation](situation-conditioned-activation.md)
 - [Activation parameter evaluation](activation-parameter-evaluation.md)
 - [Curated activation evidence](curated-activation-evidence.md)
+- [G1 evaluation envelope](g1-evaluation-envelope.md)
 - [Superseded Decision 0011: Adopt a local read-only attention compiler for V1](../decisions/0011-adopt-local-read-only-attention-compiler-v1.md)
 - [Superseded Decision 0012: Adopt numerical cognitive memory and focus compilation](../decisions/0012-adopt-numerical-cognitive-memory-and-focus-compilation.md)
 - [Superseded Decision 0013: Adopt a vector-prefix local renderer qualification path](../decisions/0013-adopt-a-vector-prefix-local-renderer-qualification-path.md)
@@ -3410,6 +3427,7 @@ continues.
 - [Decision 0039: Validate documentation history per commit](../decisions/0039-validate-documentation-history-per-commit.md)
 - [Superseded Decision 0040: Integrate DOC-00 through content-equivalent rebase](../decisions/0040-integrate-doc-00-through-content-equivalent-rebase.md)
 - [Decision 0041: Route DOC-00 validation by attestation delta](../decisions/0041-route-doc-00-validation-by-attestation-delta.md)
+- [Decision 0045: Adopt a typed G1 evaluation envelope](../decisions/0045-adopt-a-typed-g1-evaluation-envelope.md)
 - Addis, Wong, and Schacter, [Remembering the past and imagining the future:
   common and distinct neural substrates during event construction and
   elaboration](https://pubmed.ncbi.nlm.nih.gov/17126370/)
