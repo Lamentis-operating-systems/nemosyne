@@ -1,0 +1,16 @@
+[package]
+name = "nemosyne-boundary-fixtures"
+description = "Executable formal-boundary fixtures for offline Nemosyne verification."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+nemosyne-evaluation = { path = "../nemosyne-evaluation" }
+sha2 = { version = "0.11.0", default-features = false }
+
+[lints]
+workspace = true

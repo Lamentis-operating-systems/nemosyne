@@ -1,5 +1,6 @@
 [workspace]
 members = [
+    "crates/nemosyne-boundary-fixtures",
     "crates/nemosyne-core",
     "crates/nemosyne-evaluation",
     "crates/nemosyne-evaluation-corpus",
