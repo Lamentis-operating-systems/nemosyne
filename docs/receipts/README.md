@@ -94,9 +94,11 @@ Before integration, strict validation accepts only the exact evidence commit.
 After integration, strict linear validation resolves the common last-modified
 evidence counterpart and its direct source parent, then reconstructs every
 content and replacement binding from those integrated commits. Later linear
-descendants remain valid only when the reviewed paths, governance programs,
-this schema, and all canonical attestations stay tree-entry-identical. A
-change to any bound surface requires a replacement source-and-evidence pair.
+descendants remain valid only when the governance programs, this schema, and
+all canonical attestations stay tree-entry-identical. Reviewed specifications
+and decisions may evolve only through the commit-local successor-conformance
+rule below. A change to a canonical attestation, governance program, or this
+schema requires a replacement source-and-evidence pair.
 
 The recorded merge authorization becomes effective only after the committed
 evidence head passes the strict checker, the change-aware documentation check,
@@ -109,9 +111,13 @@ role. A passing record uses `Findings: None`; a material P0, P1, or P2 finding
 blocks a passing disposition. `Evidence references` names the evidence used by
 the record. `Replaces` is `None` for the first passing record.
 
-Any change to the included source invalidates every affected attestation.
-Replacing a canonical record requires a later Git commit at the same canonical
-path with a new source identity. Its `Replaces` value is exactly
+Each canonical attestation remains valid only for the exact source archive it
+names; it never extends its review claim to a later source revision. A later
+reviewed source revision is covered only by its own successor-conformance
+statement. Replacing a canonical record is required only when the canonical
+DOC-00 evidence set or its governance contract changes, and uses a later Git
+commit at the same canonical path with a new source identity. Its `Replaces`
+value is exactly
 `<Record ID> at archive digest <64 lowercase hexadecimal SHA-256>` and names
 the different earlier archive digest; the earlier record remains recoverable
 from Git history.
@@ -129,15 +135,21 @@ either wholly absent or contains all 22 records. A present set must resolve to
 one common last-modified evidence commit whose direct parent is its source
 counterpart, whose only changes are those 22 records, and whose source tree,
 schema, and replacement bindings are valid. Exact pull-request mode requires
-that parent to equal the recorded `Source commit` and reconstructs its archive
-digest. Explicit linear-integration mode instead requires its
-content-equivalent rebased counterpart, the exact recorded source tree, and
-byte-identical receipt archive bindings; it does not reconstruct a
-commit-metadata-sensitive archive from the rewritten commit. Historical G0 check
-requirements are read as exactly one module-level literal binding per contract
-name from that set's own source checker; every additional AST binding is
-invalid, current policy is not substituted, and no historical checker code is
-executed. The protected digest names likewise have exactly one module-level
+the active replacement pair's parent to equal its recorded `Source commit` and
+reconstructs its archive digest. Earlier pairs already integrated by the
+required rebase method are accepted as content-equivalent counterparts only
+when their evidence commits are reachable from
+`NEMOSYNE_TRUSTED_PRIOR_HEAD`. CI binds that value to the pull-request base or
+the pre-push integration head; local validation resolves `origin/main` when the
+variable is absent. Every counterpart still requires the exact recorded source
+tree, byte-identical receipt archive bindings, and direct source/evidence
+ordering. Explicit linear-integration mode applies that same counterpart rule
+to the active pair and does not reconstruct a commit-metadata-sensitive archive
+from the rewritten commit. Historical G0
+check requirements are read as exactly one module-level literal binding per
+contract name from that set's own source checker; every additional AST binding
+is invalid, current policy is not substituted, and no historical checker code
+is executed. The protected digest names likewise have exactly one module-level
 lowercase SHA-256 string literal and no other binding or mutation in every
 current or historical checker revision. Attribute or subscript stores of
 protected names, wildcard imports, and direct, imported, or transitively
@@ -161,8 +173,7 @@ it rejects partial states, deletion after introduction, and any nonidentical
 merge-parent states unless a two-parent preserving merge selects the exact
 evidence commit as its second parent and that set replaces the first-parent
 set. Linear integration additionally requires single-parent source/evidence
-counterparts, unchanged source-tree and receipt bindings, and no later
-bound-path change.
+counterparts and unchanged source-tree and receipt bindings.
 Validation follows source/evidence pairs recursively to that genuine
 first-attestation state. Each historical source also carries this schema as a
 non-executable regular file and both governance programs as executable regular
@@ -171,4 +182,9 @@ conformance section as an exact ordered prefix of both the pull-request
 comparison base and the recursively validated predecessor source; only new
 sequential entries may be appended. `Replaces` is derived from the validated
 predecessor set, never from mutable content introduced by the new source freeze
-or an earlier preparatory commit.
+or an earlier preparatory commit. After the canonical DOC-00 evidence pair,
+linear integration permits reviewed specification and decision changes only
+when every intervening commit preserves those append-only histories and
+appends exactly one next conformance receipt when, and only when, the reviewed
+archive changes. Canonical attestations and governance programs remain
+unchanged.
