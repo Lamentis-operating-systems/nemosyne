@@ -1,7 +1,7 @@
 //! Public-contract tests for the pre-outcome G1 evaluation envelope.
 
 use nemosyne_evaluation::evidence::{
-    AttemptId, AttemptedArtifactKind, CapabilityIssuanceState, EvidenceIdentity,
+    AdmittedG1RunV1, AttemptId, AttemptedArtifactKind, CapabilityIssuanceState, EvidenceIdentity,
     G1ArtifactBindingV1, G1ArtifactKind, G1AttentionMatchingV1, G1Condition, G1ConditionArtifactV1,
     G1CriticalFailureBoundV1, G1CriticalFailureClass, G1DesignV1, G1Domain, G1EnvelopeError,
     G1ExecutionBindingV1, G1ExecutionIdentity, G1ExposureRequirementV1, G1ExposureScope,
@@ -169,6 +169,37 @@ fn claims() -> RunManifestClaimsV1 {
         ledger(216, 217),
     )
     .expect("fixture claims must be valid")
+}
+
+fn admitted_run(
+    envelope: &SignedG1EvaluationEnvelopeV1,
+    execution: &G1ExecutionBindingV1,
+) -> ValidForOutcomeAccess {
+    let manifest = finalize_g1_run_manifest(envelope, execution, claims(), &RUN_KEY)
+        .expect("complete G1 run manifest must be valid");
+    let subject = ValidatedRunGuardSubjectV1::from_manifest(&manifest);
+    let witness = GuardWitnessV1::sign(
+        GuardWitnessClaimsV1::new(
+            manifest.claims().attempt_id(),
+            GuardSubjectV1::ValidatedRun(subject),
+            window(),
+            vec![PrincipalId::from_bytes(bytes(212))],
+            vec![PrincipalId::from_bytes(bytes(213))],
+            CapabilityIssuanceState::NotIssued,
+            ledger(214, 215),
+            ledger(216, 217),
+            GuardImplementationId::from_bytes(bytes(221)),
+        )
+        .expect("fixture witness claims must be valid"),
+        &CUSTODIAN_KEY,
+    );
+    let authority = nemosyne_evaluation::evidence::GuardAuthorityV1::from_signing_key_bytes(
+        &CUSTODIAN_KEY,
+        GuardImplementationId::from_bytes(bytes(221)),
+    );
+    let evidence = GuardWitnessEvidence::authenticate(witness, authority);
+    ValidForOutcomeAccess::new(&manifest, &evidence)
+        .expect("the exact manifest and matching guard witness must admit access")
 }
 
 #[test]
@@ -362,33 +393,7 @@ fn finalized_run_requires_and_binds_the_complete_envelope_and_guard_witness() {
         run_artifacts(),
     )
     .expect("fixture execution binding must be valid");
-    let manifest = finalize_g1_run_manifest(&envelope, &execution, claims(), &RUN_KEY)
-        .expect("complete G1 run manifest must be valid");
-
-    let subject = ValidatedRunGuardSubjectV1::from_manifest(&manifest);
-    let witness = GuardWitnessV1::sign(
-        GuardWitnessClaimsV1::new(
-            manifest.claims().attempt_id(),
-            GuardSubjectV1::ValidatedRun(subject),
-            window(),
-            vec![PrincipalId::from_bytes(bytes(212))],
-            vec![PrincipalId::from_bytes(bytes(213))],
-            CapabilityIssuanceState::NotIssued,
-            ledger(214, 215),
-            ledger(216, 217),
-            GuardImplementationId::from_bytes(bytes(221)),
-        )
-        .expect("fixture witness claims must be valid"),
-        &CUSTODIAN_KEY,
-    );
-    let authority = nemosyne_evaluation::evidence::GuardAuthorityV1::from_signing_key_bytes(
-        &CUSTODIAN_KEY,
-        GuardImplementationId::from_bytes(bytes(221)),
-    );
-    let evidence = GuardWitnessEvidence::authenticate(witness, authority);
-
-    ValidForOutcomeAccess::new(&manifest, &evidence)
-        .expect("the exact manifest and matching guard witness must admit access");
+    admitted_run(&envelope, &execution);
 }
 
 #[test]
@@ -404,5 +409,74 @@ fn run_binding_requires_every_exact_execution_artifact() {
         Err(G1EnvelopeError::MissingRunArtifact {
             kind: G1RunArtifactKind::TokenMatchingAudit,
         })
+    );
+}
+
+#[test]
+fn admitted_g1_run_binds_the_exact_envelope_and_execution() {
+    let envelope = SignedG1EvaluationEnvelopeV1::sign(design(), &ENVELOPE_KEY)
+        .expect("fixture envelope must be bounded");
+    let execution = G1ExecutionBindingV1::new(
+        G1ExecutionIdentity::from_bytes(bytes(220))
+            .expect("fixture execution identity must be valid"),
+        run_artifacts(),
+    )
+    .expect("fixture execution binding must be valid");
+    let admission = admitted_run(&envelope, &execution);
+
+    let bound = AdmittedG1RunV1::bind(admission, &envelope, &execution)
+        .expect("the exact signed design and execution must bind");
+
+    assert_eq!(bound.envelope(), &envelope);
+    assert_eq!(bound.execution(), &execution);
+    assert_eq!(bound.envelope_content_id(), envelope.content_id());
+    assert_eq!(bound.execution_identity(), execution.execution_identity());
+    assert_eq!(
+        bound.admission().manifest_content_id(),
+        bound.admission().manifest().content_id()
+    );
+}
+
+#[test]
+fn admitted_g1_run_rejects_a_different_execution_binding() {
+    let envelope = SignedG1EvaluationEnvelopeV1::sign(design(), &ENVELOPE_KEY)
+        .expect("fixture envelope must be bounded");
+    let execution = G1ExecutionBindingV1::new(
+        G1ExecutionIdentity::from_bytes(bytes(220))
+            .expect("fixture execution identity must be valid"),
+        run_artifacts(),
+    )
+    .expect("fixture execution binding must be valid");
+    let different_execution = G1ExecutionBindingV1::new(
+        G1ExecutionIdentity::from_bytes(bytes(222))
+            .expect("fixture execution identity must be valid"),
+        run_artifacts(),
+    )
+    .expect("fixture execution binding must be valid");
+    let admission = admitted_run(&envelope, &execution);
+
+    assert_eq!(
+        AdmittedG1RunV1::bind(admission, &envelope, &different_execution),
+        Err(G1EnvelopeError::RunBindingMismatch)
+    );
+}
+
+#[test]
+fn admitted_g1_run_rejects_a_different_signed_envelope() {
+    let envelope = SignedG1EvaluationEnvelopeV1::sign(design(), &ENVELOPE_KEY)
+        .expect("fixture envelope must be bounded");
+    let differently_signed_envelope = SignedG1EvaluationEnvelopeV1::sign(design(), &[204; 32])
+        .expect("fixture envelope must be bounded");
+    let execution = G1ExecutionBindingV1::new(
+        G1ExecutionIdentity::from_bytes(bytes(220))
+            .expect("fixture execution identity must be valid"),
+        run_artifacts(),
+    )
+    .expect("fixture execution binding must be valid");
+    let admission = admitted_run(&envelope, &execution);
+
+    assert_eq!(
+        AdmittedG1RunV1::bind(admission, &differently_signed_envelope, &execution),
+        Err(G1EnvelopeError::RunBindingMismatch)
     );
 }

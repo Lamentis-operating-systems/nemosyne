@@ -132,6 +132,9 @@ pub enum G1EnvelopeError {
         /// Invalid class.
         class: G1CriticalFailureClass,
     },
+    /// An admitted run manifest does not contain the exact supplied G1
+    /// envelope and execution binding.
+    RunBindingMismatch,
     /// An embedded EVD-01 operation failed.
     Evidence(EvidenceError),
 }

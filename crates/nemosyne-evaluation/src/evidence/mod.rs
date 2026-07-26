@@ -15,10 +15,10 @@ mod witness;
 
 pub use error::{AdmissionJoinField, EvidenceError, GuardEvidenceError, RejectionJoinField};
 pub use g1::{
-    G1ArtifactBindingV1, G1ArtifactKind, G1AttentionMatchingV1, G1Baseline, G1Condition,
-    G1ConditionArtifactV1, G1CriticalFailureBoundV1, G1CriticalFailureClass, G1DesignV1, G1Domain,
-    G1EnvelopeError, G1ExecutionBindingV1, G1ExecutionIdentity, G1ExpectationRole,
-    G1ExposureRequirementV1, G1ExposureScope, G1LeakageClass, G1PopulationV1,
+    AdmittedG1RunV1, G1ArtifactBindingV1, G1ArtifactKind, G1AttentionMatchingV1, G1Baseline,
+    G1Condition, G1ConditionArtifactV1, G1CriticalFailureBoundV1, G1CriticalFailureClass,
+    G1DesignV1, G1Domain, G1EnvelopeError, G1ExecutionBindingV1, G1ExecutionIdentity,
+    G1ExpectationRole, G1ExposureRequirementV1, G1ExposureScope, G1LeakageClass, G1PopulationV1,
     G1RunArtifactBindingV1, G1RunArtifactKind, G1SubgroupV1, G1TaskId, G1TaskV1, G1ThresholdKey,
     G1ThresholdV1, G1WrongControl, SignedG1EvaluationEnvelopeV1, finalize_g1_run_manifest,
 };
