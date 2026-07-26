@@ -39,6 +39,7 @@ jobs:
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          NEMOSYNE_TRUSTED_PRIOR_HEAD: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
         run: |
           ./scripts/check-documentation.sh
           ./scripts/test-v1-delivery-program-check.sh

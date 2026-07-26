@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Fixture repositories have independent histories. Trust anchors are supplied
+# only by the focused cases that exercise that boundary.
+unset NEMOSYNE_TRUSTED_PRIOR_HEAD
+
 repository_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 checker="$repository_root/scripts/check-v1-delivery-program.py"
 source_document="$repository_root/docs/specifications/v1-delivery-program.md"
@@ -14,35 +18,35 @@ print(os.devnull)
 PY
 )"
 active_conformance_number="$(
-  python3 - "$checker" <<'PY'
+  python3 - "$source_document" <<'PY'
 from pathlib import Path
 import re
 import sys
 
-match = re.search(
-    r"^EXPECTED_CONFORMANCE_COUNT = ([0-9]+)$",
+matches = re.findall(
+    r"^#### Manual conformance receipt(?: `DOC-CONF-([0-9]+)`)?$",
     Path(sys.argv[1]).read_text(),
     re.MULTILINE,
 )
-if match is None:
-    raise SystemExit("missing EXPECTED_CONFORMANCE_COUNT")
-print(match.group(1))
+if not matches:
+    raise SystemExit("missing conformance receipt history")
+print(int(matches[-1] or "01"))
 PY
 )"
 active_finding_number="$(
-  python3 - "$checker" <<'PY'
+  python3 - "$source_document" <<'PY'
 from pathlib import Path
 import re
 import sys
 
-match = re.search(
-    r"^EXPECTED_FINDING_COUNT = ([0-9]+)$",
+matches = re.findall(
+    r"^\| `FND-([0-9]{3,})` / P[0-3] \|",
     Path(sys.argv[1]).read_text(),
     re.MULTILINE,
 )
-if match is None:
-    raise SystemExit("missing EXPECTED_FINDING_COUNT")
-print(match.group(1))
+if not matches:
+    raise SystemExit("missing finding ledger")
+print(int(matches[-1]))
 PY
 )"
 next_finding_id="$(
@@ -205,6 +209,31 @@ expect_linear_failure() {
 
   if ! grep -F "$expected_message" "$output" >/dev/null; then
     printf 'missing expected linear-integration failure message: %s\n' \
+      "$expected_message" >&2
+    cat "$output" >&2
+    exit 1
+  fi
+}
+
+expect_strict_failure_with_trusted_head() {
+  local fixture_repository="$1"
+  local trusted_head="$2"
+  local expected_message="$3"
+  local output="$fixture_root/strict-trusted-output.txt"
+  local fixture_document="$fixture_repository/docs/specifications/v1-delivery-program.md"
+  local fixture_checker="$fixture_repository/scripts/check-v1-delivery-program.py"
+
+  if NEMOSYNE_TRUSTED_PRIOR_HEAD="$trusted_head" \
+    python3 "$fixture_checker" \
+      --require-receipts \
+      "$fixture_document" >"$output" 2>&1; then
+    printf 'expected trusted-head strict checker failure for %s\n' \
+      "$fixture_repository" >&2
+    exit 1
+  fi
+
+  if ! grep -F "$expected_message" "$output" >/dev/null; then
+    printf 'missing expected trusted-head strict failure message: %s\n' \
       "$expected_message" >&2
     cat "$output" >&2
     exit 1
@@ -508,7 +537,7 @@ start = text.index(
     f"#### Manual conformance receipt `{active_conformance_id}`"
 )
 end = text.index(
-    "Any later source, count, interface, ownership, finding, review disposition,",
+    "Any later reviewed-source change appends exactly one ",
     start,
 )
 section = text[start:end]
@@ -778,7 +807,7 @@ expect_failure "$current_document" \
 new_structural_case specification-count
 rm "$current_case/docs/specifications/curated-activation-evidence.md"
 expect_failure "$current_document" \
-  'expected 12 non-template specifications, found 11'
+  'expected at least 12 non-template specifications, found 11'
 
 new_structural_case decision-status
 decision_file="$current_case/docs/decisions/0014-adopt-memory-grounded-predictive-attention.md"
@@ -786,7 +815,7 @@ sed 's#^Status: Accepted$#Status: Superseded#' \
   "$decision_file" >"$decision_file.tmp"
 mv "$decision_file.tmp" "$decision_file"
 expect_failure "$current_document" \
-  'expected 31 Accepted decisions, found 30'
+  'Superseded decisions must be exactly 0011, 0012, 0013, 0015, 0016, 0019, 0022, 0023, 0028, and 0040'
 
 new_structural_case decision-supersession
 old_decision="$current_case/docs/decisions/0013-adopt-a-vector-prefix-local-renderer-qualification-path.md"
@@ -986,10 +1015,10 @@ expect_failure "$current_document" \
 
 new_structural_case stale-current-conformance-range
 mutate_current_conformance \
-  '`FND-152..384`. `FND-001..383`' \
-  '`FND-152..383`. `FND-001..383`'
+  'Finding range | `FND-152..384`' \
+  'Finding range | `FND-152..383`'
 expect_failure "$current_document" \
-  "active $active_conformance_id must contain canonical current-state fragment exactly once: \`FND-152..384\`"
+  "active $active_conformance_id must match the closed post-DOC conformance schema"
 
 new_structural_case protected-history-crlf-checkout
 python3 - "$current_document" <<'PY'
@@ -1046,61 +1075,26 @@ PY
 expect_failure "$current_document" \
   'protected FND-001..151 ledger differs from its canonical byte digest'
 
-new_structural_case stale-current-interface-count
-mutate_current_conformance \
-  'The active registry retains 49 unique interfaces' \
-  'The active registry retains 48 unique interfaces'
-expect_failure "$current_document" \
-  "active $active_conformance_id complete structural inventory differs from the canonical inventory"
-
 new_structural_case stale-current-finding-count
 mutate_current_conformance \
-  'There are 384 unique sequential findings' \
-  'There are 383 unique sequential findings'
+  'findings=384' \
+  'findings=383'
 expect_failure "$current_document" \
-  "active $active_conformance_id complete structural inventory differs from the canonical inventory"
-
-new_structural_case stale-current-package-counts
-mutate_current_conformance \
-  'The program remains 54 unique packages, 48 V1 and 6 post-V1.' \
-  'The program remains 53 unique packages, 47 V1 and seven post-V1.'
-expect_failure "$current_document" \
-  "active $active_conformance_id complete structural inventory differs from the canonical inventory"
-
-new_structural_case stale-current-dependency-counts
-mutate_current_conformance \
-  'The canonical dependency table has 127 total and 123 V1-to-V1 relations' \
-  'The canonical dependency table has 126 total and 122 V1-to-V1 relations'
-expect_failure "$current_document" \
-  "active $active_conformance_id complete structural inventory differs from the canonical inventory"
-
-new_structural_case stale-current-graph-counts
-mutate_current_conformance \
-  'the Mermaid graph has 132 total and 123 V1-to-V1 edges' \
-  'the Mermaid graph has 131 total and 122 V1-to-V1 edges'
-expect_failure "$current_document" \
-  "active $active_conformance_id complete structural inventory differs from the canonical inventory"
-
-new_structural_case stale-current-wave-count
-mutate_current_conformance \
-  '49 unique interfaces and 34 stable wave labels' \
-  '49 unique interfaces and 33 stable wave labels'
-expect_failure "$current_document" \
-  "active $active_conformance_id complete structural inventory differs from the canonical inventory"
+  "active $active_conformance_id must match the closed post-DOC conformance schema"
 
 new_structural_case stale-current-evidence-counts
 mutate_current_conformance \
-  '30 append-only conformance receipts, 18 external review paths, 12 non-template specifications' \
-  '29 append-only conformance receipts, 17 external review paths, 11 non-template specifications'
+  'conformances=31; specifications=12' \
+  'conformances=30; specifications=11'
 expect_failure "$current_document" \
-  "active $active_conformance_id complete structural inventory differs from the canonical inventory"
+  "active $active_conformance_id must match the closed post-DOC conformance schema"
 
 new_structural_case stale-current-decision-counts
 mutate_current_conformance \
-  '41 numbered decisions: 31 `Accepted` and 10 `Superseded`' \
-  '40 numbered decisions: 30 `Accepted` and 11 `Superseded`'
+  'decisions=42; accepted=32; superseded=10' \
+  'decisions=41; accepted=31; superseded=11'
 expect_failure "$current_document" \
-  "active $active_conformance_id complete structural inventory differs from the canonical inventory"
+  "active $active_conformance_id must match the closed post-DOC conformance schema"
 
 new_structural_case malformed-finding-ledger
 python3 - "$current_document" <<'PY'
@@ -1123,7 +1117,7 @@ sed 's#`FND-378` / P2#`FND-378` / P1#' \
   "$current_document" >"$current_document.tmp"
 mv "$current_document.tmp" "$current_document"
 expect_failure "$current_document" \
-  'finding severities must match the canonical FND-001..FND-384 ledger'
+  'protected FND-001..FND-384 severities differ from the canonical ledger'
 
 new_structural_case completion-target
 sed \
@@ -1326,84 +1320,149 @@ write_receipt_set() {
 append_conformance_successor() {
   local fixture_repository="$1"
   python3 - \
-    "$fixture_repository/docs/specifications/v1-delivery-program.md" \
-    "$fixture_repository/scripts/check-v1-delivery-program.py" <<'PY'
+    "$fixture_repository/docs/specifications/v1-delivery-program.md" <<'PY'
 from pathlib import Path
 import re
 import sys
 
 document_path = Path(sys.argv[1])
-checker_path = Path(sys.argv[2])
 document = document_path.read_text()
-checker = checker_path.read_text()
 
-count_match = re.search(
-    r"^EXPECTED_CONFORMANCE_COUNT = ([0-9]+)$",
-    checker,
+headings = re.findall(
+    r"^#### Manual conformance receipt(?: `DOC-CONF-([0-9]+)`)?$",
+    document,
     re.MULTILINE,
 )
-finding_match = re.search(
-    r"^EXPECTED_FINDING_COUNT = ([0-9]+)$",
-    checker,
-    re.MULTILINE,
-)
-if count_match is None or finding_match is None:
-    raise SystemExit("expected canonical checker count bindings")
-
-current = int(count_match.group(1))
+current = int(headings[-1] or "01") if headings else 0
 successor = current + 1
 current_heading = (
     f"#### Manual conformance receipt `DOC-CONF-{current:02d}`"
 )
-headings = re.findall(
-    r"^#### Manual conformance receipt(?: `DOC-CONF-([0-9]{2})`)?$",
-    document,
-    re.MULTILINE,
-)
-observed_current = int(headings[-1] or "01") if headings else 0
-if observed_current != current or document.count(current_heading) != 1:
-    raise SystemExit("checker and document disagree on active conformance")
+if current == 0 or document.count(current_heading) != 1:
+    raise SystemExit("document has no unique active conformance")
 
 section_start = document.index(current_heading)
 section_end = document.index("\n### Required repository checks", section_start)
-current_section = document[section_start:section_end]
+footer_start = document.index(
+    "Any later reviewed-source change appends exactly one ",
+    section_start,
+    section_end,
+)
+current_section = document[section_start:footer_start]
 inventory_match = re.search(
-    r"The program remains .*?"
-    r"[0-9]+ numbered decisions: [0-9]+ `Accepted` and "
-    r"[0-9]+ `Superseded`",
+    r"^\| Inventory \| `([^`]+)` \|$",
     current_section,
-    re.DOTALL,
+    re.MULTILINE,
 )
 if inventory_match is None:
     raise SystemExit("active conformance lacks the canonical inventory")
-inventory = inventory_match.group(0).replace(
-    f"{current} append-only conformance receipts",
-    f"{successor} append-only conformance receipts",
-    1,
-)
-if f"{successor} append-only conformance receipts" not in inventory:
-    raise SystemExit("active inventory conformance count is not canonical")
+inventory = inventory_match.group(1)
 
-finding_count = int(finding_match.group(1))
+repository_root = document_path.parents[2]
+finding_ids = re.findall(
+    r"^\| `FND-([0-9]{3,})` / P[0-3] \|",
+    document,
+    re.MULTILINE,
+)
+if not finding_ids:
+    raise SystemExit("finding ledger is empty")
+finding_count = int(finding_ids[-1])
+specification_count = len(
+    [
+        path
+        for path in (repository_root / "docs/specifications").glob("*.md")
+        if path.name not in {"README.md", "TEMPLATE.md"}
+    ]
+)
+decision_files = sorted(
+    (repository_root / "docs/decisions").glob("[0-9][0-9][0-9][0-9]-*.md")
+)
+decision_statuses = [
+    path.read_text().splitlines()[2].removeprefix("Status: ")
+    for path in decision_files
+]
+updates = {
+    "findings": finding_count,
+    "conformances": successor,
+    "specifications": specification_count,
+    "decisions": len(decision_files),
+    "accepted": decision_statuses.count("Accepted"),
+    "superseded": decision_statuses.count("Superseded"),
+}
+for key, value in updates.items():
+    inventory, replacements = re.subn(
+        rf"(?<![a-z-]){key}=[0-9]+",
+        f"{key}={value}",
+        inventory,
+        count=1,
+    )
+    if replacements != 1:
+        raise SystemExit(f"active inventory lacks exactly one {key} count")
+
 successor_section = (
     f"\n#### Manual conformance receipt `DOC-CONF-{successor:02d}`\n\n"
-    f"`DOC-CONF-{successor:02d}` is a strict replacement fixture for "
-    f"`FND-152..{finding_count:03d}`. Earlier source receipts remain "
-    "byte-unchanged.\n\n"
-    f"{inventory}\n\n"
-    "Any later source, count, interface, ownership, finding, review disposition,\n"
-    "decision status, or graph change appends the next conformance receipt.\n"
+    "| Field | Value |\n"
+    "| --- | --- |\n"
+    "| Schema | `post-doc-history-conformance-v1` |\n"
+    f"| Record ID | `DOC-CONF-{successor:02d}` |\n"
+    "| Status | `HistoryPass` |\n"
+    f"| Parent | `DOC-CONF-{current:02d}` |\n"
+    "| Scope | `append-only findings, conformance history, and "
+    "documentation file/status inventory` |\n"
+    f"| Finding range | `FND-152..{finding_count:03d}` |\n"
+    f"| Inventory | `{inventory}` |\n"
+    "| Claim boundary | `History and inventory continuity only; no complete "
+    "source-structure, product, implementation, empirical, security, or cognitive "
+    "validation.` |\n\n"
+    "Any later reviewed-source change appends exactly one "
+    f"`DOC-CONF-{successor + 1:02d}` successor.\n"
+    "An unchanged reviewed source appends none. Canonical DOC-00 "
+    "attestations and governance programs remain unchanged.\n"
 )
 document_path.write_text(
     document[:section_end] + successor_section + document[section_end:]
 )
-checker_path.write_text(
-    checker[: count_match.start(1)]
-    + str(successor)
-    + checker[count_match.end(1) :]
-)
 PY
 }
+
+conformance_100_repository="$fixture_root/conformance-100-boundary"
+cp -R "$structural_base" "$conformance_100_repository"
+for _ in $(seq "$((active_conformance_number + 1))" 100); do
+  append_conformance_successor "$conformance_100_repository"
+done
+python3 "$checker" \
+  "$conformance_100_repository/docs/specifications/v1-delivery-program.md"
+
+finding_1000_repository="$fixture_root/finding-1000-boundary"
+cp -R "$structural_base" "$finding_1000_repository"
+python3 - \
+  "$finding_1000_repository/docs/specifications/v1-delivery-program.md" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text()
+marker = "\n\n### CI and release flow"
+rows = "\n".join(
+    (
+        f"| `FND-{identifier:03d}` / P3 | Finding sequence boundary fixture | "
+        "Accepted; append-only fixture | Fixture evidence |"
+    )
+    for identifier in range(385, 1001)
+)
+if text.count(marker) != 1:
+    raise SystemExit("expected one finding append boundary")
+text = text.replace(marker, f"\n{rows}{marker}", 1)
+text = text.replace(
+    "| Finding range | `FND-152..384` |",
+    "| Finding range | `FND-152..1000` |",
+    1,
+)
+text = text.replace("findings=384;", "findings=1000;", 1)
+path.write_text(text)
+PY
+python3 "$checker" \
+  "$finding_1000_repository/docs/specifications/v1-delivery-program.md"
 
 append_replacement_pair() {
   local fixture_repository="$1"
@@ -1613,7 +1672,7 @@ expect_strict_failure "$strict_case" \
 new_strict_case readme-history-contract
 receipt_readme="$strict_case/docs/receipts/README.md"
 sed \
-  's#every additional AST binding is#an additional AST binding may be#' \
+  's#every additional AST binding#an additional AST binding#' \
   "$receipt_readme" >"$receipt_readme.tmp"
 mv "$receipt_readme.tmp" "$receipt_readme"
 expect_strict_failure "$strict_case" \
@@ -2006,6 +2065,79 @@ python3 "$linear_repository/scripts/check-v1-delivery-program.py" \
   --linear-integration \
   "$linear_repository/docs/specifications/v1-delivery-program.md"
 
+exact_after_linear_repository="$fixture_root/exact-replacement-after-linear"
+cp -R "$linear_repository" "$exact_after_linear_repository"
+append_replacement_pair \
+  "$exact_after_linear_repository" \
+  "$strict_archive_digest" \
+  "exact-replacement-after-linear"
+NEMOSYNE_TRUSTED_PRIOR_HEAD="$rewritten_evidence_commit" \
+  python3 "$exact_after_linear_repository/scripts/check-v1-delivery-program.py" \
+    --require-receipts \
+    "$exact_after_linear_repository/docs/specifications/v1-delivery-program.md"
+source_commit="$strict_source_commit"
+source_tree="$strict_source_tree"
+archive_digest="$strict_archive_digest"
+
+synthetic_prior_repository="$fixture_root/synthetic-prior-identity"
+cp -R "$linear_repository" "$synthetic_prior_repository"
+GIT_AUTHOR_DATE='2026-07-24T13:37:10Z' \
+GIT_COMMITTER_DATE='2026-07-24T13:37:10Z' \
+  git -C "$synthetic_prior_repository" commit --allow-empty -qm \
+    'Freeze synthetic prior source'
+set_source_binding \
+  "$synthetic_prior_repository" \
+  "$fixture_root/synthetic-prior-source.tar"
+synthetic_actual_source="$source_commit"
+synthetic_actual_archive="$archive_digest"
+synthetic_fake_source='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+synthetic_fake_archive='bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
+write_receipt_set "$synthetic_prior_repository" "$strict_archive_digest"
+python3 - \
+  "$synthetic_prior_repository/docs/receipts" \
+  "$synthetic_actual_source" \
+  "$synthetic_fake_source" \
+  "$synthetic_actual_archive" \
+  "$synthetic_fake_archive" <<'PY'
+from pathlib import Path
+import sys
+
+root = Path(sys.argv[1])
+actual_source = sys.argv[2]
+fake_source = sys.argv[3]
+actual_archive = sys.argv[4]
+fake_archive = sys.argv[5]
+for path in root.rglob("*.md"):
+    if path.name == "README.md":
+        continue
+    text = path.read_text()
+    if text.count(actual_source) != 1 or text.count(actual_archive) != 1:
+        raise SystemExit(f"expected one synthetic binding in {path}")
+    path.write_text(
+        text.replace(actual_source, fake_source, 1).replace(
+            actual_archive,
+            fake_archive,
+            1,
+        )
+    )
+PY
+git -C "$synthetic_prior_repository" add docs/receipts
+GIT_AUTHOR_DATE='2026-07-24T13:37:20Z' \
+GIT_COMMITTER_DATE='2026-07-24T13:37:20Z' \
+  git -C "$synthetic_prior_repository" commit -qm \
+    'Record synthetic prior identity'
+append_replacement_pair \
+  "$synthetic_prior_repository" \
+  "$synthetic_fake_archive" \
+  "replace-synthetic-prior"
+expect_strict_failure_with_trusted_head \
+  "$synthetic_prior_repository" \
+  "$rewritten_evidence_commit" \
+  'prior canonical attestation evidence commit must directly follow its recorded Source commit'
+source_commit="$strict_source_commit"
+source_tree="$strict_source_tree"
+archive_digest="$strict_archive_digest"
+
 linear_unbound_repository="$fixture_root/linear-unbound-history"
 cp -R "$linear_repository" "$linear_unbound_repository"
 printf '%s\n' 'unrelated linear history' \
@@ -2020,6 +2152,160 @@ python3 "$linear_unbound_repository/scripts/check-v1-delivery-program.py" \
   "$linear_unbound_repository/docs/specifications/v1-delivery-program.md"
 expect_strict_failure "$linear_unbound_repository" \
   'the canonical attestation evidence commit must have exactly the recorded Source commit as its parent'
+
+linear_conformance_repository="$fixture_root/linear-reviewed-source-successor"
+cp -R "$linear_repository" "$linear_conformance_repository"
+printf '\nReviewed implementation-package clarification.\n' \
+  >>"$linear_conformance_repository/docs/specifications/v1-proof-program.md"
+python3 - \
+  "$linear_conformance_repository/docs/specifications/v1-delivery-program.md" \
+  "$next_finding_id" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+finding_id = sys.argv[2]
+text = path.read_text()
+marker = "\n\n### CI and release flow"
+row = (
+    f"| `{finding_id}` / P2 | Post-DOC finding extension fixture / governance | "
+    "Accepted; append-only successor | Fixture evidence |"
+)
+if text.count(marker) != 1:
+    raise SystemExit("expected one finding append boundary")
+path.write_text(text.replace(marker, f"\n{row}{marker}", 1))
+PY
+cat >"$linear_conformance_repository/docs/specifications/future-extension.md" <<'EOF'
+# Future extension
+
+Status: Experimental
+EOF
+cat >"$linear_conformance_repository/docs/decisions/0043-test-extension.md" <<'EOF'
+# 0043: Test extension
+
+Status: Accepted
+EOF
+append_conformance_successor "$linear_conformance_repository"
+git -C "$linear_conformance_repository" add \
+  docs/specifications \
+  docs/decisions
+GIT_AUTHOR_DATE='2026-07-24T13:38:30Z' \
+GIT_COMMITTER_DATE='2026-07-24T13:38:30Z' \
+  git -C "$linear_conformance_repository" commit -qm \
+    'Advance reviewed source with conformance'
+python3 "$linear_conformance_repository/scripts/check-v1-delivery-program.py" \
+  --require-receipts \
+  --linear-integration \
+  "$linear_conformance_repository/docs/specifications/v1-delivery-program.md"
+
+linear_receipt_only_repository="$fixture_root/linear-receipt-only-successor"
+cp -R "$linear_repository" "$linear_receipt_only_repository"
+append_conformance_successor "$linear_receipt_only_repository"
+git -C "$linear_receipt_only_repository" add \
+  docs/specifications/v1-delivery-program.md
+GIT_AUTHOR_DATE='2026-07-24T13:38:35Z' \
+GIT_COMMITTER_DATE='2026-07-24T13:38:35Z' \
+  git -C "$linear_receipt_only_repository" commit -qm \
+    'Append self-referential conformance successor'
+expect_linear_failure "$linear_receipt_only_repository" \
+  'unchanged reviewed archive must not append a conformance receipt'
+
+linear_hidden_invalid_repository="$fixture_root/linear-hidden-invalid-successor"
+cp -R "$linear_repository" "$linear_hidden_invalid_repository"
+printf '\nFirst reviewed source revision.\n' \
+  >>"$linear_hidden_invalid_repository/docs/specifications/v1-proof-program.md"
+append_conformance_successor "$linear_hidden_invalid_repository"
+python3 - \
+  "$linear_hidden_invalid_repository/docs/specifications/v1-delivery-program.md" \
+  "$next_conformance_id" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+conformance_id = sys.argv[2]
+text = path.read_text()
+start = text.index(f"#### Manual conformance receipt `{conformance_id}`")
+end = text.index("\n### Required repository checks", start)
+section = text[start:end]
+old = "| Status | `HistoryPass` |"
+if section.count(old) != 1:
+    raise SystemExit("expected one active status field")
+path.write_text(
+    text[:start]
+    + section.replace(old, "| Status | `InvalidFixture` |", 1)
+    + text[end:]
+)
+PY
+git -C "$linear_hidden_invalid_repository" add docs/specifications
+GIT_AUTHOR_DATE='2026-07-24T13:38:40Z' \
+GIT_COMMITTER_DATE='2026-07-24T13:38:40Z' \
+  git -C "$linear_hidden_invalid_repository" commit -qm \
+    'Record malformed first conformance successor'
+printf '\nSecond reviewed source revision.\n' \
+  >>"$linear_hidden_invalid_repository/docs/specifications/v1-proof-program.md"
+append_conformance_successor "$linear_hidden_invalid_repository"
+git -C "$linear_hidden_invalid_repository" add docs/specifications
+GIT_AUTHOR_DATE='2026-07-24T13:38:45Z' \
+GIT_COMMITTER_DATE='2026-07-24T13:38:45Z' \
+  git -C "$linear_hidden_invalid_repository" commit -qm \
+    'Append valid successor after malformed history'
+expect_linear_failure "$linear_hidden_invalid_repository" \
+  "active $next_conformance_id must match the closed post-DOC conformance schema"
+
+linear_repaired_structure_repository="$fixture_root/linear-repaired-structure"
+cp -R "$linear_repository" "$linear_repaired_structure_repository"
+python3 - \
+  "$linear_repaired_structure_repository/docs/specifications/v1-delivery-program.md" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text()
+line = next(
+    candidate
+    for candidate in text.splitlines()
+    if candidate.startswith("| `DOC-00` |")
+)
+if text.count(line) != 1:
+    raise SystemExit("expected one canonical DOC-00 package row")
+path.write_text(text.replace(line, f"{line}\n{line}", 1))
+PY
+append_conformance_successor "$linear_repaired_structure_repository"
+git -C "$linear_repaired_structure_repository" add \
+  docs/specifications/v1-delivery-program.md
+GIT_AUTHOR_DATE='2026-07-24T13:38:50Z' \
+GIT_COMMITTER_DATE='2026-07-24T13:38:50Z' \
+  git -C "$linear_repaired_structure_repository" commit -qm \
+    'Record structurally invalid intermediate source'
+python3 - \
+  "$linear_repaired_structure_repository/docs/specifications/v1-delivery-program.md" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text()
+line = next(
+    candidate
+    for candidate in text.splitlines()
+    if candidate.startswith("| `DOC-00` |")
+)
+duplicate = f"{line}\n{line}"
+if text.count(duplicate) != 1:
+    raise SystemExit("expected one duplicated DOC-00 package row")
+path.write_text(text.replace(duplicate, line, 1))
+PY
+append_conformance_successor "$linear_repaired_structure_repository"
+git -C "$linear_repaired_structure_repository" add \
+  docs/specifications/v1-delivery-program.md
+GIT_AUTHOR_DATE='2026-07-24T13:38:55Z' \
+GIT_COMMITTER_DATE='2026-07-24T13:38:55Z' \
+  git -C "$linear_repaired_structure_repository" commit -qm \
+    'Repair intermediate source structure'
+python3 \
+  "$linear_repaired_structure_repository/scripts/check-v1-delivery-program.py" \
+  --require-receipts \
+  --linear-integration \
+  "$linear_repaired_structure_repository/docs/specifications/v1-delivery-program.md"
 
 linear_drift_repository="$fixture_root/linear-bound-path-drift"
 cp -R "$linear_repository" "$linear_drift_repository"
@@ -2036,7 +2322,43 @@ GIT_AUTHOR_DATE='2026-07-24T13:40:00Z' \
 GIT_COMMITTER_DATE='2026-07-24T13:40:00Z' \
   git -C "$linear_drift_repository" commit -qm 'Revert bound linear source'
 expect_linear_failure "$linear_drift_repository" \
+  'changed reviewed archive must append exactly one next conformance receipt'
+
+linear_governance_repository="$fixture_root/linear-governance-drift"
+cp -R "$linear_repository" "$linear_governance_repository"
+printf '\n' >>"$linear_governance_repository/scripts/check-v1-delivery-program.py"
+git -C "$linear_governance_repository" add \
+  scripts/check-v1-delivery-program.py
+GIT_AUTHOR_DATE='2026-07-24T13:40:15Z' \
+GIT_COMMITTER_DATE='2026-07-24T13:40:15Z' \
+  git -C "$linear_governance_repository" commit -qm \
+    'Change attested governance program'
+expect_linear_failure "$linear_governance_repository" \
+  'governance program differs from Source commit: scripts/check-v1-delivery-program.py'
+
+linear_ci_workflow_repository="$fixture_root/linear-ci-workflow-drift"
+cp -R "$linear_repository" "$linear_ci_workflow_repository"
+mkdir -p "$linear_ci_workflow_repository/.github/workflows"
+printf '%s\n' 'name: Untrusted documentation invocation' \
+  >"$linear_ci_workflow_repository/.github/workflows/ci.yml"
+git -C "$linear_ci_workflow_repository" add .github/workflows/ci.yml
+GIT_AUTHOR_DATE='2026-07-24T13:40:20Z' \
+GIT_COMMITTER_DATE='2026-07-24T13:40:20Z' \
+  git -C "$linear_ci_workflow_repository" commit -qm \
+    'Change attested documentation invocation'
+expect_linear_failure "$linear_ci_workflow_repository" \
   'history after DOC-00 evidence must not modify a DOC-00-bound path'
+
+linear_receipt_repository="$fixture_root/linear-receipt-drift"
+cp -R "$linear_repository" "$linear_receipt_repository"
+printf '\n' >>"$linear_receipt_repository/docs/receipts/reviews/rev-18.md"
+git -C "$linear_receipt_repository" add docs/receipts/reviews/rev-18.md
+GIT_AUTHOR_DATE='2026-07-24T13:40:30Z' \
+GIT_COMMITTER_DATE='2026-07-24T13:40:30Z' \
+  git -C "$linear_receipt_repository" commit -qm \
+    'Change canonical review receipt'
+expect_linear_failure "$linear_receipt_repository" \
+  'all 22 canonical attestations must share one last-modified evidence commit'
 
 linear_intermediate_repository="$fixture_root/linear-intermediate-commit"
 cp -R "$linear_repository" "$linear_intermediate_repository"

@@ -23,17 +23,21 @@ SOURCE_GOVERNANCE_PATHS = (
     Path("scripts/check-v1-delivery-program.py"),
     Path("scripts/test-v1-delivery-program-check.sh"),
 )
+DOC_00_IMMUTABLE_PATHS = (
+    *SOURCE_GOVERNANCE_PATHS,
+    Path(".github/workflows/ci.yml"),
+)
 
 REFERENCE_PATTERN = re.compile(r"`([A-Z][A-Z0-9]*-[0-9]{2})`")
 CONFORMANCE_PATTERN = re.compile(
-    r"^#### Manual conformance receipt(?: `DOC-CONF-([0-9]{2})`)?$"
+    r"^#### Manual conformance receipt(?: `DOC-CONF-([0-9]+)`)?$"
 )
 FINDING_HISTORY_PATTERN = re.compile(
-    r"^\| `FND-([0-9]{3})` / P[0-3] \|.*$",
+    r"^\| `FND-([0-9]{3,})` / P[0-3] \|.*$",
     re.MULTILINE,
 )
 CONFORMANCE_HISTORY_PATTERN = re.compile(
-    r"^#### Manual conformance receipt(?: `DOC-CONF-([0-9]{2})`)?$",
+    r"^#### Manual conformance receipt(?: `DOC-CONF-([0-9]+)`)?$",
     re.MULTILINE,
 )
 REQUIRED_REPOSITORY_CHECKS_HEADING = "\n### Required repository checks"
@@ -95,12 +99,17 @@ ATTESTATION_HISTORY_CONTRACT = (
     "resolve to one common last-modified evidence commit whose direct parent is "
     "its source counterpart, whose only changes are those 22 records, and "
     "whose source tree, schema, and replacement bindings are valid. Exact "
-    "pull-request mode requires that parent to equal the recorded `Source "
-    "commit` and reconstructs its archive digest. Explicit linear-integration "
-    "mode instead requires its content-equivalent rebased counterpart, the "
-    "exact recorded source tree, and byte-identical receipt archive bindings; "
-    "it does not reconstruct a commit-metadata-sensitive archive from the "
-    "rewritten commit. "
+    "pull-request mode requires the active replacement pair's parent to equal "
+    "its recorded `Source commit` and reconstructs its archive digest. Earlier "
+    "pairs already integrated by the required rebase method are accepted as "
+    "content-equivalent counterparts only when their evidence commits are "
+    "reachable from `NEMOSYNE_TRUSTED_PRIOR_HEAD`. CI binds that value to the "
+    "pull-request base or the pre-push integration head; local validation "
+    "resolves `origin/main` when the variable is absent. Every counterpart still "
+    "requires the exact recorded source tree, byte-identical receipt archive "
+    "bindings, and direct source/evidence ordering. Explicit linear-integration "
+    "mode applies that same counterpart rule to the active pair and does not "
+    "reconstruct a commit-metadata-sensitive archive from the rewritten commit. "
     "Historical G0 check requirements are read as exactly one module-level "
     "literal binding per contract name from that set's own source checker; "
     "every additional AST binding is invalid, current policy is not substituted, "
@@ -129,8 +138,7 @@ ATTESTATION_HISTORY_CONTRACT = (
     "merge-parent states unless a two-parent preserving merge selects the exact "
     "evidence commit as its second parent and that set replaces the first-parent "
     "set. Linear integration additionally requires single-parent source/evidence "
-    "counterparts, unchanged source-tree and receipt bindings, and no later "
-    "bound-path change. "
+    "counterparts and unchanged source-tree and receipt bindings. "
     "Validation "
     "follows source/evidence pairs recursively to that genuine first-attestation "
     "state. Each historical source also carries this schema as a non-executable "
@@ -140,7 +148,12 @@ ATTESTATION_HISTORY_CONTRACT = (
     "comparison base and the recursively validated predecessor source; only new "
     "sequential entries may be appended. `Replaces` is derived from the validated "
     "predecessor set, never from mutable content introduced by the new source "
-    "freeze or an earlier preparatory commit."
+    "freeze or an earlier preparatory commit. After the canonical DOC-00 "
+    "evidence pair, linear integration permits reviewed specification and "
+    "decision changes only when every intervening commit preserves those "
+    "append-only histories and appends exactly one next conformance receipt "
+    "when, and only when, the reviewed archive changes. Canonical attestations "
+    "and governance programs remain unchanged."
 )
 ATTESTATION_KINDS = {
     "completion": "MergeAuthorization",
@@ -180,11 +193,10 @@ EXPECTED_INTERFACE_COUNT = 49
 EXPECTED_REVIEW_COUNT = 18
 EXPECTED_WAVE_COUNT = 34
 EXPECTED_FINDING_COUNT = 384
-EXPECTED_CONFORMANCE_COUNT = 30
-EXPECTED_SPECIFICATION_COUNT = 12
-EXPECTED_DECISION_COUNT = 41
-EXPECTED_ACCEPTED_DECISION_COUNT = 31
-EXPECTED_SUPERSEDED_DECISION_COUNT = 10
+MINIMUM_CONFORMANCE_COUNT = 30
+MINIMUM_SPECIFICATION_COUNT = 12
+MINIMUM_DECISION_COUNT = 41
+EXPECTED_SUPERSEDED_DECISION_IDS = (11, 12, 13, 15, 16, 19, 22, 23, 28, 40)
 CANONICAL_G0_RECORD_ID = "DOC-CONF-24"
 EXPECTED_CURRENT_FINDING_RANGE = f"FND-152..{EXPECTED_FINDING_COUNT:03d}"
 EXPECTED_PROTECTED_CONFORMANCE_SHA256 = (
@@ -383,6 +395,18 @@ class AttestationHistoryState:
     source_commit: str
     evidence_commit: str
     tree_entries: tuple[tuple[str, str], ...]
+
+
+@dataclass(frozen=True)
+class DocumentationInventory:
+    """Current extensible documentation inventory."""
+
+    finding_count: int
+    conformance_count: int
+    specification_count: int
+    decision_count: int
+    accepted_decision_count: int
+    superseded_decision_count: int
 
 
 def section(text: str, start: str, end: str) -> str:
@@ -1114,8 +1138,8 @@ def require_acyclic(
         raise ContractError(f"{label} dependency graph contains a cycle: {blocked}")
 
 
-def validate_specifications(repository_root: Path) -> None:
-    """Require the frozen non-template specification inventory."""
+def validate_specifications(repository_root: Path) -> int:
+    """Require the canonical specification baseline and return its current size."""
 
     specification_directory = repository_root / DELIVERY_PROGRAM_PATH.parent
     if specification_directory.is_symlink() or not specification_directory.is_dir():
@@ -1133,15 +1157,16 @@ def validate_specifications(repository_root: Path) -> None:
             raise ContractError(
                 f"specification must be a regular file: {specification_file}"
             )
-    if len(specification_files) != EXPECTED_SPECIFICATION_COUNT:
+    if len(specification_files) < MINIMUM_SPECIFICATION_COUNT:
         raise ContractError(
-            f"expected {EXPECTED_SPECIFICATION_COUNT} non-template "
+            f"expected at least {MINIMUM_SPECIFICATION_COUNT} non-template "
             f"specifications, found {len(specification_files)}"
         )
+    return len(specification_files)
 
 
-def validate_decisions(repository_root: Path) -> None:
-    """Require the frozen 37-record decision inventory and statuses."""
+def validate_decisions(repository_root: Path) -> tuple[int, int, int]:
+    """Require the canonical decision baseline and return current status counts."""
 
     decision_directory = repository_root / DECISION_DIRECTORY
     if decision_directory.is_symlink() or not decision_directory.is_dir():
@@ -1170,29 +1195,25 @@ def validate_decisions(repository_root: Path) -> None:
             raise ContractError(f"decision {decision_file.name} has duplicate status")
         statuses[decision_id] = status
 
-    require_contiguous(decision_ids, EXPECTED_DECISION_COUNT, "decision IDs")
+    if len(decision_ids) < MINIMUM_DECISION_COUNT:
+        raise ContractError(
+            f"expected at least {MINIMUM_DECISION_COUNT} numbered decisions, "
+            f"found {len(decision_ids)}"
+        )
+    require_contiguous(decision_ids, len(decision_ids), "decision IDs")
     accepted = sum(status == "Accepted" for status in statuses.values())
     superseded = sum(status == "Superseded" for status in statuses.values())
-    if accepted != EXPECTED_ACCEPTED_DECISION_COUNT:
-        raise ContractError(
-            f"expected {EXPECTED_ACCEPTED_DECISION_COUNT} Accepted decisions, "
-            f"found {accepted}"
-        )
-    if superseded != EXPECTED_SUPERSEDED_DECISION_COUNT:
-        raise ContractError(
-            f"expected {EXPECTED_SUPERSEDED_DECISION_COUNT} Superseded decisions, "
-            f"found {superseded}"
-        )
     superseded_ids = sorted(
         decision_id
         for decision_id, status in statuses.items()
         if status == "Superseded"
     )
-    if superseded_ids != [11, 12, 13, 15, 16, 19, 22, 23, 28, 40]:
+    if superseded_ids != list(EXPECTED_SUPERSEDED_DECISION_IDS):
         raise ContractError(
             "Superseded decisions must be exactly 0011, 0012, 0013, 0015, "
             "0016, 0019, 0022, 0023, 0028, and 0040"
         )
+    return len(decision_ids), accepted, superseded
 
 
 def validate_proof_anchors(repository_root: Path, delivery_text: str) -> None:
@@ -1418,7 +1439,7 @@ def validate_attestation_record_set(
                     f"attestation {record_id} lacks an ownership declaration"
                 )
             evidence_match = re.fullmatch(
-                r"(FND-152\.\.[0-9]{3}) reconciliation\.",
+                r"(FND-152\.\.[0-9]{3,}) reconciliation\.",
                 fields["Evidence references"],
             )
             if evidence_match is None:
@@ -1996,7 +2017,7 @@ def source_finding_range(repository_root: Path, source_commit: str) -> str:
     finding_ids = [
         int(match.group(1))
         for match in re.finditer(
-            r"^\| `FND-([0-9]{3})` / P[0-3] \|",
+            r"^\| `FND-([0-9]{3,})` / P[0-3] \|",
             source_text,
             re.MULTILINE,
         )
@@ -2126,18 +2147,79 @@ def validate_delivery_history_append_only(
     )
 
 
+def delivery_program_without_conformance_history(text: str) -> str:
+    """Return the reviewed delivery program without its receipt appendix."""
+
+    matches = list(CONFORMANCE_HISTORY_PATTERN.finditer(text))
+    if not matches:
+        raise ContractError("delivery-program conformance history is empty")
+    boundary = text.find(REQUIRED_REPOSITORY_CHECKS_HEADING, matches[-1].end())
+    if boundary < 0:
+        raise ContractError(
+            "delivery-program conformance history lacks its final boundary"
+        )
+    return text[: matches[0].start()] + text[boundary:]
+
+
+def git_paths_changed(
+    repository_root: Path,
+    predecessor_source: str,
+    successor_source: str,
+    *pathspecs: str,
+) -> bool:
+    """Return whether Git reports a change for the named pathspecs."""
+
+    result = subprocess.run(
+        git_command(
+            repository_root,
+            "diff",
+            "--quiet",
+            predecessor_source,
+            successor_source,
+            "--",
+            *pathspecs,
+        ),
+        check=False,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        env=git_environment(),
+    )
+    if result.returncode == 0:
+        return False
+    if result.returncode == 1:
+        return True
+    raise ContractError("unable to compare reviewed archive paths")
+
+
 def reviewed_archive_changed(
     repository_root: Path,
     predecessor_source: str,
     successor_source: str,
 ) -> bool:
-    """Return whether one source revision changes the reviewed archive paths."""
+    """Return whether reviewed source changed outside its receipt appendix."""
 
-    return any(
-        git_optional_tree_entry(repository_root, predecessor_source, relative_path)
-        != git_optional_tree_entry(repository_root, successor_source, relative_path)
-        for relative_path in ("docs/specifications", "docs/decisions")
+    if git_paths_changed(
+        repository_root,
+        predecessor_source,
+        successor_source,
+        "docs/decisions",
+        "docs/specifications",
+        ":(exclude)docs/specifications/v1-delivery-program.md",
+    ):
+        return True
+    predecessor_text = git_blob_text(
+        repository_root,
+        predecessor_source,
+        DELIVERY_PROGRAM_PATH.as_posix(),
     )
+    successor_text = git_blob_text(
+        repository_root,
+        successor_source,
+        DELIVERY_PROGRAM_PATH.as_posix(),
+    )
+    return delivery_program_without_conformance_history(
+        predecessor_text
+    ) != delivery_program_without_conformance_history(successor_text)
 
 
 def validate_conformance_successor_for_changed_archive(
@@ -2179,6 +2261,229 @@ def validate_conformance_successor_for_changed_archive(
             "changed reviewed archive must append exactly one next conformance "
             f"receipt DOC-CONF-{expected_identifier:02d}"
         )
+
+
+def post_doc_conformance_section(inventory: DocumentationInventory) -> str:
+    """Build the closed post-DOC source-conformance statement."""
+
+    current = inventory.conformance_count
+    inventory_value = (
+        f"findings={inventory.finding_count}; "
+        f"conformances={inventory.conformance_count}; "
+        f"specifications={inventory.specification_count}; "
+        f"decisions={inventory.decision_count}; "
+        f"accepted={inventory.accepted_decision_count}; "
+        f"superseded={inventory.superseded_decision_count}"
+    )
+    return "\n".join(
+        (
+            f"#### Manual conformance receipt `DOC-CONF-{current:02d}`",
+            "",
+            "| Field | Value |",
+            "| --- | --- |",
+            "| Schema | `post-doc-history-conformance-v1` |",
+            f"| Record ID | `DOC-CONF-{current:02d}` |",
+            "| Status | `HistoryPass` |",
+            f"| Parent | `DOC-CONF-{current - 1:02d}` |",
+            (
+                "| Scope | `append-only findings, conformance history, and "
+                "documentation file/status inventory` |"
+            ),
+            (
+                "| Finding range | "
+                f"`FND-152..{inventory.finding_count:03d}` |"
+            ),
+            f"| Inventory | `{inventory_value}` |",
+            (
+                "| Claim boundary | `History and inventory continuity only; "
+                "no complete source-structure, product, implementation, empirical, "
+                "security, or cognitive validation.` |"
+            ),
+        )
+    )
+
+
+def post_doc_conformance_footer(conformance_count: int) -> str:
+    """Build the closed successor rule after one post-DOC statement."""
+
+    return "\n".join(
+        (
+            "Any later reviewed-source change appends exactly one "
+            f"`DOC-CONF-{conformance_count + 1:02d}` successor.",
+            "An unchanged reviewed source appends none. Canonical DOC-00 "
+            "attestations and governance programs remain unchanged.",
+        )
+    )
+
+
+def validate_post_doc_conformance(
+    text: str,
+    inventory: DocumentationInventory,
+) -> None:
+    """Require the active post-DOC statement and footer to be closed and exact."""
+
+    heading = (
+        "#### Manual conformance receipt "
+        f"`DOC-CONF-{inventory.conformance_count:02d}`"
+    )
+    footer_start = "Any later reviewed-source change appends exactly one "
+    heading_start = text.index(heading)
+    footer_boundary = text.index(footer_start, heading_start)
+    repository_checks_boundary = text.index(
+        REQUIRED_REPOSITORY_CHECKS_HEADING,
+        footer_boundary,
+    )
+    observed_section = text[heading_start:footer_boundary].strip()
+    expected_section = post_doc_conformance_section(inventory)
+    if observed_section != expected_section:
+        raise ContractError(
+            f"active DOC-CONF-{inventory.conformance_count:02d} must match "
+            "the closed post-DOC conformance schema"
+        )
+    observed_footer = text[footer_boundary:repository_checks_boundary].strip()
+    expected_footer = post_doc_conformance_footer(inventory.conformance_count)
+    if observed_footer != expected_footer:
+        raise ContractError(
+            f"active DOC-CONF-{inventory.conformance_count:02d} successor "
+            "footer differs from the closed post-DOC rule"
+        )
+
+
+def documentation_inventory_at_commit(
+    repository_root: Path,
+    commit: str,
+) -> tuple[str, DocumentationInventory]:
+    """Reconstruct the documentation inventory at one historical commit."""
+
+    delivery_text = git_blob_text(
+        repository_root,
+        commit,
+        DELIVERY_PROGRAM_PATH.as_posix(),
+    )
+    finding_body = section(
+        delivery_text,
+        "### Review finding and resolution ledger",
+        "### CI and release flow",
+    )
+    finding_rows = bounded_table_rows(
+        finding_body,
+        FINDING_HEADER,
+        "finding ledger",
+    )
+    finding_ids: list[int] = []
+    finding_priority_digits: list[str] = []
+    for cells in finding_rows:
+        match = re.fullmatch(r"`FND-([0-9]{3,})` / P([0-3])", cells[0])
+        if match is None:
+            raise ContractError(f"malformed finding ledger ID: {cells[0]}")
+        finding_ids.append(int(match.group(1)))
+        finding_priority_digits.append(match.group(2))
+    if len(finding_ids) < EXPECTED_FINDING_COUNT:
+        raise ContractError(
+            f"expected at least {EXPECTED_FINDING_COUNT} findings, "
+            f"found {len(finding_ids)}"
+        )
+    require_contiguous(finding_ids, len(finding_ids), "finding IDs")
+    if (
+        "".join(finding_priority_digits[:EXPECTED_FINDING_COUNT])
+        != EXPECTED_FINDING_PRIORITY_DIGITS
+    ):
+        raise ContractError(
+            "protected FND-001..FND-384 severities differ from the "
+            "canonical ledger"
+        )
+
+    conformance_ids = [
+        int(match.group(1) or "01")
+        for line in delivery_text.splitlines()
+        if (match := CONFORMANCE_PATTERN.match(line)) is not None
+    ]
+    if len(conformance_ids) < MINIMUM_CONFORMANCE_COUNT:
+        raise ContractError(
+            f"expected at least {MINIMUM_CONFORMANCE_COUNT} conformance receipts, "
+            f"found {len(conformance_ids)}"
+        )
+    require_contiguous(
+        conformance_ids,
+        len(conformance_ids),
+        "conformance receipt IDs",
+    )
+
+    specification_paths = [
+        path
+        for path in git_output(
+            repository_root,
+            "ls-tree",
+            "-r",
+            "--name-only",
+            commit,
+            "--",
+            "docs/specifications",
+        ).splitlines()
+        if path.endswith(".md")
+        and Path(path).name not in {"README.md", "TEMPLATE.md"}
+    ]
+    if len(specification_paths) < MINIMUM_SPECIFICATION_COUNT:
+        raise ContractError(
+            f"expected at least {MINIMUM_SPECIFICATION_COUNT} non-template "
+            f"specifications, found {len(specification_paths)}"
+        )
+
+    decision_paths = [
+        path
+        for path in git_output(
+            repository_root,
+            "ls-tree",
+            "-r",
+            "--name-only",
+            commit,
+            "--",
+            DECISION_DIRECTORY.as_posix(),
+        ).splitlines()
+        if DECISION_FILE_PATTERN.fullmatch(Path(path).name) is not None
+    ]
+    decision_ids: list[int] = []
+    decision_statuses: dict[int, str] = {}
+    for path in decision_paths:
+        match = DECISION_FILE_PATTERN.fullmatch(Path(path).name)
+        if match is None:
+            raise ContractError(f"malformed decision filename: {path}")
+        decision_id = int(match.group(1))
+        decision_ids.append(decision_id)
+        lines = git_blob_text(repository_root, commit, path).splitlines()
+        if len(lines) < 3 or not lines[2].startswith("Status: "):
+            raise ContractError(f"decision {Path(path).name} has no canonical status")
+        status = lines[2].removeprefix("Status: ")
+        if status not in {"Accepted", "Superseded"}:
+            raise ContractError(
+                f"decision {Path(path).name} has non-frozen status: {status}"
+            )
+        decision_statuses[decision_id] = status
+    if len(decision_ids) < MINIMUM_DECISION_COUNT:
+        raise ContractError(
+            f"expected at least {MINIMUM_DECISION_COUNT} numbered decisions, "
+            f"found {len(decision_ids)}"
+        )
+    require_contiguous(decision_ids, len(decision_ids), "decision IDs")
+    superseded_ids = sorted(
+        identifier
+        for identifier, status in decision_statuses.items()
+        if status == "Superseded"
+    )
+    if superseded_ids != list(EXPECTED_SUPERSEDED_DECISION_IDS):
+        raise ContractError(
+            "Superseded decisions must be exactly 0011, 0012, 0013, 0015, "
+            "0016, 0019, 0022, 0023, 0028, and 0040"
+        )
+    accepted = sum(status == "Accepted" for status in decision_statuses.values())
+    return delivery_text, DocumentationInventory(
+        finding_count=len(finding_ids),
+        conformance_count=len(conformance_ids),
+        specification_count=len(specification_paths),
+        decision_count=len(decision_ids),
+        accepted_decision_count=accepted,
+        superseded_decision_count=len(superseded_ids),
+    )
 
 
 def commit_parents(repository_root: Path, commit: str) -> tuple[str, ...]:
@@ -2529,7 +2834,7 @@ def validate_attestation_history(
     repository_root: Path,
     history_head: str | None,
     expected_records: list[tuple[str, str, str]],
-    allow_rebased_source_identity: bool = False,
+    rebased_identity_evidence_commits: frozenset[str] = frozenset(),
 ) -> AttestationHistoryState | None:
     """Validate every reachable canonical attestation state in the Git DAG."""
 
@@ -2645,7 +2950,7 @@ def validate_attestation_history(
             parent_states[0],
             tree_entries,
             expected_records,
-            allow_rebased_source_identity,
+            commit in rebased_identity_evidence_commits,
         )
 
     state = states.get(history_head)
@@ -2850,6 +3155,45 @@ def validate_receipts(
             "the recorded Source commit as its parent"
         )
 
+    trusted_prior_head = os.environ.get("NEMOSYNE_TRUSTED_PRIOR_HEAD")
+    if trusted_prior_head:
+        try:
+            trusted_prior_head = git_output(
+                repository_root,
+                "rev-parse",
+                "--verify",
+                f"{trusted_prior_head}^{{commit}}",
+            )
+        except ContractError as error:
+            raise ContractError(
+                "NEMOSYNE_TRUSTED_PRIOR_HEAD must resolve to a commit"
+            ) from error
+    else:
+        try:
+            trusted_prior_head = git_output(
+                repository_root,
+                "rev-parse",
+                "--verify",
+                "refs/remotes/origin/main^{commit}",
+            )
+        except ContractError:
+            trusted_prior_head = None
+    rebased_identity_evidence_commits = (
+        frozenset()
+        if trusted_prior_head is None
+        else frozenset(
+            git_output(
+                repository_root,
+                "rev-list",
+                trusted_prior_head,
+            ).splitlines()
+        )
+    )
+    if linear_integration:
+        rebased_identity_evidence_commits = (
+            rebased_identity_evidence_commits | {evidence_commit}
+        )
+
     source_tree = reference["Source tree"]
     object_type = git_output(repository_root, "cat-file", "-t", source_commit)
     if object_type != "commit":
@@ -2874,7 +3218,7 @@ def validate_receipts(
         repository_root,
         source_parent,
         history_records,
-        allow_rebased_source_identity=linear_integration,
+        rebased_identity_evidence_commits,
     )
     if prior_history is None:
         prior_records = None
@@ -3056,15 +3400,18 @@ def validate_receipts(
     )
     if included_status:
         raise ContractError("attested included paths have uncommitted changes")
-    for included_path in ("docs/specifications", "docs/decisions"):
-        source_object = git_output(
-            repository_root, "rev-parse", f"{source_commit}:{included_path}"
-        )
-        head_object = git_output(repository_root, "rev-parse", f"HEAD:{included_path}")
-        if source_object != head_object:
-            raise ContractError(
-                f"attested source differs from HEAD at {included_path}"
+    if not linear_integration:
+        for included_path in ("docs/specifications", "docs/decisions"):
+            source_object = git_output(
+                repository_root, "rev-parse", f"{source_commit}:{included_path}"
             )
+            head_object = git_output(
+                repository_root, "rev-parse", f"HEAD:{included_path}"
+            )
+            if source_object != head_object:
+                raise ContractError(
+                    f"attested source differs from HEAD at {included_path}"
+                )
 
     if not linear_integration:
         actual_digest = git_archive_digest(repository_root, source_commit)
@@ -3151,29 +3498,58 @@ def validate_receipts(
                     "history after DOC-00 evidence has a non-linear or "
                     "unresolvable parent"
                 )
-            bound_changes = git_output(
+            immutable_paths = [
+                "docs/receipts",
+                *(path.as_posix() for path in DOC_00_IMMUTABLE_PATHS),
+            ]
+            if not linear_integration:
+                immutable_paths[:0] = ["docs/specifications", "docs/decisions"]
+            immutable_bound_changes = git_output(
                 repository_root,
                 "diff",
                 "--name-only",
                 commit_line[1],
                 later_commit,
                 "--",
-                "docs/specifications",
-                "docs/decisions",
-                "docs/receipts",
-                *(path.as_posix() for path in SOURCE_GOVERNANCE_PATHS),
+                *immutable_paths,
             )
-            if bound_changes:
+            if immutable_bound_changes:
                 raise ContractError(
                     "history after DOC-00 evidence must not modify a "
                     "DOC-00-bound path"
                 )
+            if linear_integration:
+                validate_delivery_history_append_only(
+                    repository_root,
+                    commit_line[1],
+                    later_commit,
+                )
+                validate_conformance_successor_for_changed_archive(
+                    repository_root,
+                    commit_line[1],
+                    later_commit,
+                )
+                if reviewed_archive_changed(
+                    repository_root,
+                    commit_line[1],
+                    later_commit,
+                ):
+                    historical_text, historical_inventory = (
+                        documentation_inventory_at_commit(
+                            repository_root,
+                            later_commit,
+                        )
+                    )
+                    validate_post_doc_conformance(
+                        historical_text,
+                        historical_inventory,
+                    )
 
     head_history = validate_attestation_history(
         repository_root,
         head_commit,
         history_records,
-        allow_rebased_source_identity=linear_integration,
+        rebased_identity_evidence_commits,
     )
     if (
         head_history is None
@@ -3317,8 +3693,10 @@ def validate(
     require_acyclic(expected_packages, graph_dependencies, "canonical")
     require_acyclic(v1_packages, v1_dependencies, "V1")
 
-    validate_specifications(repository_root)
-    validate_decisions(repository_root)
+    specification_count = validate_specifications(repository_root)
+    decision_count, accepted_decision_count, superseded_decision_count = (
+        validate_decisions(repository_root)
+    )
     validate_proof_anchors(repository_root, text)
 
     consolidation_body = section(
@@ -3463,16 +3841,24 @@ def validate(
     findings: list[int] = []
     finding_priority_digits: list[str] = []
     for cells in finding_rows:
-        match = re.fullmatch(r"`FND-([0-9]{3})` / P([0-3])", cells[0])
+        match = re.fullmatch(r"`FND-([0-9]{3,})` / P([0-3])", cells[0])
         if match is None:
             raise ContractError(f"malformed finding ledger ID: {cells[0]}")
         findings.append(int(match.group(1)))
         finding_priority_digits.append(match.group(2))
-    require_contiguous(findings, EXPECTED_FINDING_COUNT, "finding IDs")
-    if "".join(finding_priority_digits) != EXPECTED_FINDING_PRIORITY_DIGITS:
+    if len(findings) < EXPECTED_FINDING_COUNT:
         raise ContractError(
-            "finding severities must match the canonical "
-            f"FND-001..FND-{EXPECTED_FINDING_COUNT:03d} ledger"
+            f"expected at least {EXPECTED_FINDING_COUNT} findings, "
+            f"found {len(findings)}"
+        )
+    require_contiguous(findings, len(findings), "finding IDs")
+    if (
+        "".join(finding_priority_digits[:EXPECTED_FINDING_COUNT])
+        != EXPECTED_FINDING_PRIORITY_DIGITS
+    ):
+        raise ContractError(
+            "protected FND-001..FND-384 severities differ from the "
+            "canonical ledger"
         )
 
     conformances = [
@@ -3480,49 +3866,68 @@ def validate(
         for line in text.splitlines()
         if (match := CONFORMANCE_PATTERN.match(line)) is not None
     ]
-    require_contiguous(
-        conformances, EXPECTED_CONFORMANCE_COUNT, "conformance receipt IDs"
-    )
-    current_conformance = section(
-        text,
-        (
-            "#### Manual conformance receipt "
-            f"`DOC-CONF-{EXPECTED_CONFORMANCE_COUNT:02d}`"
-        ),
-        "Any later source, count, interface, ownership, finding, review disposition,",
-    )
-    current_inventory = (
-        f"The program remains {EXPECTED_PACKAGE_COUNT} unique packages, "
-        f"{EXPECTED_V1_PACKAGE_COUNT} V1 and "
-        f"{EXPECTED_POST_V1_PACKAGE_COUNT} post-V1. The canonical dependency "
-        f"table has {EXPECTED_DEPENDENCY_COUNT} total and "
-        f"{EXPECTED_V1_DEPENDENCY_COUNT} V1-to-V1 relations; the Mermaid graph "
-        f"has {EXPECTED_GRAPH_DEPENDENCY_COUNT} total and "
-        f"{EXPECTED_V1_GRAPH_DEPENDENCY_COUNT} V1-to-V1 edges after removing "
-        "the stale `EVD-01 → OBS-01` edge and adding the "
-        "management-publication predecessor for `RET-01`. The active registry "
-        f"retains {EXPECTED_INTERFACE_COUNT} unique interfaces and "
-        f"{EXPECTED_WAVE_COUNT} stable wave labels. There are "
-        f"{EXPECTED_FINDING_COUNT} unique sequential findings, "
-        f"{EXPECTED_CONFORMANCE_COUNT} append-only conformance receipts, "
-        f"{EXPECTED_REVIEW_COUNT} external review paths, "
-        f"{EXPECTED_SPECIFICATION_COUNT} non-template specifications, and "
-        f"{EXPECTED_DECISION_COUNT} numbered decisions: "
-        f"{EXPECTED_ACCEPTED_DECISION_COUNT} `Accepted` and "
-        f"{EXPECTED_SUPERSEDED_DECISION_COUNT} `Superseded`"
-    )
-    current_finding_range = f"`{EXPECTED_CURRENT_FINDING_RANGE}`"
-    if current_conformance.count(current_finding_range) != 1:
+    if len(conformances) < MINIMUM_CONFORMANCE_COUNT:
         raise ContractError(
-            f"active DOC-CONF-{EXPECTED_CONFORMANCE_COUNT:02d} must contain "
-            "canonical current-state fragment "
-            f"exactly once: {current_finding_range}"
+            f"expected at least {MINIMUM_CONFORMANCE_COUNT} conformance receipts, "
+            f"found {len(conformances)}"
+    )
+    require_contiguous(conformances, len(conformances), "conformance receipt IDs")
+    current_conformance_number = len(conformances)
+    documentation_inventory = DocumentationInventory(
+        finding_count=len(findings),
+        conformance_count=current_conformance_number,
+        specification_count=specification_count,
+        decision_count=decision_count,
+        accepted_decision_count=accepted_decision_count,
+        superseded_decision_count=superseded_decision_count,
+    )
+    if current_conformance_number >= 31:
+        validate_post_doc_conformance(text, documentation_inventory)
+    else:
+        current_conformance = section(
+            text,
+            (
+                "#### Manual conformance receipt "
+                f"`DOC-CONF-{current_conformance_number:02d}`"
+            ),
+            (
+                "Any later source, count, interface, ownership, finding, "
+                "review disposition,"
+            ),
         )
-    if current_conformance.count(current_inventory) != 1:
-        raise ContractError(
-            f"active DOC-CONF-{EXPECTED_CONFORMANCE_COUNT:02d} complete "
-            "structural inventory differs from the canonical inventory"
+        current_finding_range = f"`{EXPECTED_CURRENT_FINDING_RANGE}`"
+        if current_conformance.count(current_finding_range) != 1:
+            raise ContractError(
+                f"active DOC-CONF-{current_conformance_number:02d} must contain "
+                "canonical current-state fragment "
+                f"exactly once: {current_finding_range}"
+            )
+        current_inventory = (
+            f"The program remains {EXPECTED_PACKAGE_COUNT} unique packages, "
+            f"{EXPECTED_V1_PACKAGE_COUNT} V1 and "
+            f"{EXPECTED_POST_V1_PACKAGE_COUNT} post-V1. The canonical dependency "
+            f"table has {EXPECTED_DEPENDENCY_COUNT} total and "
+            f"{EXPECTED_V1_DEPENDENCY_COUNT} V1-to-V1 relations; the Mermaid graph "
+            f"has {EXPECTED_GRAPH_DEPENDENCY_COUNT} total and "
+            f"{EXPECTED_V1_GRAPH_DEPENDENCY_COUNT} V1-to-V1 edges after removing "
+            "the stale `EVD-01 → OBS-01` edge and adding the "
+            "management-publication predecessor for `RET-01`. The active registry "
+            f"retains {EXPECTED_INTERFACE_COUNT} unique interfaces and "
+            f"{EXPECTED_WAVE_COUNT} stable wave labels. There are "
+            f"{EXPECTED_FINDING_COUNT} unique sequential findings, "
+            f"{current_conformance_number} append-only conformance receipts, "
+            f"{EXPECTED_REVIEW_COUNT} external review paths, "
+            f"{documentation_inventory.specification_count} non-template "
+            "specifications, and "
+            f"{documentation_inventory.decision_count} numbered decisions: "
+            f"{documentation_inventory.accepted_decision_count} `Accepted` and "
+            f"{documentation_inventory.superseded_decision_count} `Superseded`"
         )
+        if current_conformance.count(current_inventory) != 1:
+            raise ContractError(
+                f"active DOC-CONF-{current_conformance_number:02d} complete "
+                "structural inventory differs from the canonical inventory"
+            )
 
     required_fragments = [
         "scripts/check-v1-delivery-program.py",
@@ -3552,8 +3957,8 @@ def validate(
         "0039-validate-documentation-history-per-commit.md",
         "0040-integrate-doc-00-through-content-equivalent-rebase.md",
         "0041-route-doc-00-validation-by-attestation-delta.md",
-        f"DOC-CONF-{EXPECTED_CONFORMANCE_COUNT - 1:02d}",
-        f"DOC-CONF-{EXPECTED_CONFORMANCE_COUNT:02d}",
+        f"DOC-CONF-{current_conformance_number - 1:02d}",
+        f"DOC-CONF-{current_conformance_number:02d}",
     ]
     for fragment in required_fragments:
         if fragment not in text:

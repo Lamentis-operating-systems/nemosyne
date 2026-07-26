@@ -3245,6 +3245,22 @@ decision status, or graph change appends exactly one `DOC-CONF-31` or later
 receipt, retains the stable external G0 record ID `DOC-CONF-24`, reruns every
 affected review, and never edits historical receipts.
 
+#### Manual conformance receipt `DOC-CONF-31`
+
+| Field | Value |
+| --- | --- |
+| Schema | `post-doc-history-conformance-v1` |
+| Record ID | `DOC-CONF-31` |
+| Status | `HistoryPass` |
+| Parent | `DOC-CONF-30` |
+| Scope | `append-only findings, conformance history, and documentation file/status inventory` |
+| Finding range | `FND-152..384` |
+| Inventory | `findings=384; conformances=31; specifications=12; decisions=42; accepted=32; superseded=10` |
+| Claim boundary | `History and inventory continuity only; no complete source-structure, product, implementation, empirical, security, or cognitive validation.` |
+
+Any later reviewed-source change appends exactly one `DOC-CONF-32` successor.
+An unchanged reviewed source appends none. Canonical DOC-00 attestations and governance programs remain unchanged.
+
 ### Required repository checks
 
 Every documentation or implementation package runs the commands required by
