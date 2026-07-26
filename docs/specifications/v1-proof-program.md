@@ -3743,6 +3743,73 @@ full reconstructible `ValidExperimentReceipt` below. It records:
 Receipts are evidence artifacts, not decision records. A later decision cites
 the frozen receipt when adopting a component or claim.
 
+#### EVD-01 implementation mapping
+
+`EVD-01` implements this anchor in the non-published
+`nemosyne_evaluation::evidence` module. The implementation is an offline
+evidence boundary only: it grants no runtime authority, interprets no outcome,
+and selects no product algorithm. Decision
+[0044](../decisions/0044-adopt-authenticated-evd-01-evidence-envelope.md)
+records the implementation and dependency boundary.
+
+The current in-process schema is `V1`. It uses explicit canonical field
+encoding, unique artifact domains, unsigned big-endian integers, fixed-byte
+identities, sorted duplicate-free sets, bounded length-prefixed payloads,
+domain-separated SHA-256 commitments and identities, and Ed25519 signatures.
+These canonical bytes are internal evidence identities, not a selected
+persistence or transport format.
+
+The public implementation boundary consists of:
+
+- `RunManifestClaimsV1` and `SignedRunManifestV1` for a complete G1 or G9 run
+  manifest with a nonempty opaque payload of at most 1,048,576 bytes;
+- `GuardAuthorityV1`, closed `GuardSubjectV1` variants, signed
+  `GuardWitnessV1`, and `GuardWitnessEvidence`, where only authentication
+  against an independently supplied custodian key and exact guard
+  implementation can produce checked witness evidence;
+- `RejectedAttemptV1`, `finalize_rejection`, and
+  `admit_for_outcome_access`, which return exactly the three disjoint
+  `PreAccessValidationResult<T>` variants;
+- non-cloneable `ValidForOutcomeAccess`, which retains the complete admitted
+  signed manifest and authenticated witness after the fixed join above; and
+- `ExperimentReceiptPayloadV1` and `ValidExperimentReceiptV1`, where receipt
+  construction consumes admission, retains the complete reconstructible
+  manifest, witness, and typed payload, and permits only `Pass`, `Fail`, or
+  `Inconclusive`. Receipt verification repeats manifest validation, witness
+  authentication against an independently supplied guard authority, and the
+  complete admission join before checking the receipt signature. Receipt
+  payloads are nonempty and at most 4,194,304 bytes.
+
+Each validation or analysis principal set is nonempty, canonical, and limited
+to 256 identities. Each established-identity set is canonical and limited to
+64 allowlisted identities. Unknown versions, invalid windows, duplicate or
+oversized sets, empty or oversized payloads, inconsistent sealed-source
+state, and wrong artifact kinds fail explicitly. Invalid untrusted witness
+material is reduced to `Invalid` before terminal-result construction and
+cannot be recovered from that value.
+
+`InputCommitment` retains only a domain-separated digest, byte length, and
+complete-or-consumed-prefix state with typed stop location. It retains no raw
+attempted bytes. A digest still exposes equality and dictionary-testing risk
+and is not a secrecy mechanism.
+
+The implementation authenticates guard input against an external
+`GuardAuthorityV1`; trusted time, established identities, signer key custody,
+ledger truth, and principal truth remain caller preconditions. A valid
+in-process signature therefore proves only integrity under those supplied
+identities. It does not prove durable custody, external key protection,
+transport compatibility, G1/G9 validity, absence of external access or
+computation, product utility, or release readiness.
+
+The integration evidence in
+`crates/nemosyne-evaluation/tests/evidence_envelope.rs` covers valid admission
+and reconstructible receipts, all three dispositions, raw-secret
+non-retention, missing/invalid/untrusted/wrong-subject/replayed witness input,
+every reachable fixed-precedence join field, canonical permutation
+invariance, unknown versions and bounds, domain separation, and rejection of
+inconsistent state. This is executable evidence for the current in-process
+contract only.
+
 ## Preconditions
 
 - The V1 product contract defines the observable claim.

@@ -3277,6 +3277,22 @@ An unchanged reviewed source appends none. Canonical DOC-00 attestations and gov
 Any later reviewed-source change appends exactly one `DOC-CONF-33` successor.
 An unchanged reviewed source appends none. Canonical DOC-00 attestations and governance programs remain unchanged.
 
+#### Manual conformance receipt `DOC-CONF-33`
+
+| Field | Value |
+| --- | --- |
+| Schema | `post-doc-history-conformance-v1` |
+| Record ID | `DOC-CONF-33` |
+| Status | `HistoryPass` |
+| Parent | `DOC-CONF-32` |
+| Scope | `append-only findings, conformance history, and documentation file/status inventory` |
+| Finding range | `FND-152..384` |
+| Inventory | `findings=384; conformances=33; specifications=12; decisions=44; accepted=34; superseded=10` |
+| Claim boundary | `History and inventory continuity only; no complete source-structure, product, implementation, empirical, security, or cognitive validation.` |
+
+Any later reviewed-source change appends exactly one `DOC-CONF-34` successor.
+An unchanged reviewed source appends none. Canonical DOC-00 attestations and governance programs remain unchanged.
+
 ### Required repository checks
 
 Every documentation or implementation package runs the commands required by
