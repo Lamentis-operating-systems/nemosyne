@@ -8,15 +8,15 @@
 | Status | `Pass` |
 | Actor | `Codex statistics-evaluation reviewer REV-04` |
 | Declaration | Independent reviewer; did not author or remediate the reviewed source. |
-| Completed at | `2026-07-25T23:41:27Z` |
-| Source commit | `c0adf49dfd41a69298bc514aaa064561866ea966` |
-| Source tree | `aa86dae511a1b91c2fcea55d19bdcc89c50aa4fb` |
+| Completed at | `2026-07-26T16:23:27Z` |
+| Source commit | `b5e043c184e41d8e9de7dbe262bae081dcabfda4` |
+| Source tree | `87a62fe106f6a26eb1189ef9ee402b0722a1c4cc` |
 | Included paths | `docs/specifications, docs/decisions` |
 | Archive algorithm | `git-archive-tar-sha256-v1` |
-| Archive SHA-256 | `2ddbd2db49b1accf0c72a5fda44bf0d43a737d79041c1ca7f4692447f5b6016c` |
+| Archive SHA-256 | `3baeb554cffb6933f2d27241e465e905bad0cbd95771e1f2668ae4dbe57f98ec` |
 | Method | Independent statistics, estimand, threshold, and evaluation-governance review with diff-scoped carry-forward. |
 | Findings | `None` |
 | Disposition | `Pass` |
 | Residual limits | Documentation evidence only; no empirical efficacy claim. |
 | Evidence references | REV-04 statistics and evaluation review evidence. |
-| Replaces | `REV-04 at archive digest a764b339b88726a1353aef29b9c4f217c40fd3186d02af2fb6a066b5c1e5ea20` |
+| Replaces | `REV-04 at archive digest 2ddbd2db49b1accf0c72a5fda44bf0d43a737d79041c1ca7f4692447f5b6016c` |
