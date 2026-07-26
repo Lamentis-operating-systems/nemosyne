@@ -14,4 +14,4 @@ pub use model::{
     G1ExposureScope, G1LeakageClass, G1PopulationV1, G1RunArtifactBindingV1, G1RunArtifactKind,
     G1SubgroupV1, G1TaskId, G1TaskV1, G1ThresholdKey, G1ThresholdV1, G1WrongControl,
 };
-pub use run::finalize_g1_run_manifest;
+pub use run::{AdmittedG1RunV1, finalize_g1_run_manifest};
