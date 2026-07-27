@@ -25,6 +25,9 @@ production-runtime choices remain independently evidence-gated.
 Decision 0032 additionally fixes content-addressed exact-sidecar identity and
 the two-plane proposition-consolidation boundary without selecting any of
 those physical choices.
+Decision 0049 places a structured applicability/readiness boundary before
+focus generation and requires a typed validatable focus structure before any
+optional prose realization.
 
 The architecture has four maturity labels:
 
@@ -88,11 +91,13 @@ flowchart TD
     ACT --> SH["Eligible activated-memory set"]
     IB --> SH
     IW --> SH
-    Q --> FOC["Focus planner"]
-    SH --> FOC
+    Q --> APP["Structured applicability boundary"]
+    SH --> APP
+    APP -->|"Ready only"| FOC["Focus planner"]
+    APP -->|"terminal Abstain or Conflict"| PLN
     Q --> EXP["Deterministic expectation kernel"]
     SH --> EXP
-    FOC --> PLN["Focus-and-expectation plan validation and selection"]
+    FOC --> PLN["Typed focus structure and focus-expectation plan validation"]
     EXP --> PLN
     PS --> PLN
     PLN --> VCTX["Post-plan validation-context construction"]
@@ -100,11 +105,13 @@ flowchart TD
     IR --> VCTX
     Q --> VCTX
     RC --> VCTX
-    PLN --> LEX["Qualified deterministic or vector-conditioned focus adapter"]
+    PLN -->|"validated Ready structure only"| LEX["Optional prose realization"]
+    PLN -->|"terminal Abstain or Conflict"| NOP["Deterministic no-adapter path"]
     LEX --> SLOT["Exact-slot validation and substitution"]
     SLOT --> VAL["Independent faithfulness and policy validation"]
     VCTX --> VAL
     VAL --> OUT["Exact compiled-text serialization"]
+    NOP --> OUT
     OUT --> CLOSE["Close every handle and snapshot, remove durable admission record, consume ticket, then return CompiledPrompt"]
 ```
 

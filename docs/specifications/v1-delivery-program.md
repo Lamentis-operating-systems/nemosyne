@@ -167,6 +167,7 @@ implementation or prove biological fidelity.
 | Selective prediction requires explicit coverage-risk tradeoffs | Gangrade et al. 2021 | Gate positive expectations and report abstention by reason | Theory assumptions may not match generative downstream tasks |
 | Local small language models and multilingual checkpoints exist | Official Qwen3 release materials | A local lexicalizer is technically testable | Advertised language support and benchmark scores do not qualify the renderer |
 | SQLite supports transactions, WAL, backup, and integrity checks | Official SQLite documentation | It is one viable local persistence candidate to evaluate | Base SQLite does not provide encryption at rest; storage selection remains open |
+| Isolated vector-focus feasibility retained more relative behavior with model-native token vectors than with generic semantic embeddings or an aggressive compact codec | Internal synthetic feasibility run, outside this repository and outside the formal evidence path | Keep exact applicability controls outside lossy vectors; compare a deterministic typed baseline before any optional learned realization | Internal synthetic direction only: not G1, V1, factual-memory, downstream-utility, or promotion evidence; no metric is adopted as a threshold |
 
 ### Canonical architecture wireframe
 
@@ -606,6 +607,63 @@ lookup, decimal vector serialization, or validator-only provenance for that
 flow.
 
 ### Work-package interface and execution metadata
+
+#### Applicability/readiness refinement and next implementation package
+
+Decision 0049 refines the existing package chain without adding a top-level
+package or changing its dependency counts:
+
+```text
+CORE-01 typed controls/outcomes
+→ CORE-02 controls embedded in shared records
+→ PLAN-01 applicability evaluation before focus candidates
+→ PLAN-02 validated TypedFocusStructureV1
+→ REN-01 deterministic realization
+→ optional evidence-gated adapter work
+```
+
+This order is normative. No attention/focus adapter or LLM integration may
+start before `PLAN-02` has emitted and validated the typed structure. Terminal
+`Abstain` and `Conflict` bypass every adapter and cannot be overridden.
+
+`CORE-01` is the exact next bounded implementation package, but it is not yet
+unlocked: the `EVD-02` harness and `BND-01` fixtures are present on current
+`main`, while the package's required passing G1 receipt does not exist. The
+package remains `Proposed` until that entrance evidence passes and the
+ordinary selection record assigns an accountable human; this statement does
+not fabricate selection or empirical readiness. Its implementation candidate
+has these exact boundaries:
+
+- **Owning crate/module:** `crates/nemosyne-core/src/applicability/{mod.rs,
+  model.rs, error.rs}`, publicly re-exported from
+  `nemosyne_core::applicability`.
+- **Candidate APIs:** checked constructors for `ApplicabilityBoundaryV1`, its
+  closed subject/project, status, revision/cycle, validity,
+  supersession/replacement, authority, and priority controls;
+  `ApplicabilityOutcomeV1::{Applicable, Abstain, Conflict}`;
+  `FocusReadinessOutcomeV1::{Ready, Abstain, Conflict}`; and a dependency-light
+  structural shell for `TypedFocusStructureV1`.
+- **Non-scope:** no store, encoder, retrieval, activation, focus selection,
+  prose, adapter, model, LLM call, persistent migration, or new production
+  dependency.
+- **Package-local fixtures:** positive all-controls-valid canonical `Ready`;
+  negative each missing, malformed, out-of-range, or noncanonical control;
+  counterexamples for project match with wrong subject, active record replaced
+  by a newer valid revision, stale cycle with high vector similarity,
+  lower-authority priority win attempts, equal-authority incompatible
+  replacements, and attempts to attach a ready payload or prose to terminal
+  `Abstain` or `Conflict`.
+- **Measurable merge evidence:** every closed control and error variant;
+  canonical ordering/hash equality under input permutation; max/max+1 bounds;
+  no ready payload or prose constructor on terminal variants; compile-fail
+  proof that callers cannot construct invalid states; existing primitive
+  compatibility; `cargo test -p nemosyne-core --all-features --locked`,
+  workspace Clippy/Rustdoc/tests, and all documentation gates.
+
+`CORE-01` owns vocabulary and invalid-state prevention only. `CORE-02` owns
+record composition; `PLAN-01` owns evaluation of the complete boundary;
+`PLAN-02` owns the complete typed focus structure. This split prevents the
+first package from silently implementing the memory or focus system.
 
 Complexity is relative (`S`, `M`, or `L`) and does not promise
 calendar duration. A low-confidence estimate must be replaced before package
@@ -3357,6 +3415,22 @@ An unchanged reviewed source appends none. Canonical DOC-00 attestations and gov
 Any later reviewed-source change appends exactly one `DOC-CONF-38` successor.
 An unchanged reviewed source appends none. Canonical DOC-00 attestations and governance programs remain unchanged.
 
+#### Manual conformance receipt `DOC-CONF-38`
+
+| Field | Value |
+| --- | --- |
+| Schema | `post-doc-history-conformance-v1` |
+| Record ID | `DOC-CONF-38` |
+| Status | `HistoryPass` |
+| Parent | `DOC-CONF-37` |
+| Scope | `append-only findings, conformance history, and documentation file/status inventory` |
+| Finding range | `FND-152..384` |
+| Inventory | `findings=384; conformances=38; specifications=16; decisions=49; accepted=39; superseded=10` |
+| Claim boundary | `History and inventory continuity only; no complete source-structure, product, implementation, empirical, security, or cognitive validation.` |
+
+Any later reviewed-source change appends exactly one `DOC-CONF-39` successor.
+An unchanged reviewed source appends none. Canonical DOC-00 attestations and governance programs remain unchanged.
+
 ### Required repository checks
 
 Every documentation or implementation package runs the commands required by
@@ -3480,6 +3554,7 @@ continues.
 - [Decision 0045: Adopt a typed G1 evaluation envelope](../decisions/0045-adopt-a-typed-g1-evaluation-envelope.md)
 - [Decision 0046: Bind EVD-02 to the exact admitted G1 run](../decisions/0046-bind-evd-02-to-the-exact-admitted-g1-run.md)
 - [Decision 0047: Adopt content-identified formal boundary fixtures](../decisions/0047-adopt-content-identified-formal-boundary-fixtures.md)
+- [Decision 0049: Gate focus generation with applicability and typed readiness](../decisions/0049-gate-focus-generation-with-applicability-and-typed-readiness.md)
 - Addis, Wong, and Schacter, [Remembering the past and imagining the future:
   common and distinct neural substrates during event construction and
   elaboration](https://pubmed.ncbi.nlm.nih.gov/17126370/)

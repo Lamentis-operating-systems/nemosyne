@@ -3129,6 +3129,27 @@ Consolidation creates request-local computational state only. Persistent
 episodic-to-semantic consolidation, reconsolidation, deletion, correction, and
 learning belong to a separately authorized memory-management path.
 
+### Applicability and focus readiness
+
+Before constructing any focus candidate, the focus boundary evaluates every
+admitted Request or Memory proposition through `ApplicabilityBoundaryV1`.
+Its canonical non-text controls are subject and project scope, record status,
+revision or cycle, validity interval and state, supersession/replacement, and
+authority ceiling and semantic priority.
+
+The evaluator cannot derive these controls from numerical proximity, text, or
+adapter output. Missing required control, incompatible scope, superseded
+source, invalid interval, lower-authority replacement attempt, or unresolved
+same-authority replacement conflict is handled by its closed typed rule rather
+than by candidate ranking.
+
+The result is exactly one `ApplicabilityOutcomeV1`. `Applicable` contains the
+validated canonical input from which focus candidates may be constructed.
+`Abstain` and `Conflict` are terminal for the focus branch and carry closed
+reason or conflict records; neither exposes a generator continuation.
+Malformed canonicalization, broken lineage, and capacity failures remain typed
+errors. They are never converted to `Abstain`.
+
 ### Focus-candidate construction
 
 The focus branch receives `&BoundQuery` and
