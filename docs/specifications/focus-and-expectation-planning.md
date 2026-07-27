@@ -1752,6 +1752,22 @@ focus context, it is infeasible.
 | Original prompt | Not as semantic generation input | Leakage check only | Appended byte-identically |
 | Action candidates or tool policy | No | Reject if present | No |
 
+### Typed focus structure and terminal readiness
+
+`PLAN-02` admits focus semantics only from
+`FocusReadinessOutcomeV1::Ready`. It constructs one finite canonical
+`TypedFocusStructureV1` before any lexical realization. The structure contains
+closed focus roles, admitted support handles, required qualifiers and
+relations, conflict and omission state, authority ceiling, and exact-slot
+descriptors. It contains no prose field and is independently validatable.
+
+`Abstain` and `Conflict` bypass the adapter and lexicalizer. They cannot be
+converted to `Ready`, have candidate text attached, or be resolved by a model.
+Where the expectation branch independently produces valid content, planning
+may still form an expectation-only plan without changing the terminal focus
+outcome. Otherwise serialization uses faithful empty attention or the
+applicable typed product error.
+
 ### Adapter and exact-sidecar flow
 
 ```mermaid

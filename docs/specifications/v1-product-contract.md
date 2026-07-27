@@ -32,6 +32,12 @@ before frozen comparative evidence. The linked architecture specifications
 define that path without changing the single-call result. No current
 implementation is claimed to satisfy this contract.
 
+Decision 0049 additionally places a structured applicability and readiness
+boundary before focus generation. Subject/project scope, status,
+revision/cycle, validity, supersession/replacement, and authority/priority are
+non-text controls. They are not inferred or overridden by an adapter or prose
+renderer.
+
 ## Definitions
 
 The **caller** is the local user or an AI agent, application, or function acting
@@ -108,6 +114,15 @@ command, safety claim, or probability. Attention is not a concatenation of raw
 memory records, a human inner monologue, a human or model chain of thought, or
 a claim about consciousness.
 
+Before focus generation, the compiler derives a closed
+`ApplicabilityOutcomeV1`; only `Applicable` may continue. `Abstain` and
+`Conflict` are deterministic terminal focus-branch outcomes. Before optional
+prose rendering, the compiler derives `FocusReadinessOutcomeV1::Ready` with a
+finite, canonical `TypedFocusStructureV1`, or carries the terminal outcome
+unchanged. No LLM, adapter, lexicalizer, validator, or downstream renderer can
+change a terminal outcome to `Ready`. Invalid structure or lineage remains a
+typed error, not abstention.
+
 ### Successful output
 
 The **compiled prompt** is the only successful V1 result:
@@ -168,8 +183,8 @@ specification remain normative.
 | `V1-R03` | Preserve the original prompt byte-for-byte inside the exact required framing and add no suffix. |
 | `V1-R04` | Compile read-only against one immutable logical memory revision and preserve all persistent semantic product state; permit only bounded, content-free durable admission coordination excluded from semantic computation. Normal product-success, compile-error, and cancellation returns require removal after bound resources close. The sole cleanup-failure return is a typed no-product admission-finalization error that leaves the store fail closed for startup reconciliation or authorized repair; abrupt runtime loss returns nothing and is restart-terminalized or conservatively generation-fenced. |
 | `V1-R05` | Apply authorization before relevance while keeping every authorized memory logically eligible across contextual associations. |
-| `V1-R06` | Preserve source support, authority ceilings, validity, uncertainty, and material conflict without promoting data into instructions. |
-| `V1-R07` | Produce concise, evidence-bound focus and/or qualified expectation context, or faithful empty attention; never produce an answer, unsupported claim, or raw context dump. |
+| `V1-R06` | Before focus generation, enforce structured non-text applicability controls for subject/project scope, status, revision/cycle, validity, supersession/replacement, and authority/priority; preserve source support, uncertainty, and material conflict without promoting data into instructions. |
+| `V1-R07` | Produce focus only from a validated finite typed focus structure, then optionally realize concise evidence-bound prose; otherwise preserve deterministic terminal `Abstain` or `Conflict`, qualified expectation context, or faithful empty attention. Never produce an answer, unsupported claim, or raw context dump. |
 | `V1-R08` | Enforce the declared language and finite attention budget, including faithful empty attention and explicit insufficient-budget failure. |
 | `V1-R09` | Keep persistent memory local and perform compilation without network access or compiler-initiated disclosure beyond the authorized local caller receiving the compiled result. |
 | `V1-R10` | Perform no autonomous environment discovery, downstream AI invocation, or automatic memory learning during compilation. |
@@ -177,7 +192,7 @@ specification remain normative.
 | `V1-R12` | Limit the first supported and validated product claim to the declared coding-agent evidence boundary. |
 | `V1-R13` | Keep initialization, memory creation, import, correction, deletion, export, consolidation, and maintenance outside the compile operation under separate contracts. |
 | `V1-R14` | Represent predictive evidence as versioned transition memories that distinguish before-state, condition, outcome representation, horizon, validity, reliability, provenance, dependency, and observation status. |
-| `V1-R15` | Keep focus, expectation, goal, action, answer, fact, and probability as distinct semantic types throughout compilation and rendering. |
+| `V1-R15` | Keep applicability, readiness, typed focus structure, prose realization, expectation, goal, action, answer, fact, and probability as distinct semantic types throughout compilation and rendering. |
 | `V1-R16` | Permit zero to a configured finite number of competing evidence-bound expectations rather than forcing one outcome. |
 | `V1-R17` | Preserve each expectation's kind, condition, horizon, source support, counterevidence, uncertainty, exact values, and authority ceiling. |
 | `V1-R18` | Prevent duplicated or known-dependent records from multiplying their total predictive-support budget. |
@@ -186,7 +201,7 @@ specification remain normative.
 | `V1-R21` | Preserve material incompatible alternatives and unknown or omitted support; never hide them through top-k renormalization or prose selection. |
 | `V1-R22` | Keep assessment of later observations outside the compile API and product result; conformance evaluation may compare immutable expectation fixtures without mutating them, and only a separate explicit compile may reconsider alternatives. |
 | `V1-R23` | Never treat renderer output, downstream agent output, or a prior prediction as persistent memory truth without a separate independently authorized observation. |
-| `V1-R24` | Keep the renderer a local lexicalizer of a qualified plan; it must not generate semantic expectations, probabilities, answers, or actions. |
+| `V1-R24` | Keep the renderer a local lexicalizer of a validated typed structure from a qualified plan; it cannot override terminal abstention/conflict and must not generate semantic focus eligibility, expectations, probabilities, answers, or actions. |
 | `V1-R25` | Enforce finite configured limits on inputs, candidates, transitions, outcome groups, alternatives, exact values, computation, model resources, and attention output. |
 
 ## Preconditions
