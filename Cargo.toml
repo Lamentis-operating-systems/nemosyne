@@ -4,6 +4,7 @@ members = [
     "crates/nemosyne-core",
     "crates/nemosyne-evaluation",
     "crates/nemosyne-evaluation-corpus",
+    "crates/nemosyne-experimental-alpha",
 ]
 resolver = "3"
 

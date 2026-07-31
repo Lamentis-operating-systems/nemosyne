@@ -1,6 +1,6 @@
 # Experimental Alpha path
 
-Status: Proposed
+Status: Experimental
 
 ## Purpose
 
@@ -65,6 +65,54 @@ Alpha is not added to the 54-package delivery DAG.
   errors under one documented deterministic precedence.
 - Outcome semantics and precedence are specified before implementation. The
   current proposal does not select them merely from feasibility metrics.
+
+## Frozen implementation contract
+
+The sole Alpha implementation package is
+`crates/nemosyne-experimental-alpha`. Its public API is owned by the crate root
+and consists of bounded constructors for identifiers, cycle, authority,
+priority, support handles, candidates, query scope, controls, focus items, and
+focus structures; `evaluate` owns applicability and `realize` owns the
+deterministic structural baseline. No other crate owns or re-exports these
+types.
+
+Identifiers, cycles, and support handles are nonempty and at most 64 UTF-8
+bytes. Authority and priority are integers in `0..=15`; revision is a positive
+integer. One call accepts `1..=32` candidates. A focus structure contains
+`1..=16` items, each with one unique support handle and an optional qualifier
+of at most 128 UTF-8 bytes.
+
+Evaluation first sorts the complete input into canonical order and validates
+every candidate. Duplicate candidate identifiers, self-replacement, and a
+replacement target absent from the bounded input reject. A construction or
+validation error returns a typed `Error` and produces no semantic outcome.
+Valid candidates then require exact
+subject, project, and optional cycle equality, `Active`, `Valid`, and
+`Current`. If none survive, the outcome is terminal `Abstain`.
+
+Survivors are ordered lexicographically by authority, priority, and revision,
+with the larger value preferred at each position. If all candidates at the
+maximal tuple contain the same typed items, that structure is canonicalized
+and becomes `Applicable`. If their typed items differ, the outcome is terminal
+`Conflict`; candidate identifiers never break this semantic tie. Readiness is
+a closed conversion from `Applicable` to `Ready` and preserves `Abstain` and
+`Conflict` unchanged.
+
+The baseline accepts only `Ready`. It emits the authority and canonically
+ordered role, support-handle, and escaped qualifier fields as UTF-8 bytes.
+Terminal outcomes return `TerminalOutcome` and no bytes.
+
+The frozen package-local fixture manifest is:
+
+| Fixture | Content identifier | Required observation |
+| --- | --- | --- |
+| Positive | `alpha-positive-001` | Higher authority wins and input permutations produce byte-identical baseline output |
+| Negative | `alpha-negative-001` | Scope mismatch, inactive, invalid, and replaced records abstain and produce no bytes |
+| Counterexample | `alpha-counterexample-001` | Equal maximal controls with different typed items conflict and produce no bytes |
+
+These stable identifiers name synthetic source fixtures; changing a fixture's
+controls or expected observation requires a new identifier and specification
+change. They are not formal evidence identifiers.
 
 ## Invariants
 
@@ -135,14 +183,9 @@ security, cognitive validity, or release readiness.
 
 ## Open questions
 
-- The exact finite Alpha control schemas, limits, error variants, and
-  deterministic error/outcome precedence.
-- The exact bounded typed-focus roles and canonical baseline encoding.
-- The frozen fixture manifest and minimum counterexample matrix.
-
-These are blockers for the implementation pull request. Persistence, product
-API, LLM/model choice, adapter integration, and release are outside this
-specification rather than open Alpha questions.
+There are no open questions inside the bounded Alpha implementation contract.
+Persistence, product API, LLM/model choice, adapter integration, adoption into
+V1, and release remain outside this specification.
 
 ## References
 
